@@ -47,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
             <div className="hidden md:flex flex-col">
               <span className="text-xl font-black leading-none uppercase tracking-tighter">
-                <span className="text-emerald-600">NILO</span> <span className="text-red-600">Lanches</span>
+                <span className="text-emerald-500">NILO</span> <span className="text-red-600">Lanches</span>
               </span>
               <span className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 ${isStoreOpen ? 'text-emerald-500' : 'text-red-500'}`}>
                 {isStoreOpen ? '● Aberto agora' : '● Fechado'}

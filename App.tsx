@@ -230,7 +230,6 @@ const App: React.FC = () => {
                 const newOrders = [...prevOrders];
                 newOrders[orderIndex] = updatedOrder;
                 
-                // Salva no banco de forma assíncrona fora da renderização
                 dbService.save('orders', id, updatedOrder);
                 return newOrders;
               });
@@ -259,14 +258,25 @@ const App: React.FC = () => {
           <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} />
         ) : (
           <div className="flex flex-col w-full">
-            <section className="relative w-full h-[350px] bg-slate-900 flex items-center overflow-hidden">
-               <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover brightness-[0.7]" />
+            {/* HERO SECTION REFINADO */}
+            <section className="relative w-full h-[450px] sm:h-[550px] bg-slate-900 flex items-center overflow-hidden">
+               <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover brightness-[0.6] scale-110" />
+               <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/80 via-emerald-950/40 to-transparent"></div>
                <div className="max-w-7xl mx-auto px-6 relative z-10 w-full text-left">
-                  <h1 className="text-7xl sm:text-8xl font-black uppercase tracking-tighter drop-shadow-lg flex flex-col leading-[0.85]">
+                  <div className="inline-block px-4 py-2 bg-emerald-500/20 backdrop-blur-md rounded-full border border-emerald-500/30 mb-6 animate-fade-in">
+                    <span className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.3em]">Hambúrgueres Artesanais</span>
+                  </div>
+                  <h1 className="text-7xl sm:text-9xl font-black uppercase tracking-tighter drop-shadow-2xl flex flex-col leading-[0.8]">
                     <span className="text-emerald-500">NILO</span>
                     <span className="text-red-600">Lanches</span>
                   </h1>
-                  <p className="text-white font-black uppercase tracking-widest text-sm mt-4 drop-shadow-md">O sabor artesanal de Uberaba na sua casa</p>
+                  <p className="text-white/80 font-bold max-w-lg text-sm sm:text-lg mt-8 drop-shadow-md leading-relaxed">
+                    A verdadeira experiência do burger artesanal em Uberaba. <br className="hidden sm:block" /> Carne suculenta, ingredientes frescos e aquele molho que você só encontra aqui.
+                  </p>
+                  <div className="flex gap-4 mt-10">
+                    <button onClick={() => window.scrollTo({top: 600, behavior: 'smooth'})} className="bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl shadow-emerald-900/40 border-b-4 border-emerald-800 active:translate-y-1">Ver Cardápio</button>
+                    {!currentUser && <button onClick={() => setIsAuthModalOpen(true)} className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all border border-white/20">Fazer Login</button>}
+                  </div>
                </div>
             </section>
 
