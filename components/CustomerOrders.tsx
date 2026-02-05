@@ -1,0 +1,89 @@
+import React from 'react';
+import { Order, OrderStatus } from '../types.ts';
+
+interface CustomerOrdersProps {
+  orders: Order[];
+  onBack: () => void;
+}
+
+export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack }) => {
+  const getStatusStyle = (status: OrderStatus) => {
+    switch (status) {
+      case 'NOVO': return 'bg-blue-100 text-blue-600';
+      case 'PREPARANDO': return 'bg-amber-100 text-amber-600';
+      case 'PRONTO PARA RETIRADA': return 'bg-cyan-100 text-cyan-600';
+      case 'SAIU PARA ENTREGA': return 'bg-purple-100 text-purple-600';
+      case 'FINALIZADO': return 'bg-emerald-100 text-emerald-600';
+      case 'CANCELADO': return 'bg-red-100 text-red-600';
+      default: return 'bg-slate-100 text-slate-600';
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in">
+      <div className="flex items-center gap-4 mb-10">
+        <button onClick={onBack} className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div>
+          <h2 className="text-3xl font-black text-emerald-600 tracking-tight uppercase">Meus Pedidos</h2>
+          <p className="text-slate-500 font-bold text-sm">Acompanhe suas delícias em tempo real</p>
+        </div>
+      </div>
+
+      {orders.length === 0 ? (
+        <div className="bg-white rounded-[40px] p-20 text-center border border-slate-100 shadow-sm">
+          <span className="text-6xl mb-6 block">🍔</span>
+          <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Você ainda não fez nenhum pedido.</p>
+          <button onClick={onBack} className="mt-8 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all">Ver Cardápio</button>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {orders.map(order => (
+            <div key={order.id} className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex flex-col md:flex-row justify-between gap-6">
+                <div className="space-y-4 flex-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
+                    <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-wider ${getStatusStyle(order.status)}`}>
+                      {order.status}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {order.items.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between">
+                        <p className="text-sm font-bold text-emerald-600">
+                          <span className="text-emerald-600 font-black">{item.quantity}x</span> {item.name}
+                        </p>
+                        <p className="text-xs font-bold text-slate-400">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-50 flex justify-between items-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Pago</p>
+                    <p className="text-xl font-black text-slate-900">R$ {order.total.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                <div className="md:w-64 space-y-4">
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-tighter">Endereço de Entrega</p>
+                    <p className="text-xs font-bold text-slate-600 leading-tight">{order.customerAddress}</p>
+                  </div>
+                  <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                    <p className="text-[9px] font-black text-emerald-600 uppercase mb-2 tracking-tighter">Pagamento</p>
+                    <p className="text-xs font-bold text-emerald-800 uppercase">{order.paymentMethod}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};

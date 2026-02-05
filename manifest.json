@@ -1,0 +1,25 @@
+{
+  "short_name": "Nilo Lanches",
+  "name": "Nilo Lanches Delivery",
+  "description": "O melhor lanche de Uberaba na palma da sua mão.",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?q=80&w=192",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?q=80&w=512",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "https://delivery.nilolanches.com.br/",
+  "scope": "https://delivery.nilolanches.com.br/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#014c3c",
+  "background_color": "#ffffff"
+}
