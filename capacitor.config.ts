@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    url: 'https://delivery.nilolanches.com.br',
+    url: 'https://nilolanches.com.br',
     cleartext: true
   },
   plugins: {

@@ -1,7 +1,7 @@
 {
   "name": "Nilo Lanches Oficial",
   "short_name": "Nilo Lanches",
-  "description": "O lanche que você respeita! Delivery de hambúrgueres artesanais em Uberaba-MG.",
+  "description": "O lanche que você respeita! Delivery de hambúrgueres artesanais em Uberaba-MG. Peça agora pelo nosso domínio oficial nilolanches.com.br",
   "requestFramePermissions": [
     "geolocation",
     "camera",

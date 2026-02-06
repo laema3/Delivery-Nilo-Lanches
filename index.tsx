@@ -1,51 +1,58 @@
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
-// Registro inteligente do Service Worker
-const registerSW = () => {
-  if ('serviceWorker' in navigator) {
-    // Registra apenas se não for localhost ou se estiver explicitamente em produção
-    const isLocal = window.location.hostname === 'localhost';
-    const isSandbox = window.location.hostname.includes('usercontent.goog');
+const handleServiceWorker = () => {
+  const isSandbox = 
+    window.location.hostname.includes('usercontent.goog') || 
+    window.location.hostname.includes('ai.studio') ||
+    window.location.hostname.includes('cloudshell') ||
+    window.location.protocol === 'file:';
+
+  if (isSandbox) {
+    console.log('Nilo Lanches: Ambiente de Sandbox detectado. Desativando Service Worker para evitar erros de origem.');
     
-    // Evita erro de cross-origin em sandboxes do AI Studio, mas permite em produção
-    if (!isSandbox || isLocal) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Nilo Lanches: PWA Ativo!', reg.scope))
-          .catch(err => console.debug('SW: Registro ignorado por restrição de domínio.'));
-      });
+    // Tenta limpar registros existentes que podem estar causando erros
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      }).catch(err => console.debug('Erro ao limpar SW:', err));
     }
+    return;
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => {
+          console.log('Nilo Lanches: PWA Ativo.');
+          window.addEventListener('focus', () => reg.update());
+        })
+        .catch(err => console.debug('PWA Registration skipped in this context.', err));
+    });
   }
 };
 
-registerSW();
+handleServiceWorker();
 
 const removeLoader = () => {
   const loader = document.getElementById('initial-loader');
   if (loader) {
     loader.style.opacity = '0';
-    setTimeout(() => {
-      if (loader.parentNode) loader.remove();
-    }, 500);
+    setTimeout(() => loader.remove(), 500);
   }
 };
 
 const container = document.getElementById('root');
-
 if (container) {
-  try {
-    const root = createRoot(container);
-    root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
-    
-    setTimeout(removeLoader, 800);
-  } catch (error) {
-    console.error("Critical Render Error:", error);
-    removeLoader();
-  }
+  const root = createRoot(container);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+  setTimeout(removeLoader, 800);
 }

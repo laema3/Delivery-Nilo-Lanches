@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Customer } from '../types.ts';
 
 interface NavbarProps {
@@ -21,7 +21,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   cartCount, 
   onCartClick, 
   isAdmin, 
-  onToggleAdmin,
   searchTerm,
   onSearchChange,
   currentUser,
@@ -31,6 +30,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   isStoreOpen = true,
   logoUrl
 }) => {
+  const [isLive, setIsLive] = useState(true);
+
+  // Simula detecção de conexão para o cliente
+  useEffect(() => {
+    const handleOnline = () => setIsLive(true);
+    const handleOffline = () => setIsLive(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   return (
     <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md w-full border-b border-slate-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -38,20 +51,28 @@ export const Navbar: React.FC<NavbarProps> = ({
           
           {/* Logo Section */}
           <div className="flex items-center gap-3 flex-shrink-0 cursor-pointer group" onClick={() => !isAdmin && window.scrollTo({top: 0, behavior: 'smooth'})}>
-            <div className="w-12 h-12 sm:w-20 sm:h-20 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden border-2 border-white transition-transform group-hover:scale-105">
-              {logoUrl ? (
-                <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" />
-              ) : (
-                <span className="text-white text-xl sm:text-3xl">🍔</span>
-              )}
+            <div className="relative">
+              <div className="w-12 h-12 sm:w-20 sm:h-20 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden border-2 border-white transition-transform group-hover:scale-105">
+                {logoUrl ? (
+                  <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" />
+                ) : (
+                  <span className="text-white text-xl sm:text-3xl">🍔</span>
+                )}
+              </div>
+              {/* Indicador de Conexão Real-time */}
+              <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${isLive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-red-500 animate-pulse'}`}></div>
             </div>
+            
             <div className="hidden md:flex flex-col">
               <span className="text-xl font-black leading-none uppercase tracking-tighter">
                 <span className="text-emerald-500">NILO</span> <span className="text-red-600">Lanches</span>
               </span>
-              <span className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 ${isStoreOpen ? 'text-emerald-500' : 'text-red-500'}`}>
-                {isStoreOpen ? '● Aberto agora' : '● Fechado'}
-              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`text-[8px] font-black uppercase tracking-widest ${isStoreOpen ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {isStoreOpen ? 'Aberto' : 'Fechado'}
+                </span>
+                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">● LIVE</span>
+              </div>
             </div>
           </div>
 
@@ -63,7 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   type="text" 
                   value={searchTerm}
                   onChange={(e) => onSearchChange(e.target.value)}
-                  placeholder="Buscar seu lanche..." 
+                  placeholder="O que vamos comer?" 
                   className="w-full bg-slate-100 border-2 border-transparent rounded-2xl px-5 py-3 text-xs sm:text-sm font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all placeholder:text-slate-400"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none">🔍</span>
@@ -73,16 +94,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
-            <button 
-              onClick={onToggleAdmin} 
-              className={`p-3 rounded-2xl transition-all ${isAdmin ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-400 hover:text-emerald-600'}`} 
-              title="Painel Admin"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </button>
-
             {!isAdmin && currentUser && (
               <button onClick={onMyOrdersClick} className="p-3 text-slate-500 hover:text-emerald-600 transition-all bg-slate-50 rounded-2xl" title="Meus Pedidos">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

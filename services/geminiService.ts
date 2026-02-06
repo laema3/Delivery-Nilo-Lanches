@@ -31,9 +31,10 @@ export const getAiRecommendation = async (cart: any[], allProducts: Product[]) =
           },
           propertyOrdering: ["suggestion", "reasoning"]
         }
+        // Nota: Omitir thinkingConfig permite que o modelo use seu orçamento padrão, 
+        // necessário para modelos Gemini 3 funcionarem sem erro 400.
       }
     });
-    // Extrai o texto gerado usando a propriedade .text (não é um método)
     const text = response.text;
     return text ? JSON.parse(text) : null;
   } catch (error) {
@@ -58,12 +59,10 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
       contents: [...history, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
-        temperature: 0.7,
-        // Configura o orçamento máximo de pensamento para tarefas complexas de raciocínio
-        thinkingConfig: { thinkingBudget: 32768 }
+        temperature: 0.7
+        // Removido thinkingBudget: 0 para evitar erro de argumento inválido em modelos da série 3.
       }
     });
-    // Uso direto da propriedade .text conforme as diretrizes do SDK
     return response.text;
   } catch (error) {
     console.error("Erro no chat AI:", error);
@@ -84,7 +83,6 @@ export const generateProductImage = async (productName: string) => {
       }
     });
 
-    // Itera pelas partes da resposta para localizar os dados da imagem (inlineData)
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;

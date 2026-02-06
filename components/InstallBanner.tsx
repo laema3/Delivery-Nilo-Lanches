@@ -1,15 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 
-export const InstallBanner: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = deferredPromptState();
+interface InstallBannerProps {
+  logoUrl?: string;
+}
+
+export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-
-  // Helper para lidar com o estado do prompt que pode ser volátil
-  function deferredPromptState() {
-    return useState<any>(null);
-  }
 
   useEffect(() => {
     // Verifica se é iOS
@@ -20,13 +19,13 @@ export const InstallBanner: React.FC = () => {
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      // Mostra o banner após 4 segundos para não ser invasivo logo de cara
+      // Mostra o banner após 4 segundos
       setTimeout(() => setIsVisible(true), 4000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Se for iOS, mostramos após alguns segundos se não estiver em modo standalone
+    // Se for iOS e não estiver em modo standalone
     if (isIOSDevice && !(window.navigator as any).standalone) {
       const timer = setTimeout(() => setIsVisible(true), 6000);
       return () => clearTimeout(timer);
@@ -60,17 +59,20 @@ export const InstallBanner: React.FC = () => {
 
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-2xl flex items-center justify-center text-3xl shadow-lg border border-white/20 shrink-0">
-              🍔
+            <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg border border-white/20 shrink-0 overflow-hidden">
+              {logoUrl ? (
+                <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" />
+              ) : (
+                <span className="text-3xl">🍔</span>
+              )}
             </div>
             <div className="flex flex-col items-start text-left">
               <h4 className="text-sm font-black text-white uppercase tracking-tight leading-none">
-                Baixar App <span className="text-emerald-500">NILO</span>
+                App <span className="text-emerald-500">NILO</span> <span className="text-red-600">Lanches</span>
               </h4>
-              <p className="text-[10px] text-slate-400 font-bold mt-1.5 leading-tight">Peça mais rápido e economize dados!</p>
+              <p className="text-[10px] text-slate-400 font-bold mt-1.5 leading-tight">Peça mais rápido e receba avisos!</p>
               <div className="flex gap-2 mt-2">
-                <span className="text-[8px] bg-white/10 text-emerald-400 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Leve</span>
-                <span className="text-[8px] bg-white/10 text-emerald-400 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Seguro</span>
+                <span className="text-[8px] bg-white/10 text-emerald-400 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Oficial</span>
               </div>
             </div>
           </div>

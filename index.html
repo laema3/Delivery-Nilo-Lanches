@@ -1,20 +1,28 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Nilo Lanches - Delivery Oficial</title>
-    <link rel="icon" type="image/png" href="https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?q=80&w=32">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#014c3c">
     
-    <!-- Apple Touch Icon & Meta Tags -->
-    <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?q=80&w=192">
+    <!-- Link Canônico Atualizado para o domínio principal -->
+    <link rel="canonical" href="https://nilolanches.com.br" />
+
+    <!-- Ícones com IDs para troca dinâmica -->
+    <link id="favicon" rel="icon" type="image/png" href="https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?q=80&w=32">
+    <link id="apple-icon" rel="apple-touch-icon" href="https://images.unsplash.com/photo-1571091718767-18b5b1457add?q=80&w=192">
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#008000">
+    
+    <!-- Apple PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Nilo Lanches">
 
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -28,15 +36,18 @@
                             200: '#bbf7d0',
                             300: '#86efac',
                             400: '#4ade80',
-                            500: '#015e4a',
-                            600: '#014c3c',
-                            700: '#013a2e',
-                            800: '#012820',
-                            900: '#011612',
-                            950: '#000a08',
+                            500: '#22c55e',
+                            600: '#008000',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                            950: '#052e16',
                         }
                     },
-                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    fontFamily: { 
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        brand: ['Bebas Neue', 'cursive']
+                    },
                     animation: { 
                       'fade-in': 'fadeIn 0.3s ease-out',
                       'slide-up': 'slideUp 0.4s ease-out'
@@ -79,7 +90,7 @@
         }
         .spinner {
             width: 48px; height: 48px; border: 4px solid #f3f3f3;
-            border-top: 4px solid #014c3c; border-radius: 50%;
+            border-top: 4px solid #008000; border-radius: 50%;
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -89,7 +100,7 @@
 <body class="antialiased">
     <div id="initial-loader" class="initial-loader">
         <div class="spinner"></div>
-        <p style="margin-top: 24px; color: #014c3c; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 3px;">Nilo Lanches</p>
+        <p style="margin-top: 24px; color: #008000; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 3px; font-family: 'Bebas Neue', cursive;">Nilo Lanches</p>
     </div>
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
