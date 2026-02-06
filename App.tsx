@@ -118,6 +118,17 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col w-full overflow-x-hidden">
+      {/* BANNER NO TOPO ABSOLUTO */}
+      {!isStoreOpen && !isAdmin && (
+        <div className="w-full bg-red-600 text-white py-3 px-6 text-center animate-pulse flex items-center justify-center gap-3 shadow-lg z-[100] relative">
+          <span className="text-xl">⚠️</span>
+          <span className="font-black uppercase text-[10px] sm:text-xs tracking-widest">
+            Estamos fechados no momento. Pedidos desativados.
+          </span>
+          <span className="text-xl">⚠️</span>
+        </div>
+      )}
+
       <Navbar 
         cartCount={cartCount} onCartClick={() => setIsCartOpen(true)} 
         isAdmin={isAdmin} onToggleAdmin={() => isAdmin ? setIsAdmin(false) : (isAdminAuthenticated ? setIsAdmin(true) : setIsAdminLoginOpen(true))} 

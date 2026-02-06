@@ -31,11 +31,15 @@ export const getAiRecommendation = async (cart: any[], allProducts: Product[]) =
           },
           propertyOrdering: ["suggestion", "reasoning"]
         }
-        // Nota: Omitir thinkingConfig permite que o modelo use seu orçamento padrão, 
-        // necessário para modelos Gemini 3 funcionarem sem erro 400.
       }
     });
-    const text = response.text;
+    
+    // Extrai apenas as partes de texto para evitar o aviso de 'thoughtSignature'
+    const text = response.candidates?.[0]?.content?.parts
+      ?.filter(part => part.text)
+      ?.map(part => part.text)
+      ?.join('') || "";
+
     return text ? JSON.parse(text) : null;
   } catch (error) {
     console.error("Erro na recomendação AI:", error);
@@ -53,17 +57,29 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
     ${productsList}
   `;
 
+  // A API do Gemini exige que o histórico comece com uma mensagem de 'user'.
+  const validHistory = history.filter(h => h.role === 'user' || h.role === 'model');
+  if (validHistory.length > 0 && validHistory[0].role === 'model') {
+    validHistory.shift();
+  }
+
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
-      contents: [...history, { role: 'user', parts: [{ text: message }] }],
+      model: "gemini-3-flash-preview",
+      contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
         temperature: 0.7
-        // Removido thinkingBudget: 0 para evitar erro de argumento inválido em modelos da série 3.
       }
     });
-    return response.text;
+
+    // Extrai apenas as partes de texto para evitar o aviso de 'thoughtSignature'
+    const text = response.candidates?.[0]?.content?.parts
+      ?.filter(part => part.text)
+      ?.map(part => part.text)
+      ?.join('') || "";
+
+    return text || "Ops, tive um probleminha. Pode repetir? 🍔";
   } catch (error) {
     console.error("Erro no chat AI:", error);
     return "Ops, tive um probleminha. Pode repetir? 🍔";
