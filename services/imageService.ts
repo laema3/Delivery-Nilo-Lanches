@@ -38,8 +38,8 @@ export const compressImage = (base64Str: string, maxWidth = 512, maxHeight = 512
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(img, 0, 0, width, height);
-        // Exporta como PNG para manter transparência se houver, ou JPEG para economia
-        resolve(canvas.toDataURL('image/png', quality));
+        // Exporta como JPEG para permitir compressão real (PNG é sempre lossless e ignoraria o quality)
+        resolve(canvas.toDataURL('image/jpeg', quality));
       } else {
         resolve(base64Str);
       }

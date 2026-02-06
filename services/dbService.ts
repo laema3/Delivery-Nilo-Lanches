@@ -6,11 +6,10 @@ import {
   doc, 
   deleteDoc,
   onSnapshot,
-  query,
-  orderBy
+  query
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const LOCAL_KEY_PREFIX = 'nilo_storage_v3_';
+const LOCAL_KEY_PREFIX = 'nilo_storage_v6_';
 
 const COLLECTION_MAP: Record<string, string> = {
   'orders': 'nilo_orders',
@@ -25,58 +24,38 @@ const COLLECTION_MAP: Record<string, string> = {
   'coupons': 'coupons'
 };
 
-const sanitizeData = (data: any) => {
-  return JSON.parse(JSON.stringify(data, (key, value) => 
-    value === undefined ? null : value
-  ));
-};
-
 export const dbService = {
   isFirebaseConnected(): boolean {
     return !!db;
   },
 
-  // Sincronização Híbrida (Local + Nuvem)
   subscribe<T>(key: string, callback: (data: T) => void) {
     const localPath = `${LOCAL_KEY_PREFIX}${key}`;
     
-    // 1. Tenta carregar do LocalStorage imediatamente para a interface não ficar vazia
+    // Feedback imediato do cache
     const localData = localStorage.getItem(localPath);
     if (localData) {
-      try {
-        callback(JSON.parse(localData));
-      } catch (e) {
-        console.warn(`Erro ao ler cache local de ${key}:`, e);
-      }
+      try { callback(JSON.parse(localData)); } catch (e) {}
     }
 
-    // 2. Se o Firebase não estiver configurado, paramos aqui
-    if (!db) {
-      console.warn(`Firebase não inicializado. Usando apenas modo offline para ${key}.`);
-      return () => {};
-    }
+    if (!db) return () => {};
     
     const firebaseCollection = COLLECTION_MAP[key] || key;
-    let q: any = collection(db, firebaseCollection);
-    
-    if (key === 'orders') {
-      q = query(collection(db, firebaseCollection), orderBy('createdAt', 'desc'));
-    }
+    const q = query(collection(db, firebaseCollection));
 
-    // 3. Conecta o listener em tempo real da nuvem
-    return onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+    return onSnapshot(q, (snapshot) => {
       const data: any[] = [];
       snapshot.forEach((doc) => {
         data.push({ ...doc.data(), id: doc.id });
       });
       
-      // Atualiza o localStorage com os dados mais recentes da nuvem
-      localStorage.setItem(localPath, JSON.stringify(data));
+      try {
+        localStorage.setItem(localPath, JSON.stringify(data));
+      } catch (e) {}
       
-      // Notifica o aplicativo com os dados reais
       callback(data as unknown as T);
     }, (error) => {
-      console.error(`Erro de sincronização em tempo real (${key}):`, error);
+      console.warn(`Sync ${key} suspenso. Usando cache local.`);
     });
   },
 
@@ -87,48 +66,60 @@ export const dbService = {
   },
 
   async save<T>(key: string, id: string, data: T) {
-    const firebaseCollection = COLLECTION_MAP[key] || key;
-    const sanitized = sanitizeData(data);
+    if (!id) throw new Error("ID de referência ausente.");
     
-    // Atualiza localmente primeiro para resposta imediata
-    const localPath = `${LOCAL_KEY_PREFIX}${key}`;
-    const current = await this.getAll(key, []);
-    const exists = (current as any[]).findIndex(i => i.id === id);
-    let updated;
-    if (exists >= 0) {
-      updated = [...(current as any[])];
-      updated[exists] = { ...sanitized, id };
-    } else {
-      updated = [...(current as any[]), { ...sanitized, id }];
-    }
-    localStorage.setItem(localPath, JSON.stringify(updated));
+    const firebaseCollection = COLLECTION_MAP[key] || key;
+    const toSave = { ...data } as any;
+    delete toSave.id; // Remove ID do corpo do documento para o Firestore
 
-    // Sincroniza com a nuvem
+    const cleanData = JSON.parse(JSON.stringify(toSave, (k, v) => v === undefined ? null : v));
+
+    // 1. Atualiza LocalStorage Imediatamente
+    const localPath = `${LOCAL_KEY_PREFIX}${key}`;
     try {
-      if (db) {
+      const current = await this.getAll(key, [] as any);
+      const updated = Array.isArray(current) ? [...current] : [];
+      const idx = updated.findIndex((i: any) => i.id === id);
+      
+      const itemWithId = { ...cleanData, id };
+      if (idx >= 0) updated[idx] = itemWithId;
+      else updated.push(itemWithId);
+      
+      localStorage.setItem(localPath, JSON.stringify(updated));
+    } catch (e) {}
+
+    // 2. Persiste no Firebase em segundo plano
+    if (db) {
+      try {
         const docRef = doc(db, firebaseCollection, id);
-        await setDoc(docRef, sanitized, { merge: true });
+        await setDoc(docRef, cleanData, { merge: true });
+      } catch (err) {
+        console.error("Erro ao persistir na nuvem:", err);
       }
-    } catch (error) {
-      console.error(`[Firestore] Erro ao salvar ${key}:`, error);
     }
   },
 
   async remove(key: string, id: string) {
+    if (!id) return;
     const firebaseCollection = COLLECTION_MAP[key] || key;
     
-    // Remove localmente primeiro
+    // 1. Remove do LocalStorage Imediatamente
     const localPath = `${LOCAL_KEY_PREFIX}${key}`;
-    const current = await this.getAll(key, []);
-    const updated = (current as any[]).filter(i => i.id !== id);
-    localStorage.setItem(localPath, JSON.stringify(updated));
-
     try {
-      if (db) {
-        await deleteDoc(doc(db, firebaseCollection, id));
+      const current = await this.getAll(key, [] as any);
+      if (Array.isArray(current)) {
+        const updated = current.filter((i: any) => i.id !== id);
+        localStorage.setItem(localPath, JSON.stringify(updated));
       }
-    } catch (error) {
-      console.error(`[Firestore] Erro ao remover ${key}:`, error);
+    } catch (e) {}
+
+    // 2. Remove do Firebase em segundo plano
+    if (db) {
+      try {
+        await deleteDoc(doc(db, firebaseCollection, id));
+      } catch (err) {
+        console.error("Erro ao remover da nuvem:", err);
+      }
     }
   }
 };
