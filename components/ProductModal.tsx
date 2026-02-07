@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Product, Complement, CategoryItem } from '../types.ts';
 
@@ -50,7 +51,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, complements
               <button onClick={onClose} className="hidden md:block p-1.5 text-slate-400">✕</button>
             </div>
             <h2 className="text-xl md:text-3xl font-black uppercase text-red-600 tracking-tight leading-tight">{product.name}</h2>
-            <p className="text-slate-500 text-xs font-medium">{product.description}</p>
+            {/* DESCRIÇÃO EM MAIÚSCULO NO MODAL */}
+            <p className="text-slate-500 text-xs font-medium uppercase">{product.description}</p>
 
             <div className="space-y-3 pt-4">
               <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Turbine seu lanche</h4>

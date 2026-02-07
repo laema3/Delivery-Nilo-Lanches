@@ -31,12 +31,12 @@ html, body {
 }
 
 .animate-bounce-subtle {
-  animation: bounceSubtle 3s infinite ease-in-out;
+  animation: bounceSubtle 0.8s infinite ease-in-out;
 }
 
 @keyframes bounceSubtle {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  50% { transform: translateY(-15px) scale(1.1); }
 }
 
 .glass-morphism { 
@@ -73,7 +73,7 @@ html, body {
 
 /* Sincronizado com o loader de 1 segundo */
 .animate-loading-bar {
-  animation: loadingBar 1s infinite ease-in-out;
+  animation: loadingBar 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .mask-linear-right {

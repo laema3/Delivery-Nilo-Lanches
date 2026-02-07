@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Product } from '../types.ts';
 
@@ -39,8 +40,8 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
         <h3 className="text-lg font-black uppercase text-emerald-600 leading-tight tracking-tight line-clamp-1 mb-1">
           {product.name}
         </h3>
-        {/* DESCRIÇÃO EM VERMELHO */}
-        <p className="text-red-600 text-[11px] font-bold leading-snug line-clamp-2">
+        {/* DESCRIÇÃO EM VERMELHO - FORÇADA PARA UPPERCASE */}
+        <p className="text-red-600 text-[11px] font-bold leading-snug line-clamp-2 uppercase">
           {product.description || 'Lanche artesanal preparado com dedicação pela equipe Nilo Lanches.'}
         </p>
       </div>

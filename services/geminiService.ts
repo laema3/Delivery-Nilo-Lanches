@@ -26,19 +26,17 @@ export const getAiRecommendation = async (cart: any[], allProducts: Product[]) =
             },
             reasoning: { 
               type: Type.STRING,
-              description: 'O motivo da sugestão baseada nos itens do carrinho.'
+              description: 'O motivo da sugerão baseada nos itens do carrinho.'
             }
           },
           propertyOrdering: ["suggestion", "reasoning"]
-        }
+        },
+        thinkingConfig: { thinkingBudget: 0 }
       }
     });
     
-    // Extrai apenas as partes de texto para evitar o aviso de 'thoughtSignature'
-    const text = response.candidates?.[0]?.content?.parts
-      ?.filter(part => part.text)
-      ?.map(part => part.text)
-      ?.join('') || "";
+    // Using the .text property directly as per Gemini API guidelines for GenerateContentResponse
+    const text = response.text || "";
 
     return text ? JSON.parse(text) : null;
   } catch (error) {
@@ -69,15 +67,13 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
       contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
-        temperature: 0.7
+        temperature: 0.7,
+        thinkingConfig: { thinkingBudget: 0 }
       }
     });
 
-    // Extrai apenas as partes de texto para evitar o aviso de 'thoughtSignature'
-    const text = response.candidates?.[0]?.content?.parts
-      ?.filter(part => part.text)
-      ?.map(part => part.text)
-      ?.join('') || "";
+    // Using the .text property directly as per Gemini API guidelines
+    const text = response.text || "";
 
     return text || "Ops, tive um probleminha. Pode repetir? 🍔";
   } catch (error) {
@@ -99,7 +95,9 @@ export const generateProductImage = async (productName: string) => {
       }
     });
 
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
+    // Iterate through all parts to find the image part, as recommended for image generation responses
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;
       }

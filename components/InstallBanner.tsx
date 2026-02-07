@@ -19,20 +19,26 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      // Mostra o banner após 4 segundos
-      setTimeout(() => setIsVisible(true), 4000);
+      // Não exibe imediatamente, aguarda o scroll
+    };
+
+    const handleScroll = () => {
+      // Se rolou mais que 150px e o prompt está pronto (ou é iOS) e ainda não está visível
+      if (window.scrollY > 150 && !isVisible) {
+        if (deferredPrompt || (isIOSDevice && !(window.navigator as any).standalone)) {
+          setIsVisible(true);
+        }
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
-    // Se for iOS e não estiver em modo standalone
-    if (isIOSDevice && !(window.navigator as any).standalone) {
-      const timer = setTimeout(() => setIsVisible(true), 6000);
-      return () => clearTimeout(timer);
-    }
-
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [deferredPrompt, isVisible]);
 
   const handleInstall = async () => {
     if (deferredPrompt) {

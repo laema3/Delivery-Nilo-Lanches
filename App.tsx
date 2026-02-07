@@ -11,6 +11,9 @@ import { OrderSuccessModal } from './components/OrderSuccessModal.tsx';
 import { ChatBot } from './components/ChatBot.tsx';
 import { Footer } from './components/Footer.tsx';
 import { CustomerOrders } from './components/CustomerOrders.tsx';
+import { Toast } from './components/Toast.tsx';
+import { InstallBanner } from './components/InstallBanner.tsx'; // Importando o Banner
+import { ProductLoader } from './components/ProductLoader.tsx'; // Importando o Loader
 import { dbService } from './services/dbService.ts';
 import { Product, CartItem, Order, Customer, ZipRange, PaymentSettings, CategoryItem, SubCategoryItem, Complement, OrderStatus, DeliveryType, Coupon } from './types.ts';
 
@@ -35,6 +38,7 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isProductLoading, setIsProductLoading] = useState(false); // Novo estado para o loader
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
@@ -45,6 +49,9 @@ const App: React.FC = () => {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
+  
+  // Toast State
+  const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
 
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
     const saved = localStorage.getItem('nl_current_user');
@@ -91,10 +98,27 @@ const App: React.FC = () => {
     });
   }, [products, searchTerm, selectedCategory, selectedSubCategory]);
 
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ show: true, msg, type });
+  };
+
+  // Função modificada para incluir o loader
+  const handleProductClick = (product: Product) => {
+    setIsProductLoading(true);
+    setTimeout(() => {
+      setIsProductLoading(false);
+      setSelectedProduct(product);
+    }, 1000); // Loader de 1 segundo exato
+  };
+
   const handleAddToCart = (product: Product, quantity: number, comps?: Complement[]) => {
     const compsPrice = comps?.reduce((acc, c) => acc + (c.price || 0), 0) || 0;
     const finalPrice = product.price + compsPrice;
+    
     setCart(prev => [...prev, { ...product, price: finalPrice, quantity, selectedComplements: comps }]);
+    
+    // Feedback visual e UX
+    showToast(`${quantity}x ${product.name} adicionado!`);
     setIsCartOpen(true);
     setSelectedProduct(null);
   };
@@ -103,12 +127,27 @@ const App: React.FC = () => {
     if (!currentUser) return setIsAuthModalOpen(true);
     const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
     const subtotal = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+    const total = subtotal + fee - discount;
+
     const newOrder: Order = {
-      id: orderId, customerId: currentUser.email, customerName: currentUser.name, customerPhone: currentUser.phone,
-      customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : `${currentUser.address}`,
-      items: [...cart], total: subtotal + fee - discount, deliveryFee: fee, deliveryType, status: 'NOVO',
-      paymentMethod, changeFor, pointsEarned: Math.floor(subtotal), createdAt: new Date().toISOString()
+      id: orderId, 
+      customerId: currentUser.email, 
+      customerName: currentUser.name, 
+      customerPhone: currentUser.phone,
+      customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA NO BALCÃO' : `${currentUser.address} - ${currentUser.neighborhood}`,
+      items: [...cart], 
+      total: total, 
+      deliveryFee: fee, 
+      deliveryType, 
+      status: 'NOVO',
+      paymentMethod, 
+      changeFor, 
+      discountValue: discount,
+      couponCode,
+      pointsEarned: Math.floor(total), 
+      createdAt: new Date().toISOString()
     };
+
     await dbService.save('orders', orderId, newOrder);
     setLastOrder(newOrder);
     setIsSuccessModalOpen(true);
@@ -116,8 +155,57 @@ const App: React.FC = () => {
     setIsCartOpen(false);
   };
 
+  const handleSendWhatsApp = () => {
+    if (!lastOrder) return;
+
+    const itemsList = lastOrder.items.map(item => {
+      const comps = item.selectedComplements?.map(c => `+ ${c.name}`).join(', ');
+      return `▪️ ${item.quantity}x *${item.name}*${comps ? `\n   (${comps})` : ''}\n   R$ ${(item.price * item.quantity).toFixed(2)}`;
+    }).join('\n\n');
+
+    const addressBlock = lastOrder.deliveryType === 'PICKUP' 
+      ? `🏪 *RETIRADA NO BALCÃO*`
+      : `📍 *ENTREGA:*\n${lastOrder.customerAddress}`;
+
+    const text = `
+*NOVO PEDIDO #${lastOrder.id}* 🍔
+--------------------------------
+👤 *Cliente:* ${lastOrder.customerName}
+📱 *Telefone:* ${lastOrder.customerPhone}
+
+${addressBlock}
+--------------------------------
+*ITENS DO PEDIDO:*
+
+${itemsList}
+--------------------------------
+📦 Subtotal: R$ ${(lastOrder.total - lastOrder.deliveryFee + (lastOrder.discountValue || 0)).toFixed(2)}
+🛵 Taxa Entrega: R$ {lastOrder.deliveryFee.toFixed(2)}
+${lastOrder.discountValue ? `🎟️ Desconto: - R$ ${lastOrder.discountValue.toFixed(2)}` : ''}
+
+💰 *TOTAL: R$ ${lastOrder.total.toFixed(2)}*
+--------------------------------
+💳 *Pagamento:* ${lastOrder.paymentMethod}
+${lastOrder.changeFor ? `💵 *Troco para:* R$ ${lastOrder.changeFor.toFixed(2)}` : ''}
+
+_Enviado via App Nilo Lanches_
+    `.trim();
+
+    const storePhone = "5534991183728"; 
+    const url = `https://wa.me/${storePhone}?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col w-full overflow-x-hidden">
+      {/* Exibir o Loader se estiver carregando */}
+      {isProductLoading && <ProductLoader />}
+      
+      <Toast isVisible={toast.show} message={toast.msg} type={toast.type} onClose={() => setToast(prev => ({ ...prev, show: false }))} />
+
+      {/* Banner de Instalação (aparece ao rolar no mobile) */}
+      <InstallBanner logoUrl={logoUrl} />
+
       {/* BANNER NO TOPO ABSOLUTO */}
       {!isStoreOpen && !isAdmin && (
         <div className="w-full bg-red-600 text-white py-3 px-6 text-center animate-pulse flex items-center justify-center gap-3 shadow-lg z-[100] relative">
@@ -210,7 +298,8 @@ const App: React.FC = () => {
                </div>
                
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 w-full max-w-7xl mx-auto justify-items-center justify-center">
-                  {groupedMenu.map(p => <FoodCard key={p.id} product={p} onAdd={handleAddToCart} onClick={setSelectedProduct} />)}
+                  {/* Atualizado para usar handleProductClick */}
+                  {groupedMenu.map(p => <FoodCard key={p.id} product={p} onAdd={handleAddToCart} onClick={handleProductClick} />)}
                </div>
 
                {groupedMenu.length === 0 && (
@@ -225,11 +314,30 @@ const App: React.FC = () => {
       </main>
 
       <Footer logoUrl={logoUrl} onAdminClick={() => setIsAdminLoginOpen(true)} />
-      <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, d) => setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + d) } : i))} onRemove={id => setCart(prev => prev.filter(i => i.id !== id))} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} deliveryFee={0} availableCoupons={[]} isStoreOpen={isStoreOpen} />
+      
+      <CartSidebar 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+        items={cart} 
+        coupons={coupons} 
+        onUpdateQuantity={(id, d) => setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + d) } : i))} 
+        onRemove={id => setCart(prev => prev.filter(i => i.id !== id))} 
+        onCheckout={handleCheckout} 
+        onAuthClick={() => setIsAuthModalOpen(true)} 
+        paymentSettings={paymentMethods} 
+        currentUser={currentUser} 
+        deliveryFee={0} 
+        availableCoupons={[]} 
+        isStoreOpen={isStoreOpen} 
+      />
+
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCustomers(prev => [...prev, u]); setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
-      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} orderId={lastOrder?.id || ''} />
+      
+      {/* Modal de Sucesso com Ação do WhatsApp */}
+      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} orderId={lastOrder?.id || ''} onSendWhatsApp={handleSendWhatsApp} />
+      
       {!isAdmin && <ChatBot products={products} />}
     </div>
   );
