@@ -22,7 +22,7 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
             crossOrigin="anonymous"
             src={product.image || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500'} 
             alt={product.name}
-            className="w-full h-full object-contain rounded-[20px] transition-transform duration-700 group-hover:scale-110"
+            className="w-full h-full object-contain rounded-[26px] transition-transform duration-700 group-hover:scale-110"
           />
           <div className="absolute top-3 right-3 bg-white/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm z-10 border border-white/50">
             <span className="text-yellow-500 text-[10px]">⭐</span>

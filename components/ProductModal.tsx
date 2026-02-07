@@ -41,7 +41,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, complements
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]">
         <div className="md:w-[40%] relative h-64 md:h-auto overflow-hidden bg-slate-50 flex items-center justify-center p-6">
-          <img src={product.image} alt={product.name} className="w-full h-full object-contain" />
+          <img src={product.image} alt={product.name} className="w-full h-full object-contain rounded-[28px]" />
           <button onClick={onClose} className="absolute top-4 left-4 bg-black/40 text-white p-2 rounded-full md:hidden">✕</button>
         </div>
         <div className="md:w-[60%] p-6 md:p-8 flex flex-col overflow-y-auto no-scrollbar">

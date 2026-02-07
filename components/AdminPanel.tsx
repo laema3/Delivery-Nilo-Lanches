@@ -74,7 +74,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [zipEnd, setZipEnd] = useState('');
   const [zipFee, setZipFee] = useState('');
 
-  // Fix: Adding missing state variables for payment methods to resolve 'setIsAddingPayment' error
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [payName, setPayName] = useState('');
   const [payType, setPayType] = useState<'ONLINE' | 'DELIVERY'>('DELIVERY');
@@ -603,6 +602,72 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                    </div>
                 </div>
              </div>
+
+             {/* GUIA DE CONFIGURAÇÃO DE DOMÍNIO */}
+             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🌐</span>
+                    <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest">Configuração de Domínio Próprio</h3>
+                  </div>
+                  <button 
+                    onClick={() => window.open('https://dnschecker.org/#A/nilolanches.com.br', '_blank')}
+                    className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-emerald-200 transition-all flex items-center gap-2"
+                  >
+                    🔍 Verificar Propagação
+                  </button>
+                </div>
+                
+                <div className="p-5 bg-amber-50 rounded-2xl border border-amber-100 space-y-3">
+                  <p className="text-[10px] font-black text-amber-700 uppercase leading-relaxed">
+                    ⚠️ Importante: Para não perder seus e-mails, edite apenas os registros abaixo na zona DNS (Zone Editor) da sua HOSPEDAGEM.
+                  </p>
+                  <p className="text-[10px] font-black text-red-700 uppercase leading-relaxed bg-white/50 p-2 rounded-lg">
+                    🚫 NÃO ALTERE OS NAMESERVERS (NS). Se o painel pedir para trocar "NS" por números de IP, ignore. Registros NS só aceitam letras (ex: ns1.host.com).
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[9px] font-black uppercase text-slate-400">1. Vá em "Zone Editor" e edite o registro Tipo A</p>
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 font-mono text-xs">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] text-slate-400 uppercase">Nome/Host</span>
+                        <span className="text-slate-500">@ ou nilolanches.com.br</span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[8px] text-slate-400 uppercase">Valor/IP</span>
+                        <span className="font-bold text-emerald-600">76.76.21.21</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[9px] font-black uppercase text-slate-400">2. Edite o registro Tipo CNAME</p>
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 font-mono text-xs">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] text-slate-400 uppercase">Nome/Host</span>
+                        <span className="text-slate-500">www</span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[8px] text-slate-400 uppercase">Valor/Destino</span>
+                        <span className="font-bold text-emerald-600">cname.vercel-dns.com</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                  <p className="text-[9px] font-black text-blue-700 uppercase leading-relaxed">
+                    💡 Dica: Se no DNS Checker aparecerem vários pontos VERDES (Checkmarks) no IP 76.76.21.21, significa que o site já está funcionando!
+                  </p>
+                </div>
+
+                <p className="text-[10px] font-bold text-slate-400 italic">
+                  * Registros MX (E-mail) e NS (Nameservers) devem permanecer exatamente como estão hoje.
+                </p>
+             </div>
+
              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
                 <h3 className="text-xs font-black uppercase text-slate-400">Operação</h3>
                 <div className={`p-6 rounded-3xl flex justify-between items-center border transition-all ${isStoreOpen ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
