@@ -73,10 +73,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [zipStart, setZipStart] = useState('');
   const [zipEnd, setZipEnd] = useState('');
   const [zipFee, setZipFee] = useState('');
-  
+
+  // Fix: Adding missing state variables for payment methods to resolve 'setIsAddingPayment' error
   const [isAddingPayment, setIsAddingPayment] = useState(false);
-  const [newPayName, setNewPayName] = useState('');
-  const [newPayType, setNewPayType] = useState<'ONLINE' | 'DELIVERY'>('DELIVERY');
+  const [payName, setPayName] = useState('');
+  const [payType, setPayType] = useState<'ONLINE' | 'DELIVERY'>('DELIVERY');
 
   const productImgInputRef = useRef<HTMLInputElement>(null);
   const logoImgInputRef = useRef<HTMLInputElement>(null);
@@ -145,6 +146,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     return list;
   }, [orders, activeOrderTab]);
 
+  const stats = useMemo(() => {
+    const totalSales = orders.filter(o => o.status === 'FINALIZADO').reduce((acc, o) => acc + o.total, 0);
+    const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString());
+    const ticketMedio = orders.length > 0 ? totalSales / orders.filter(o => o.status === 'FINALIZADO').length : 0;
+    
+    const productRanking: Record<string, number> = {};
+    orders.forEach(o => o.items.forEach(i => {
+      productRanking[i.name] = (productRanking[i.name] || 0) + i.quantity;
+    }));
+    const topProducts = Object.entries(productRanking).sort((a,b) => b[1] - a[1]).slice(0, 5);
+
+    return { totalSales, todayCount: todayOrders.length, ticketMedio, topProducts };
+  }, [orders]);
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'pedidos', label: 'Pedidos', icon: '📋' },
@@ -162,7 +177,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
-      {/* SIDEBAR */}
       <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shrink-0 border-r border-white/5 h-screen sticky top-0 overflow-y-auto no-scrollbar">
         <div className="p-8 flex flex-col items-center">
           <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg mb-4 overflow-hidden border-2 border-white/10">
@@ -202,6 +216,89 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           </button>
         </header>
 
+        {activeView === 'dashboard' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
+             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Vendas Totais</p>
+               <h3 className="text-3xl font-black text-emerald-600">R$ {stats.totalSales.toFixed(2)}</h3>
+             </div>
+             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pedidos Hoje</p>
+               <h3 className="text-3xl font-black text-slate-900">{stats.todayCount}</h3>
+             </div>
+             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ticket Médio</p>
+               <h3 className="text-3xl font-black text-slate-900">R$ {stats.ticketMedio.toFixed(2)}</h3>
+             </div>
+             <div className="md:col-span-3 bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
+               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">🏆 Produtos Mais Vendidos</h4>
+               <div className="space-y-4">
+                 {stats.topProducts.map(([name, qty], i) => (
+                   <div key={i} className="flex justify-between items-center py-3 border-b border-slate-50 last:border-0">
+                     <span className="font-bold text-slate-700 text-xs">{name}</span>
+                     <span className="font-black text-emerald-600">{qty}x</span>
+                   </div>
+                 ))}
+               </div>
+             </div>
+          </div>
+        )}
+
+        {activeView === 'pedidos' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+              <button onClick={() => setActiveOrderTab('TODOS')} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeOrderTab === 'TODOS' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}>Todos</button>
+              {ALL_STATUSES.map(s => (
+                <button key={s} onClick={() => setActiveOrderTab(s)} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeOrderTab === s ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}>{s}</button>
+              ))}
+            </div>
+            <div className="space-y-4">
+              {filteredOrders.map(order => (
+                <div key={order.id} className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm text-left flex flex-col md:flex-row gap-8">
+                   <div className="flex-1 space-y-4">
+                     <div className="flex items-center gap-3">
+                       <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
+                       <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${order.status === 'NOVO' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>{order.status}</span>
+                     </div>
+                     <div className="space-y-1">
+                       <p className="font-black text-xs text-slate-800 uppercase leading-none">{order.customerName}</p>
+                       <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">{order.customerPhone} | {order.paymentMethod}</p>
+                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mt-2 italic">📍 {order.customerAddress}</p>
+                     </div>
+                     <div className="pt-4 border-t border-slate-50 space-y-2">
+                       {order.items.map((item, idx) => (
+                         <div key={idx} className="flex justify-between text-[10px] font-bold uppercase">
+                           <span>{item.quantity}x {item.name}</span>
+                           <span className="text-slate-400">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                   <div className="md:w-64 space-y-4">
+                      <div className="flex flex-col items-end">
+                        <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Total do Pedido</p>
+                        <p className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Mudar Status:</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {ALL_STATUSES.filter(s => s !== order.status).map(s => (
+                            <button key={s} onClick={() => onUpdateOrderStatus(order.id, s)} className="py-2 bg-slate-50 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 border border-slate-100 rounded-xl text-[8px] font-black uppercase tracking-tighter transition-all">{s}</button>
+                          ))}
+                        </div>
+                      </div>
+                   </div>
+                </div>
+              ))}
+              {filteredOrders.length === 0 && (
+                <div className="py-20 text-center opacity-40">
+                  <p className="text-[10px] font-black uppercase tracking-widest">Nenhum pedido encontrado nesta categoria.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeView === 'produtos' && (
           <div className="space-y-10 animate-fade-in">
             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
@@ -219,14 +316,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                    
                    <div className="grid grid-cols-2 gap-4">
                      <input type="number" value={editingProduct ? editingProduct.price : newProduct.price} onChange={e => editingProduct ? setEditingProduct({...editingProduct, price: Number(e.target.value)}) : setNewProduct({...newProduct, price: Number(e.target.value)})} placeholder="Preço" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-emerald-500" />
-                     
                      <select value={editingProduct ? editingProduct.category : newProduct.category} onChange={e => editingProduct ? setEditingProduct({...editingProduct, category: e.target.value, subCategory: ''}) : setNewProduct({...newProduct, category: e.target.value, subCategory: ''})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-emerald-500">
                         <option value="">Categoria...</option>
                         {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                      </select>
                    </div>
-
-                   {/* CAMPO DE SUBCATEGORIA ADICIONADO NO FORMULÁRIO */}
                    {((editingProduct ? editingProduct.category : newProduct.category)) && (
                      <select 
                        value={editingProduct ? editingProduct.subCategory : newProduct.subCategory} 
@@ -241,7 +335,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      </select>
                    )}
                  </div>
-
                  <div className="space-y-4 flex flex-col justify-center items-center bg-slate-50 rounded-[32px] p-6 border-2 border-dashed border-slate-200">
                     {editingProduct?.image || newProduct.image ? <img src={editingProduct?.image || newProduct.image} className="h-40 object-contain rounded-xl" /> : <span className="text-slate-300 text-4xl">📸</span>}
                     <div className="flex gap-2 mt-4">
@@ -251,24 +344,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     <input type="file" ref={productImgInputRef} onChange={e => handleFileUpload(e, 'product')} className="hidden" />
                  </div>
                </div>
-
                <button onClick={async () => {
                  setIsSaving(true);
                  try {
-                   if (editingProduct) { 
-                     await onUpdateProduct(editingProduct); 
-                     setEditingProduct(null); 
-                   } else { 
-                     await onAddProduct(newProduct); 
-                     setNewProduct({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 }); 
-                   }
+                   if (editingProduct) { await onUpdateProduct(editingProduct); setEditingProduct(null); } 
+                   else { await onAddProduct(newProduct); setNewProduct({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 }); }
                  } catch (err) { alert('Erro ao salvar produto.'); }
                  finally { setIsSaving(false); }
                }} className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${isSaving ? 'bg-slate-400' : 'bg-slate-900 text-white shadow-xl hover:bg-black active:translate-y-1'}`}>
                  {isSaving ? 'SALVANDO...' : (editingProduct ? 'ATUALIZAR PRODUTO' : 'CADASTRAR PRODUTO')}
                </button>
             </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map(p => (
                 <div key={p.id} className="bg-white p-5 rounded-[32px] border border-slate-100 flex flex-col gap-4 text-left shadow-sm group hover:shadow-md transition-all">
@@ -279,7 +365,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                    <div className="flex-1 space-y-1">
                       <h4 className="font-black text-[10px] uppercase text-slate-800 truncate leading-tight">{p.name}</h4>
                       <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest line-clamp-1">{p.category} {p.subCategory ? `> ${p.subCategory}` : ''}</p>
-                      
                       <div className="flex gap-2 pt-3 border-t border-slate-50 mt-2">
                         <button onClick={() => handleEditClick(p)} className="flex-1 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">Editar</button>
                         <button onClick={() => handleDeleteClick(p.id)} className="flex-1 py-2.5 bg-red-50 text-red-500 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Excluir</button>
@@ -435,9 +520,56 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           <div className="max-w-3xl animate-fade-in space-y-8">
             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
               <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest">Configurar Métodos de Pagamento</h3>
-              <button onClick={() => setIsAddingPayment(true)} className="w-full py-5 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all">
-                + Nova Forma de Pagamento
-              </button>
+              
+              {/* Form for adding new payment method */}
+              {isAddingPayment ? (
+                <div className="p-6 bg-slate-50 rounded-[24px] border border-slate-100 space-y-4 animate-in slide-in-from-top-2 text-left">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input 
+                      value={payName} 
+                      onChange={e => setPayName(e.target.value)} 
+                      placeholder="Nome (Ex: Pix, Cartão Débito)" 
+                      className="p-4 bg-white rounded-xl font-bold outline-none border-2 border-transparent focus:border-emerald-500" 
+                    />
+                    <select 
+                      value={payType} 
+                      onChange={e => setPayType(e.target.value as any)} 
+                      className="p-4 bg-white rounded-xl font-bold outline-none border-2 border-transparent focus:border-emerald-500"
+                    >
+                      <option value="DELIVERY">Pagamento na Entrega</option>
+                      <option value="ONLINE">Pagamento Online</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => { 
+                        if (payName) { 
+                          onAddPaymentMethod(payName, payType); 
+                          setPayName(''); 
+                          setIsAddingPayment(false); 
+                        } 
+                      }} 
+                      className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px]"
+                    >
+                      Confirmar
+                    </button>
+                    <button 
+                      onClick={() => setIsAddingPayment(false)} 
+                      className="flex-1 py-3 bg-slate-200 text-slate-600 rounded-xl font-black uppercase text-[10px]"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setIsAddingPayment(true)} 
+                  className="w-full py-5 bg-emerald-600 text-white rounded-[24px] font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                >
+                  + Nova Forma de Pagamento
+                </button>
+              )}
+
               <div className="space-y-6">
                 {paymentSettings.map(pay => (
                   <div key={pay.id} className="bg-slate-50 p-6 rounded-[24px] border border-slate-100 space-y-4 shadow-inner text-left">

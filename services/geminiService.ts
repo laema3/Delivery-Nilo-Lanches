@@ -2,6 +2,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types.ts";
 
+// Helper para extrair apenas texto das partes da resposta, evitando avisos de 'thoughtSignature'
+const extractTextOnly = (response: any): string => {
+  try {
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    // Filtramos apenas as partes que contêm a propriedade 'text'
+    return parts
+      .filter((part: any) => part.text)
+      .map((part: any) => part.text)
+      .join("")
+      .trim();
+  } catch (e) {
+    return response.text || "";
+  }
+};
+
 export const getAiRecommendation = async (cart: any[], allProducts: Product[]) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const cartDesc = cart.map(i => `${i.quantity}x ${i.name}`).join(", ");
@@ -35,9 +50,7 @@ export const getAiRecommendation = async (cart: any[], allProducts: Product[]) =
       }
     });
     
-    // Using the .text property directly as per Gemini API guidelines for GenerateContentResponse
-    const text = response.text || "";
-
+    const text = extractTextOnly(response);
     return text ? JSON.parse(text) : null;
   } catch (error) {
     console.error("Erro na recomendação AI:", error);
@@ -55,7 +68,6 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
     ${productsList}
   `;
 
-  // A API do Gemini exige que o histórico comece com uma mensagem de 'user'.
   const validHistory = history.filter(h => h.role === 'user' || h.role === 'model');
   if (validHistory.length > 0 && validHistory[0].role === 'model') {
     validHistory.shift();
@@ -72,9 +84,7 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
       }
     });
 
-    // Using the .text property directly as per Gemini API guidelines
-    const text = response.text || "";
-
+    const text = extractTextOnly(response);
     return text || "Ops, tive um probleminha. Pode repetir? 🍔";
   } catch (error) {
     console.error("Erro no chat AI:", error);
@@ -95,7 +105,6 @@ export const generateProductImage = async (productName: string) => {
       }
     });
 
-    // Iterate through all parts to find the image part, as recommended for image generation responses
     const parts = response.candidates?.[0]?.content?.parts || [];
     for (const part of parts) {
       if (part.inlineData) {
