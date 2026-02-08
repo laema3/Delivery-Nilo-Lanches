@@ -2,8 +2,34 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types.ts";
 
+// Helper para obter a instância da IA com segurança
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("⚠️ API_KEY do Gemini não encontrada. Verifique as Variáveis de Ambiente na Vercel.");
+    return null;
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
+// Helper para extrair apenas texto das partes da resposta
+const extractTextOnly = (response: any): string => {
+  try {
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    return parts
+      .filter((part: any) => part.text)
+      .map((part: any) => part.text)
+      .join("")
+      .trim();
+  } catch (e) {
+    return response.text || "";
+  }
+};
+
 export const getAiRecommendation = async (cart: any[], allProducts: Product[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
+  if (!ai) return null;
+
   const cartDesc = cart.map(i => `${i.quantity}x ${i.name}`).join(", ");
   const productsList = allProducts.map(p => `${p.name} (R$ ${p.price})`).join(", ");
   
@@ -30,11 +56,12 @@ export const getAiRecommendation = async (cart: any[], allProducts: Product[]) =
             }
           },
           propertyOrdering: ["suggestion", "reasoning"]
-        }
+        },
+        thinkingConfig: { thinkingBudget: 0 }
       }
     });
     
-    const text = response.text;
+    const text = extractTextOnly(response);
     return text ? JSON.parse(text) : null;
   } catch (error) {
     console.error("Erro na recomendação AI:", error);
@@ -43,7 +70,9 @@ export const getAiRecommendation = async (cart: any[], allProducts: Product[]) =
 };
 
 export const chatWithAssistant = async (message: string, history: any[], allProducts: Product[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
+  if (!ai) return "Desculpe, estou em manutenção no momento. 🛠️ (Erro: API Key ausente)";
+
   const productsList = allProducts.map(p => `${p.name}: R$ ${p.price} (${p.description})`).join("\n");
   
   const systemInstruction = `
@@ -52,7 +81,6 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
     ${productsList}
   `;
 
-  // Garante que o histórico alterne entre user e model e comece com user
   const validHistory = history.filter(h => h.role === 'user' || h.role === 'model');
   if (validHistory.length > 0 && validHistory[0].role === 'model') {
     validHistory.shift();
@@ -64,11 +92,13 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
       contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
-        temperature: 0.7
+        temperature: 0.7,
+        thinkingConfig: { thinkingBudget: 0 }
       }
     });
 
-    return response.text || "Ops, tive um probleminha. Pode repetir? 🍔";
+    const text = extractTextOnly(response);
+    return text || "Ops, tive um probleminha. Pode repetir? 🍔";
   } catch (error) {
     console.error("Erro no chat AI:", error);
     return "Ops, tive um probleminha. Pode repetir? 🍔";
@@ -76,7 +106,9 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
 };
 
 export const generateProductImage = async (productName: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
+  if (!ai) return null;
+
   const prompt = `Professional food photography of a ${productName}, studio lighting, appetizing, high resolution, white background.`;
 
   try {

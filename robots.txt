@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nilolanches.com.br/sitemap.xml
+Host: https://nilolanches.com.br

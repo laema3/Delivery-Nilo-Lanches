@@ -58,6 +58,24 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : null;
   });
 
+  // Atualiza o Favicon dinamicamente quando a logo muda
+  useEffect(() => {
+    if (logoUrl) {
+      // Atualiza ícone padrão
+      const link = document.querySelector("link[rel*='icon']") as HTMLLinkElement || document.createElement('link');
+      link.type = 'image/png';
+      link.rel = 'icon';
+      link.href = logoUrl;
+      document.head.appendChild(link);
+
+      // Atualiza ícone da Apple
+      const appleLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement || document.createElement('link');
+      appleLink.rel = 'apple-touch-icon';
+      appleLink.href = logoUrl;
+      document.head.appendChild(appleLink);
+    }
+  }, [logoUrl]);
+
   useEffect(() => {
     const unsubs = [
       dbService.subscribe<Product[]>('products', setProducts),
