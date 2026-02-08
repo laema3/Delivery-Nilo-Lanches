@@ -1,30 +1,42 @@
 
-# 🍔 Nilo Lanches - Guia de Inicialização Local
+# 🍔 Nilo Lanches - Delivery App
 
-## 🚀 Como testar tudo localmente
+## 👋 Olá! Seu app já está funcionando!
+Atualmente ele está rodando em **Modo Demonstração (Offline)**. Isso significa que:
+1. Os dados (produtos, pedidos) ficam salvos **apenas no seu navegador**.
+2. Se você abrir em outro celular, os dados não aparecerão lá.
+3. Não é necessário configurar nada para testar.
 
-1. **Pastas**: Crie a estrutura de pastas conforme os arquivos (`components/`, `services/`, etc).
-2. **Dependências**: 
-   ```powershell
-   npm install
-   ```
-3. **Variáveis**: Crie um `.env` com sua `API_KEY`.
-4. **Executar**:
-   ```powershell
-   npm run dev
-   ```
+---
+
+## ☁️ Como Configurar o Firebase (Modo Online Real)
+
+Para que os pedidos cheguem em tempo real no painel do administrador em outro computador, você precisa conectar ao Google Firebase:
+
+1. Acesse [console.firebase.google.com](https://console.firebase.google.com) e crie um projeto novo.
+2. Crie um app **Web** dentro do projeto (ícone `</>`).
+3. Copie as chaves geradas e crie um arquivo chamado `.env` na raiz do projeto (onde está o `package.json`).
+4. Cole as chaves no arquivo `.env` seguindo este modelo exato:
+
+```env
+# ARQUIVO: .env
+
+VITE_FIREBASE_API_KEY=AIzaSyD... (sua chave)
+VITE_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=seu-projeto
+VITE_FIREBASE_STORAGE_BUCKET=seu-projeto.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456...
+VITE_FIREBASE_APP_ID=1:123456:web:abcdef...
+
+# (Opcional) Chave Gemini AI para o Chatbot
+API_KEY=...
+```
+
+5. No Console do Firebase, vá em **Firestore Database** e clique em "Criar Banco de Dados" (em modo de teste).
+6. Reinicie seu projeto (`npm run dev`) e o aviso de "Modo Offline" desaparecerá!
+
+---
 
 ## 🔐 Acesso Admin
 - **Usuário:** `nilo`
 - **Senha:** `nilo123`
-
-## 🌐 Solução de Problemas: Domínio (Vercel)
-
-Se a Vercel mostrar a mensagem **"Update the nameservers"**:
-
-1. **NÃO ALTERE OS NAMESERVERS** se você possui e-mails profissionais (ex: contato@nilolanches.com.br) na Hostgator, Hostinger ou Godaddy. Alterar os Nameservers fará seus e-mails pararem de funcionar.
-2. **Método Correto**: Utilize apenas os registros DNS (A e CNAME).
-   - **Tipo A**: `@` (ou vazio) apontando para `76.76.21.21`
-   - **Tipo CNAME**: `www` apontando para `cname.vercel-dns.com`
-3. **Status "Invalid Configuration"**: É normal aparecer isso enquanto a propagação não conclui. Pode levar de 1 a 24 horas.
-4. **Redirecionamento**: Certifique-se de adicionar tanto `nilolanches.com.br` quanto `www.nilolanches.com.br` no painel da Vercel. A Vercel perguntará qual deve ser o principal e redirecionará o outro automaticamente.

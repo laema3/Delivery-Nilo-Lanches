@@ -4,6 +4,7 @@ import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, Orde
 import { compressImage } from '../services/imageService.ts';
 import { dbService } from '../services/dbService.ts';
 import { generateProductImage } from '../services/geminiService.ts';
+import { firebaseConfig } from '../firebaseConfig.ts';
 
 interface AdminPanelProps {
   products: Product[];
@@ -65,7 +66,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
+  const [dbStatus, setDbStatus] = useState<'checking' | 'firebase' | 'local'>('checking');
   
+  // States para Formulários
   const [catName, setCatName] = useState('');
   const [subCatName, setSubCatName] = useState('');
   const [subCatParent, setSubCatParent] = useState('');
@@ -75,14 +78,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [zipStart, setZipStart] = useState('');
   const [zipEnd, setZipEnd] = useState('');
   const [zipFee, setZipFee] = useState('');
-  const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [payName, setPayName] = useState('');
-  const [payType, setPayType] = useState<'ONLINE' | 'DELIVERY'>('DELIVERY');
 
   const productImgInputRef = useRef<HTMLInputElement>(null);
   const logoImgInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isSystemOnline = dbService.isFirebaseConnected();
+
+  useEffect(() => {
+    // Diagnóstico de Conexão
+    const checkConnection = () => {
+      const isConnected = dbService.isFirebaseConnected();
+      setDbStatus(isConnected ? 'firebase' : 'local');
+    };
+    checkConnection();
+  }, []);
 
   useEffect(() => {
     const audioUrl = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
@@ -133,6 +142,38 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     }
   };
 
+  const handleFullBackup = () => {
+    const backupData = {
+      backupDate: new Date().toLocaleString(),
+      systemInfo: {
+        note: "Este arquivo contem suas chaves de acesso e todo o banco de dados. Guarde em local seguro.",
+        keys: firebaseConfig // Salva as chaves atuais
+      },
+      database: {
+        products,
+        categories,
+        subCategories,
+        complements,
+        orders,
+        customers,
+        zipRanges,
+        paymentSettings,
+        coupons,
+        storeSettings: { isStoreOpen, logoUrl }
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `BACKUP_NILO_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const filteredOrders = useMemo(() => {
     let list = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     if (activeOrderTab !== 'TODOS') list = list.filter(o => o.status === activeOrderTab);
@@ -159,41 +200,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     { id: 'ajustes', label: 'Ajustes', icon: '⚙️' },
   ];
 
+  const handleNavClick = (view: AdminView) => {
+    setActiveView(view);
+    setEditingProduct(null);
+    if (window.innerWidth < 768) {
+      document.getElementById('admin-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const ALL_STATUSES: OrderStatus[] = ['NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'];
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
-      <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shrink-0 border-r border-white/5 h-screen sticky top-0 overflow-y-auto no-scrollbar">
-        <div className="p-8 flex flex-col items-center">
+    <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
+      {/* SIDEBAR */}
+      <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shrink-0 md:h-full h-auto max-h-[300px] md:max-h-full overflow-y-auto no-scrollbar border-r border-white/5 shadow-2xl z-20">
+        <div className="p-8 flex flex-col items-center shrink-0">
           <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg mb-4 overflow-hidden border-2 border-white/10">
             {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" /> : <span className="text-3xl">🍔</span>}
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nilo Admin</span>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map(item => (
-            <button key={item.id} onClick={() => { setActiveView(item.id as any); setEditingProduct(null); }} className={`w-full text-left px-4 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center gap-3 ${activeView === item.id ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'}`}>
+            <button 
+              key={item.id} 
+              onClick={() => handleNavClick(item.id as AdminView)} 
+              className={`w-full text-left px-4 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center gap-3 ${activeView === item.id ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white/5'}`}
+            >
               <span className="text-base">{item.icon}</span> {item.label}
             </button>
           ))}
         </nav>
-        <div className="p-4 border-t border-white/5 space-y-2">
+        <div className="p-4 border-t border-white/5 space-y-2 shrink-0">
           <button onClick={onBackToSite} className="w-full py-3 bg-slate-800 text-white rounded-xl font-black text-[9px] uppercase tracking-widest">🌐 Ver Site</button>
           <button onClick={onLogout} className="w-full py-3 text-red-400 border border-red-500/20 rounded-xl font-black text-[9px] uppercase tracking-widest">🚪 Sair</button>
         </div>
       </aside>
 
-      <main className="flex-1 p-6 md:p-10 overflow-y-auto no-scrollbar pb-32">
-        <header className="flex flex-col sm:flex-row justify-between items-center mb-10 bg-white p-6 rounded-[28px] shadow-sm border border-slate-100 gap-6">
+      {/* MAIN CONTENT */}
+      <main id="admin-content" className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Header Fixo */}
+        <header className="shrink-0 p-6 md:p-10 pb-0 flex flex-col sm:flex-row justify-between items-center gap-6 bg-slate-50 z-10">
           <div className="flex flex-col gap-2 w-full">
             <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">{activeView}</h2>
             <div className="flex flex-wrap items-center gap-3">
-              <div className={`flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border w-fit`}>
-                 <div className={`w-2.5 h-2.5 rounded-full ${isSystemOnline ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`}></div>
-                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">Servidor Online</span>
+              {/* Diagnóstico de Banco de Dados */}
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border w-fit transition-all ${dbStatus === 'firebase' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                 <div className={`w-2.5 h-2.5 rounded-full ${dbStatus === 'firebase' ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`}></div>
+                 <span className={`text-[9px] font-black uppercase tracking-widest ${dbStatus === 'firebase' ? 'text-emerald-700' : 'text-red-700'}`}>
+                   {dbStatus === 'firebase' ? 'Nuvem Conectada' : 'Modo Offline (Local)'}
+                 </span>
               </div>
+
               <button onClick={() => setAudioEnabled(!audioEnabled)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest transition-all ${audioEnabled ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
-                {audioEnabled ? '🔔 Alerta Ativo' : '🔕 Alerta Mudo'}
+                {audioEnabled ? '🔔 Som Ativo' : '🔕 Som Mudo'}
               </button>
             </div>
           </div>
@@ -202,140 +262,339 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           </button>
         </header>
 
-        {activeView === 'dashboard' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
-             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Vendas Totais</p>
-               <h3 className="text-3xl font-black text-emerald-600">R$ {stats.totalSales.toFixed(2)}</h3>
-             </div>
-             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pedidos Hoje</p>
-               <h3 className="text-3xl font-black text-slate-900">{stats.todayCount}</h3>
-             </div>
-             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ticket Médio</p>
-               <h3 className="text-3xl font-black text-slate-900">R$ {stats.ticketMedio.toFixed(2)}</h3>
-             </div>
-          </div>
-        )}
-
-        {activeView === 'pedidos' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-              <button onClick={() => setActiveOrderTab('TODOS')} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeOrderTab === 'TODOS' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}>Todos</button>
-              {ALL_STATUSES.map(s => (
-                <button key={s} onClick={() => setActiveOrderTab(s)} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeOrderTab === s ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}>{s}</button>
-              ))}
+        {/* Área de Conteúdo com Scroll */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-10 pb-32">
+          {activeView === 'dashboard' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Vendas Totais</p>
+                <h3 className="text-3xl font-black text-emerald-600">R$ {stats.totalSales.toFixed(2)}</h3>
+              </div>
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pedidos Hoje</p>
+                <h3 className="text-3xl font-black text-slate-900">{stats.todayCount}</h3>
+              </div>
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm text-left">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ticket Médio</p>
+                <h3 className="text-3xl font-black text-slate-900">R$ {stats.ticketMedio.toFixed(2)}</h3>
+              </div>
             </div>
-            <div className="space-y-4">
-              {filteredOrders.map(order => (
-                <div key={order.id} className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm text-left flex flex-col md:flex-row gap-8">
-                   <div className="flex-1 space-y-4">
-                     <div className="flex items-center gap-3">
-                       <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
-                       <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${order.status === 'NOVO' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>{order.status}</span>
-                     </div>
-                     <div className="space-y-1">
-                       <p className="font-black text-xs text-slate-800 uppercase leading-none">{order.customerName}</p>
-                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mt-2 italic">📍 {order.customerAddress}</p>
-                     </div>
-                     <div className="pt-4 border-t border-slate-50 space-y-2">
-                       {order.items.map((item, idx) => (
-                         <div key={idx} className="flex justify-between text-[10px] font-bold uppercase">
-                           <span>{item.quantity}x {item.name}</span>
-                           <span className="text-slate-400">R$ {(item.price * item.quantity).toFixed(2)}</span>
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                   <div className="md:w-64 space-y-4">
-                      <div className="flex flex-col items-end">
-                        <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Total do Pedido</p>
-                        <p className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</p>
+          )}
+
+          {activeView === 'pedidos' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                <button onClick={() => setActiveOrderTab('TODOS')} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeOrderTab === 'TODOS' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}>Todos</button>
+                {ALL_STATUSES.map(s => (
+                  <button key={s} onClick={() => setActiveOrderTab(s)} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeOrderTab === s ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}>{s}</button>
+                ))}
+              </div>
+              <div className="space-y-4">
+                {filteredOrders.length === 0 ? (
+                  <div className="text-center py-10 opacity-50">
+                      <span className="text-4xl">📭</span>
+                      <p className="mt-2 text-xs font-bold uppercase">Nenhum pedido encontrado</p>
+                  </div>
+                ) : filteredOrders.map(order => (
+                  <div key={order.id} className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm text-left flex flex-col md:flex-row gap-8">
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
+                        <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${order.status === 'NOVO' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>{order.status}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {ALL_STATUSES.filter(s => s !== order.status).map(s => (
-                          <button key={s} onClick={() => onUpdateOrderStatus(order.id, s)} className="py-2 bg-slate-50 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 border border-slate-100 rounded-xl text-[8px] font-black uppercase tracking-tighter transition-all">{s}</button>
+                      <div className="space-y-1">
+                        <p className="font-black text-xs text-slate-800 uppercase leading-none">{order.customerName}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mt-2 italic">📍 {order.customerAddress}</p>
+                      </div>
+                      <div className="pt-4 border-t border-slate-50 space-y-2">
+                        {order.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-[10px] font-bold uppercase">
+                            <span>{item.quantity}x {item.name}</span>
+                            <span className="text-slate-400">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                          </div>
                         ))}
                       </div>
-                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeView === 'produtos' && (
-          <div className="space-y-10 animate-fade-in">
-            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
-               <h3 className="text-sm font-black uppercase text-slate-400">{editingProduct ? '✏️ Editar Produto' : '🍔 Novo Produto'}</h3>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div className="space-y-4">
-                   <input value={editingProduct ? editingProduct.name : newProduct.name} onChange={e => editingProduct ? setEditingProduct({...editingProduct, name: e.target.value}) : setNewProduct({...newProduct, name: e.target.value})} placeholder="Nome" className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none" />
-                   <textarea value={editingProduct ? editingProduct.description : newProduct.description} onChange={e => editingProduct ? setEditingProduct({...editingProduct, description: e.target.value}) : setNewProduct({...newProduct, description: e.target.value})} placeholder="Descrição" className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none h-24 uppercase" />
-                   <div className="grid grid-cols-2 gap-4">
-                     <input type="number" value={editingProduct ? editingProduct.price : newProduct.price} onChange={e => editingProduct ? setEditingProduct({...editingProduct, price: Number(e.target.value)}) : setNewProduct({...newProduct, price: Number(e.target.value)})} placeholder="Preço" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
-                     <select value={editingProduct ? editingProduct.category : newProduct.category} onChange={e => editingProduct ? setEditingProduct({...editingProduct, category: e.target.value}) : setNewProduct({...newProduct, category: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none">
-                        <option value="">Categoria...</option>
-                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                     </select>
-                   </div>
-                 </div>
-                 <div className="space-y-4 flex flex-col justify-center items-center bg-slate-50 rounded-[32px] p-6 border-2 border-dashed min-h-[250px]">
-                    {isProcessingFile || isGeneratingImage ? (
-                      <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                    ) : (editingProduct?.image || newProduct.image ? (
-                      <img src={editingProduct?.image || newProduct.image} className="h-40 object-contain rounded-xl" />
-                    ) : (
-                      <span className="text-slate-300 text-4xl">📸</span>
-                    ))}
-                    <div className="flex gap-2">
-                      <button onClick={() => productImgInputRef.current?.click()} className="px-4 py-2 bg-slate-200 rounded-lg text-[9px] font-black uppercase">Upload</button>
-                      <button onClick={handleAiImageGen} disabled={isGeneratingImage} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase">IA ✨</button>
                     </div>
-                    <input type="file" ref={productImgInputRef} onChange={e => handleFileUpload(e, 'product')} className="hidden" accept="image/*" />
-                 </div>
-               </div>
-               <button onClick={async () => {
-                 setIsSaving(true);
-                 try {
-                   if (editingProduct) { await onUpdateProduct(editingProduct); setEditingProduct(null); } 
-                   else { await onAddProduct(newProduct); setNewProduct({ name: '', price: 0, category: '', description: '', image: '', rating: 5.0 }); }
-                 } finally { setIsSaving(false); }
-               }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">{isSaving ? 'SALVANDO...' : 'CONFIRMAR'}</button>
+                    <div className="md:w-64 space-y-4">
+                        <div className="flex flex-col items-end">
+                          <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Total do Pedido</p>
+                          <p className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {ALL_STATUSES.filter(s => s !== order.status).map(s => (
+                            <button key={s} onClick={() => onUpdateOrderStatus(order.id, s)} className="py-2 bg-slate-50 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 border border-slate-100 rounded-xl text-[8px] font-black uppercase tracking-tighter transition-all">{s}</button>
+                          ))}
+                        </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {products.map(p => (
-                <div key={p.id} className="bg-white p-5 rounded-[32px] border border-slate-100 flex flex-col gap-4 text-left shadow-sm">
-                   <div className="h-32 bg-slate-50 rounded-2xl overflow-hidden flex items-center justify-center p-2">
-                      <img src={p.image} className="w-full h-full object-contain" />
-                   </div>
-                   <h4 className="font-black text-[10px] uppercase text-slate-800 truncate">{p.name}</h4>
-                   <div className="flex gap-2 pt-2 border-t">
-                     <button onClick={() => setEditingProduct(p)} className="flex-1 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[8px] font-black uppercase">Editar</button>
-                     <button onClick={() => onDeleteProduct(p.id)} className="flex-1 py-2 bg-red-50 text-red-500 rounded-xl text-[8px] font-black uppercase">Excluir</button>
-                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Categoroias, Fretes e outros seguem o mesmo padrão simplificado e blindado */}
-        {activeView === 'ajustes' && (
-          <div className="max-w-2xl animate-fade-in space-y-8 text-left">
-             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
-                <h3 className="text-xs font-black uppercase text-slate-400">Identidade Visual</h3>
-                <div className="flex items-center gap-6">
-                   <div className="w-32 h-32 bg-slate-50 rounded-[40px] flex items-center justify-center overflow-hidden border-2 border-dashed border-slate-200">
-                      {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" /> : <span className="text-4xl">🖼️</span>}
-                   </div>
-                   <button onClick={() => logoImgInputRef.current?.click()} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Alterar Logo</button>
-                   <input type="file" ref={logoImgInputRef} onChange={e => handleFileUpload(e, 'logo')} className="hidden" accept="image/*" />
+          {activeView === 'produtos' && (
+            <div className="space-y-10 animate-fade-in">
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                <h3 className="text-sm font-black uppercase text-slate-400">{editingProduct ? '✏️ Editar Produto' : '🍔 Novo Produto'}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <input value={editingProduct ? editingProduct.name : newProduct.name} onChange={e => editingProduct ? setEditingProduct({...editingProduct, name: e.target.value}) : setNewProduct({...newProduct, name: e.target.value})} placeholder="Nome" className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none" />
+                    <textarea value={editingProduct ? editingProduct.description : newProduct.description} onChange={e => editingProduct ? setEditingProduct({...editingProduct, description: e.target.value}) : setNewProduct({...newProduct, description: e.target.value})} placeholder="Descrição" className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none h-24 uppercase" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <input type="number" value={editingProduct ? editingProduct.price : newProduct.price} onChange={e => editingProduct ? setEditingProduct({...editingProduct, price: Number(e.target.value)}) : setNewProduct({...newProduct, price: Number(e.target.value)})} placeholder="Preço" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
+                      <select value={editingProduct ? editingProduct.category : newProduct.category} onChange={e => editingProduct ? setEditingProduct({...editingProduct, category: e.target.value}) : setNewProduct({...newProduct, category: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none">
+                          <option value="">Categoria...</option>
+                          {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <select value={editingProduct ? editingProduct.subCategory : newProduct.subCategory} onChange={e => editingProduct ? setEditingProduct({...editingProduct, subCategory: e.target.value}) : setNewProduct({...newProduct, subCategory: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none">
+                        <option value="">Subcategoria (Opcional)...</option>
+                        {subCategories.filter(s => !editingProduct?.category ? true : categories.find(c => c.name === (editingProduct?.category || newProduct.category))?.id === s.categoryId).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-4 flex flex-col justify-center items-center bg-slate-50 rounded-[32px] p-6 border-2 border-dashed min-h-[250px]">
+                      {isProcessingFile || isGeneratingImage ? (
+                        <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (editingProduct?.image || newProduct.image ? (
+                        <img src={editingProduct?.image || newProduct.image} className="h-40 object-contain rounded-xl" />
+                      ) : (
+                        <span className="text-slate-300 text-4xl">📸</span>
+                      ))}
+                      <div className="flex gap-2">
+                        <button onClick={() => productImgInputRef.current?.click()} className="px-4 py-2 bg-slate-200 rounded-lg text-[9px] font-black uppercase">Upload</button>
+                        <button onClick={handleAiImageGen} disabled={isGeneratingImage} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase">IA ✨</button>
+                      </div>
+                      <input type="file" ref={productImgInputRef} onChange={e => handleFileUpload(e, 'product')} className="hidden" accept="image/*" />
+                  </div>
                 </div>
-             </div>
-          </div>
-        )}
+                <button onClick={async () => {
+                  setIsSaving(true);
+                  try {
+                    if (editingProduct) { await onUpdateProduct(editingProduct); setEditingProduct(null); } 
+                    else { await onAddProduct(newProduct); setNewProduct({ name: '', price: 0, category: '', description: '', image: '', rating: 5.0 }); }
+                  } finally { setIsSaving(false); }
+                }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">{isSaving ? 'SALVANDO...' : 'CONFIRMAR'}</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {products.map(p => (
+                  <div key={p.id} className="bg-white p-5 rounded-[32px] border border-slate-100 flex flex-col gap-4 text-left shadow-sm">
+                    <div className="h-32 bg-slate-50 rounded-2xl overflow-hidden flex items-center justify-center p-2">
+                        <img src={p.image} className="w-full h-full object-contain" />
+                    </div>
+                    <h4 className="font-black text-[10px] uppercase text-slate-800 truncate">{p.name}</h4>
+                    <div className="flex gap-2 pt-2 border-t">
+                      <button onClick={() => setEditingProduct(p)} className="flex-1 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[8px] font-black uppercase">Editar</button>
+                      <button onClick={() => onDeleteProduct(p.id)} className="flex-1 py-2 bg-red-50 text-red-500 rounded-xl text-[8px] font-black uppercase">Excluir</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'categorias' && (
+            <div className="max-w-2xl animate-fade-in space-y-8">
+              <div className="flex gap-4">
+                <input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Nova Categoria" className="flex-1 p-4 bg-white rounded-2xl font-bold border border-slate-200" />
+                <button onClick={() => { if(catName) { onAddCategory(catName); setCatName(''); } }} className="px-6 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Adicionar</button>
+              </div>
+              <div className="space-y-3">
+                {categories.map(c => (
+                  <div key={c.id} className="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-slate-100">
+                    <span className="font-bold text-slate-700">{c.name}</span>
+                    <button onClick={() => onRemoveCategory(c.id)} className="text-red-400 font-bold hover:text-red-600">✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'subcategorias' && (
+            <div className="max-w-2xl animate-fade-in space-y-8">
+              <div className="grid grid-cols-2 gap-4">
+                <select value={subCatParent} onChange={e => setSubCatParent(e.target.value)} className="p-4 bg-white rounded-2xl font-bold border border-slate-200 outline-none">
+                  <option value="">Selecione a Categoria Pai...</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <input value={subCatName} onChange={e => setSubCatName(e.target.value)} placeholder="Nome da Subcategoria" className="p-4 bg-white rounded-2xl font-bold border border-slate-200 outline-none" />
+              </div>
+              <button onClick={() => { if(subCatName && subCatParent) { onAddSubCategory(subCatParent, subCatName); setSubCatName(''); } }} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Adicionar Subcategoria</button>
+              <div className="space-y-3">
+                {subCategories.map(s => (
+                  <div key={s.id} className="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-slate-100">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-700">{s.name}</span>
+                      <span className="text-[9px] text-slate-400 uppercase tracking-widest">{categories.find(c => c.id === s.categoryId)?.name}</span>
+                    </div>
+                    <button onClick={() => onRemoveSubCategory(s.id)} className="text-red-400 font-bold hover:text-red-600">✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'adicionais' && (
+            <div className="animate-fade-in space-y-8">
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input value={compName} onChange={e => setCompName(e.target.value)} placeholder="Nome do Adicional (Ex: Bacon Extra)" className="p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none" />
+                  <input type="number" value={compPrice} onChange={e => setCompPrice(e.target.value)} placeholder="Preço (R$)" className="p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none" />
+                </div>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mt-2">Disponível em quais categorias?</p>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map(c => (
+                    <button key={c.id} onClick={() => setSelectedCompCats(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id])} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${selectedCompCats.includes(c.id) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-400 border-slate-200'}`}>
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => { if(compName) { onAddComplement(compName, Number(compPrice), selectedCompCats); setCompName(''); setCompPrice(''); setSelectedCompCats([]); } }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Salvar Adicional</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {complements.map(c => (
+                  <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-sm">{c.name}</h4>
+                      <p className="text-xs text-emerald-600 font-black">R$ {c.price.toFixed(2)}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => onToggleComplement(c.id)} className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase ${c.active ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{c.active ? 'Ativo' : 'Inativo'}</button>
+                      <button onClick={() => onRemoveComplement(c.id)} className="text-red-400 hover:text-red-600 px-2 font-bold">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'entregas' && (
+            <div className="max-w-3xl animate-fade-in space-y-8">
+              <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 w-full space-y-1">
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1">CEP Inicial</label>
+                  <input value={zipStart} onChange={e => setZipStart(e.target.value.replace(/\D/g, ''))} placeholder="38000000" maxLength={8} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm" />
+                </div>
+                <div className="flex-1 w-full space-y-1">
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1">CEP Final</label>
+                  <input value={zipEnd} onChange={e => setZipEnd(e.target.value.replace(/\D/g, ''))} placeholder="38099999" maxLength={8} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm" />
+                </div>
+                <div className="w-full md:w-32 space-y-1">
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Taxa (R$)</label>
+                  <input type="number" value={zipFee} onChange={e => setZipFee(e.target.value)} placeholder="10.00" className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm" />
+                </div>
+                <button onClick={() => { if(zipStart && zipEnd && zipFee) { onAddZipRange(zipStart, zipEnd, Number(zipFee)); setZipStart(''); setZipEnd(''); setZipFee(''); } }} className="w-full md:w-auto px-6 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest h-[46px]">Salvar</button>
+              </div>
+              <div className="space-y-3">
+                {zipRanges.map(z => (
+                  <div key={z.id} className="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-slate-100">
+                    <span className="font-bold text-slate-700 text-sm tracking-tight">{z.start} até {z.end}</span>
+                    <div className="flex items-center gap-4">
+                      <span className="font-black text-emerald-600">R$ {z.fee.toFixed(2)}</span>
+                      <button onClick={() => onRemoveZipRange(z.id)} className="text-red-400 font-bold hover:text-red-600">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'pagamentos' && (
+            <div className="max-w-2xl animate-fade-in space-y-8">
+              <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex gap-4">
+                  <input value={payName} onChange={e => setPayName(e.target.value)} placeholder="Nome do Método (Ex: Pix, Dinheiro)" className="flex-1 p-3 bg-slate-50 rounded-xl font-bold text-sm" />
+                  <button onClick={() => { if(payName) { onAddPaymentMethod(payName, 'DELIVERY'); setPayName(''); } }} className="px-6 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest">Adicionar</button>
+              </div>
+              <div className="space-y-3">
+                {paymentSettings.map(p => (
+                  <div key={p.id} className="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-slate-100">
+                    <span className="font-bold text-slate-700">{p.name}</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => onTogglePaymentMethod(p.id)} className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase ${p.enabled ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500'}`}>{p.enabled ? 'Ativo' : 'Inativo'}</button>
+                      <button onClick={() => onRemovePaymentMethod(p.id)} className="text-slate-400 hover:text-red-500 px-2">🗑️</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'clientes' && (
+            <div className="animate-fade-in space-y-4">
+              {customers.length === 0 ? (
+                <div className="text-center py-10 opacity-50">
+                  <span className="text-4xl">👥</span>
+                  <p className="mt-2 text-xs font-bold uppercase">Nenhum cliente cadastrado</p>
+                </div>
+              ) : (
+                customers.map(c => (
+                  <div key={c.id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex justify-between items-center">
+                    <div>
+                        <h4 className="font-bold text-slate-900">{c.name}</h4>
+                        <p className="text-xs text-slate-500">{c.phone} • {c.email}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[10px] font-black uppercase text-slate-400">Pedidos</p>
+                        <p className="text-xl font-black text-emerald-600">{c.totalOrders || 0}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeView === 'ajustes' && (
+            <div className="max-w-2xl animate-fade-in space-y-8 text-left pb-10">
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                  <h3 className="text-xs font-black uppercase text-slate-400">Identidade Visual</h3>
+                  <div className="flex items-center gap-6">
+                    <div className="w-32 h-32 bg-slate-50 rounded-[40px] flex items-center justify-center overflow-hidden border-2 border-dashed border-slate-200">
+                        {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" /> : <span className="text-4xl">🖼️</span>}
+                    </div>
+                    <button onClick={() => logoImgInputRef.current?.click()} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Alterar Logo</button>
+                    <input type="file" ref={logoImgInputRef} onChange={e => handleFileUpload(e, 'logo')} className="hidden" accept="image/*" />
+                  </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-400 pl-2">Sincronização & Segurança</h3>
+                
+                {/* ÁREA DE BACKUP */}
+                <div className="bg-white p-8 rounded-[32px] border border-emerald-100 shadow-sm space-y-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">💾</span>
+                      <h3 className="text-sm font-black uppercase text-emerald-600">Backup Completo de Segurança</h3>
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      Baixe um arquivo contendo todas as suas <strong>CHAVES de acesso</strong> e todos os <strong>DADOS</strong> (pedidos, produtos, clientes). Guarde isso em local seguro (seu computador ou e-mail).
+                    </p>
+                    <button 
+                      onClick={handleFullBackup}
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-100"
+                    >
+                      Baixar Backup (JSON)
+                    </button>
+                </div>
+
+                {/* ÁREA DE SINCRONIZAÇÃO (NUVEM) */}
+                <div className="bg-white p-8 rounded-[32px] border border-blue-100 shadow-sm space-y-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">☁️</span>
+                      <h3 className="text-sm font-black uppercase text-blue-600">Reconectar Nuvem (Dados Reais)</h3>
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      Use isso se o site estiver sem produtos mas você tem certeza que eles estão salvos no Firebase. Isso força um recarregamento.
+                    </p>
+                    <button 
+                      onClick={() => dbService.forceSync()}
+                      className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-100"
+                    >
+                      Forçar Sincronização
+                    </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

@@ -1,44 +1,57 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-  initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-/**
- * Configurações dinâmicas. 
- * Se os valores abaixo estiverem vazios, o sistema usará automaticamente o LocalStorage.
- * Configure essas variáveis no painel da Vercel para ativar a sincronização em nuvem.
- */
-const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY || "",
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || "",
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID || "",
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: process.env.VITE_FIREBASE_APP_ID || ""
+// As chaves do projeto Nilo Lanches (Recuperadas e fixadas para garantir conexão)
+const FALLBACK_CONFIG = {
+  apiKey: "AIzaSyB6YrCB2qiFY-QMS5rCZBKHK5LQcM6s7ls",
+  authDomain: "nilo-lanches-f2557.firebaseapp.com",
+  projectId: "nilo-lanches-f2557",
+  storageBucket: "nilo-lanches-f2557.firebasestorage.app",
+  messagingSenderId: "783386939201",
+  appId: "1:783386939201:web:07541d706d93f6fff45bc0"
 };
 
-const rawApiKey = process.env.API_KEY || "";
-const isFirebaseReady = !!firebaseConfig.projectId && firebaseConfig.projectId.length > 5;
-const isGeminiReady = rawApiKey.trim().length > 5; 
+const getEnv = (key: string, fallback: string) => {
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+      // @ts-ignore
+      return import.meta.env[key];
+    }
+  } catch (e) {
+    // Ignora erro
+  }
+  return fallback;
+};
 
-// Só inicializa o Firebase se houver um Project ID configurado
-export const app = isFirebaseReady ? initializeApp(firebaseConfig) : null;
+const firebaseConfig = {
+  apiKey: getEnv("VITE_FIREBASE_API_KEY", FALLBACK_CONFIG.apiKey),
+  authDomain: getEnv("VITE_FIREBASE_AUTH_DOMAIN", FALLBACK_CONFIG.authDomain),
+  projectId: getEnv("VITE_FIREBASE_PROJECT_ID", FALLBACK_CONFIG.projectId),
+  storageBucket: getEnv("VITE_FIREBASE_STORAGE_BUCKET", FALLBACK_CONFIG.storageBucket),
+  messagingSenderId: getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID", FALLBACK_CONFIG.messagingSenderId),
+  appId: getEnv("VITE_FIREBASE_APP_ID", FALLBACK_CONFIG.appId)
+};
 
-// Configuração de cache persistente para performance mobile
-export const db = app ? initializeFirestore(app, { 
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-}) : null;
+let app = null;
+let db = null;
+let connectionError = "";
 
-export const AI_CONNECTED = isGeminiReady;
-export const FIREBASE_CONNECTED = isFirebaseReady;
-
-// Logs de diagnóstico (visíveis no console do navegador)
-if (typeof window !== 'undefined') {
-  console.log(AI_CONNECTED ? "✅ IA: PRONTA" : "💡 IA: MODO OFFLINE (Sem API_KEY)");
-  console.log(FIREBASE_CONNECTED ? "✅ NUVEM: ATIVA" : "💡 NUVEM: MODO LOCAL (LocalStorage)");
+if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+  try {
+    app = initializeApp(firebaseConfig);
+    
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+    
+    console.log("🔥 [Firebase] Conectado (Nilo Lanches):", firebaseConfig.projectId);
+  } catch (error: any) {
+    console.error("❌ [Firebase] Erro:", error);
+    connectionError = error.message;
+  }
 }
+
+export { app, db, connectionError, firebaseConfig };

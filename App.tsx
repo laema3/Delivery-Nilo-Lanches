@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Navbar } from './components/Navbar.tsx';
 import { FoodCard } from './components/FoodCard.tsx';
@@ -12,10 +11,12 @@ import { ChatBot } from './components/ChatBot.tsx';
 import { Footer } from './components/Footer.tsx';
 import { CustomerOrders } from './components/CustomerOrders.tsx';
 import { Toast } from './components/Toast.tsx';
-import { InstallBanner } from './components/InstallBanner.tsx'; // Importando o Banner
-import { ProductLoader } from './components/ProductLoader.tsx'; // Importando o Loader
+import { InstallBanner } from './components/InstallBanner.tsx';
+import { ProductLoader } from './components/ProductLoader.tsx';
 import { dbService } from './services/dbService.ts';
+import { db } from './firebaseConfig.ts';
 import { Product, CartItem, Order, Customer, ZipRange, PaymentSettings, CategoryItem, SubCategoryItem, Complement, OrderStatus, DeliveryType, Coupon } from './types.ts';
+import { DEMO_CATEGORIES, DEMO_PRODUCTS, DEMO_COMPLEMENTS, DEMO_SETTINGS } from './constants.tsx';
 
 const safeNormalize = (val: any): string => {
   if (!val) return "";
@@ -32,13 +33,13 @@ const App: React.FC = () => {
   const [zipRanges, setZipRanges] = useState<ZipRange[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentSettings[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [logoUrl, setLogoUrl] = useState('');
-
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isProductLoading, setIsProductLoading] = useState(false); // Novo estado para o loader
+  const [isProductLoading, setIsProductLoading] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
@@ -49,39 +50,46 @@ const App: React.FC = () => {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
-  
-  // Toast State
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
 
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
-    const saved = localStorage.getItem('nl_current_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('nl_current_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
   });
 
-  // Categorias ordenadas alfabeticamente para a UI
-  const sortedCategories = useMemo(() => {
-    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories]);
-
-  // Atualiza o Favicon dinamicamente quando a logo muda
+  // INITIALIZATION & SYNC
   useEffect(() => {
-    if (logoUrl) {
-      // Atualiza ícone padrão
-      const link = document.querySelector("link[rel*='icon']") as HTMLLinkElement || document.createElement('link');
-      link.type = 'image/png';
-      link.rel = 'icon';
-      link.href = logoUrl;
-      document.head.appendChild(link);
+    const initApp = async () => {
+      console.log("🚀 Iniciando Nilo Lanches...");
+      
+      // Tenta carregar dados existentes
+      const currentProds = await dbService.getAll<Product[]>('products', []);
+      const currentCats = await dbService.getAll<CategoryItem[]>('categories', []);
 
-      // Atualiza ícone da Apple
-      const appleLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement || document.createElement('link');
-      appleLink.rel = 'apple-touch-icon';
-      appleLink.href = logoUrl;
-      document.head.appendChild(appleLink);
-    }
-  }, [logoUrl]);
+      // Se não tiver dados (primeira vez ou reset), carrega o demo
+      if (currentProds.length === 0 || currentCats.length === 0) {
+        console.log("📦 Populando dados iniciais (Demo)...");
+        
+        await Promise.all([
+             ...DEMO_CATEGORIES.map(c => dbService.save('categories', c.id, c)),
+             ...DEMO_PRODUCTS.map(p => dbService.save('products', p.id, p)),
+             ...DEMO_COMPLEMENTS.map(c => dbService.save('complements', c.id, c)),
+             dbService.save('settings', 'general', { ...DEMO_SETTINGS[0], isStoreOpen: true })
+        ]);
 
-  useEffect(() => {
+        // Força atualização do estado local para visualização imediata
+        setCategories(DEMO_CATEGORIES);
+        setProducts(DEMO_PRODUCTS);
+        setComplements(DEMO_COMPLEMENTS);
+        setIsStoreOpen(true);
+      }
+    };
+
+    initApp();
+
+    // Inscreve nos listeners (Firebase ou LocalStorage)
     const unsubs = [
       dbService.subscribe<Product[]>('products', setProducts),
       dbService.subscribe<Order[]>('orders', setOrders),
@@ -93,65 +101,63 @@ const App: React.FC = () => {
       dbService.subscribe<Coupon[]>('coupons', setCoupons),
       dbService.subscribe<Customer[]>('customers', setCustomers),
       dbService.subscribe<any[]>('settings', (data) => {
-        if (data && data[0]) {
-          setIsStoreOpen(data[0].isStoreOpen !== false);
-          setLogoUrl(data[0].logoUrl || '');
+        if (data && data.length > 0) {
+          const settings = data.find(d => d.id === 'general') || data[0];
+          setIsStoreOpen(settings.isStoreOpen !== false);
+          setLogoUrl(settings.logoUrl || '');
         }
       })
     ];
-    return () => unsubs.forEach(unsub => unsub());
+
+    return () => unsubs.forEach(u => u && u());
   }, []);
 
-  const cartCount = useMemo(() => cart.reduce((acc, i) => acc + i.quantity, 0), [cart]);
-
-  const activeSubCategories = useMemo(() => {
-    if (selectedCategory === 'Todos') return [];
-    const cat = categories.find(c => c.name === selectedCategory);
-    if (!cat) return [];
-    const filtered = subCategories.filter(s => s.categoryId === cat.id);
-    // Ordena as subcategorias alfabeticamente
-    return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-  }, [selectedCategory, categories, subCategories]);
-
   const groupedMenu = useMemo(() => {
+    if (!products || products.length === 0) return [];
     return products.filter(p => {
       const s = safeNormalize(searchTerm);
-      const matchesSearch = safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
+      const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
       const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
       const matchesSubCategory = selectedSubCategory === 'Todos' || p.subCategory === selectedSubCategory;
       return matchesSearch && matchesCategory && matchesSubCategory;
     });
   }, [products, searchTerm, selectedCategory, selectedSubCategory]);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast({ show: true, msg, type });
-  };
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
 
-  // Função modificada para incluir o loader
+  const activeSubCategories = useMemo(() => {
+    if (selectedCategory === 'Todos') return [];
+    const cat = categories.find(c => c.name === selectedCategory);
+    if (!cat) return [];
+    return subCategories
+      .filter(s => s.categoryId === cat.id)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [selectedCategory, categories, subCategories]);
+
   const handleProductClick = (product: Product) => {
     setIsProductLoading(true);
     setTimeout(() => {
       setIsProductLoading(false);
       setSelectedProduct(product);
-    }, 1000); // Loader de 1 segundo exato
+    }, 300);
   };
 
   const handleAddToCart = (product: Product, quantity: number, comps?: Complement[]) => {
     const compsPrice = comps?.reduce((acc, c) => acc + (c.price || 0), 0) || 0;
     const finalPrice = product.price + compsPrice;
-    
     setCart(prev => [...prev, { ...product, price: finalPrice, quantity, selectedComplements: comps }]);
-    
-    // Feedback visual e UX
-    showToast(`${quantity}x ${product.name} adicionado!`);
+    setToast({ show: true, msg: `${quantity}x ${product.name} no carrinho!`, type: 'success' });
     setIsCartOpen(true);
     setSelectedProduct(null);
   };
 
   const handleCheckout = async (paymentMethod: string, fee: number, discount: number, couponCode: string, deliveryType: DeliveryType, changeFor?: number) => {
     if (!currentUser) return setIsAuthModalOpen(true);
+    
     const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const subtotal = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+    const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const total = subtotal + fee - discount;
 
     const newOrder: Order = {
@@ -168,7 +174,7 @@ const App: React.FC = () => {
       paymentMethod, 
       changeFor, 
       discountValue: discount,
-      couponCode,
+      couponCode, 
       pointsEarned: Math.floor(total), 
       createdAt: new Date().toISOString()
     };
@@ -182,68 +188,33 @@ const App: React.FC = () => {
 
   const handleSendWhatsApp = () => {
     if (!lastOrder) return;
-
-    const itemsList = lastOrder.items.map(item => {
-      const comps = item.selectedComplements?.map(c => `+ ${c.name}`).join(', ');
-      return `▪️ ${item.quantity}x *${item.name}*${comps ? `\n   (${comps})` : ''}\n   R$ ${(item.price * item.quantity).toFixed(2)}`;
-    }).join('\n\n');
-
-    const addressBlock = lastOrder.deliveryType === 'PICKUP' 
-      ? `🏪 *RETIRADA NO BALCÃO*`
-      : `📍 *ENTREGA:*\n${lastOrder.customerAddress}`;
-
-    const text = `
-*NOVO PEDIDO #${lastOrder.id}* 🍔
---------------------------------
-👤 *Cliente:* ${lastOrder.customerName}
-📱 *Telefone:* ${lastOrder.customerPhone}
-
-${addressBlock}
---------------------------------
-*ITENS DO PEDIDO:*
-
-${itemsList}
---------------------------------
-📦 Subtotal: R$ ${(lastOrder.total - lastOrder.deliveryFee + (lastOrder.discountValue || 0)).toFixed(2)}
-🛵 Taxa Entrega: R$ ${lastOrder.deliveryFee.toFixed(2)}
-${lastOrder.discountValue ? `🎟️ Desconto: - R$ ${lastOrder.discountValue.toFixed(2)}` : ''}
-
-💰 *TOTAL: R$ ${lastOrder.total.toFixed(2)}*
---------------------------------
-💳 *Pagamento:* ${lastOrder.paymentMethod}
-${lastOrder.changeFor ? `💵 *Troco para:* R$ ${lastOrder.changeFor.toFixed(2)}` : ''}
-
-_Enviado via App Nilo Lanches_
-    `.trim();
-
-    const storePhone = "5534991183728"; 
-    const url = `https://wa.me/${storePhone}?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+    const itemsList = lastOrder.items.map(item => `▪️ ${item.quantity}x *${item.name}*\n   R$ ${(item.price * item.quantity).toFixed(2)}`).join('\n\n');
+    const text = `*NOVO PEDIDO #${lastOrder.id}* 🍔\n--------------------------------\n👤 *Cliente:* ${lastOrder.customerName}\n📍 *Entrega:* ${lastOrder.customerAddress}\n--------------------------------\n${itemsList}\n--------------------------------\n💰 *TOTAL: R$ ${lastOrder.total.toFixed(2)}*\n💳 *Pagamento:* ${lastOrder.paymentMethod}`;
+    window.open(`https://wa.me/5534991183728?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col w-full overflow-x-hidden">
-      {/* Exibir o Loader se estiver carregando */}
-      {isProductLoading && <ProductLoader />}
       
+      {isProductLoading && <ProductLoader />}
       <Toast isVisible={toast.show} message={toast.msg} type={toast.type} onClose={() => setToast(prev => ({ ...prev, show: false }))} />
-
-      {/* Banner de Instalação (aparece ao rolar no mobile) */}
       <InstallBanner logoUrl={logoUrl} />
 
-      {/* BANNER NO TOPO ABSOLUTO */}
+      {!db && (
+        <div className="bg-slate-800 text-white text-[10px] font-bold text-center py-2 px-4 flex justify-between items-center mt-12 md:mt-0">
+          <span>⚠️ Modo Offline (Dados locais).</span>
+          <span className="opacity-50 text-[8px] uppercase tracking-widest">Sem conexão Firebase</span>
+        </div>
+      )}
+
       {!isStoreOpen && !isAdmin && (
         <div className="w-full bg-red-600 text-white py-3 px-6 text-center animate-pulse flex items-center justify-center gap-3 shadow-lg z-[100] relative">
-          <span className="text-xl">⚠️</span>
-          <span className="font-black uppercase text-[10px] sm:text-xs tracking-widest">
-            Estamos fechados no momento. Pedidos desativados.
-          </span>
-          <span className="text-xl">⚠️</span>
+          <span className="font-black uppercase text-[10px] tracking-widest text-white">Loja Fechada Temporariamente</span>
         </div>
       )}
 
       <Navbar 
-        cartCount={cartCount} onCartClick={() => setIsCartOpen(true)} 
+        cartCount={cart.reduce((acc, i) => acc + i.quantity, 0)} onCartClick={() => setIsCartOpen(true)} 
         isAdmin={isAdmin} onToggleAdmin={() => isAdmin ? setIsAdmin(false) : (isAdminAuthenticated ? setIsAdmin(true) : setIsAdminLoginOpen(true))} 
         searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} 
         onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); localStorage.removeItem('nl_current_user'); }} 
@@ -258,8 +229,8 @@ _Enviado via App Nilo Lanches_
             logoUrl={logoUrl} 
             onUpdateLogo={async (url) => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen, logoUrl: url }); }}
             onAddProduct={async (p) => { const id = `prod_${Date.now()}`; await dbService.save('products', id, {...p, id} as Product); }} 
-            onUpdateProduct={async (p) => { await dbService.save('products', p.id, p); }} 
             onDeleteProduct={async (id) => { await dbService.remove('products', id); }}
+            onUpdateProduct={async (p) => { await dbService.save('products', p.id, p); }} 
             onUpdateOrderStatus={async (id, s) => { const o = orders.find(x => x.id === id); if(o) await dbService.save('orders', id, {...o, status: s}); }}
             onUpdateCustomer={async (id, u) => { const c = customers.find(x => x.id === id); if(c) await dbService.save('customers', id, {...c, ...u}); }}
             onAddCategory={async (n) => { const id = `cat_${Date.now()}`; await dbService.save('categories', id, {id, name: n}); }}
@@ -269,15 +240,15 @@ _Enviado via App Nilo Lanches_
             onAddComplement={async (n, p, c) => { const id = `comp_${Date.now()}`; await dbService.save('complements', id, {id, name: n, price: Number(p), active: true, applicable_categories: c}); }}
             onToggleComplement={async (id) => { const comp = complements.find(x => x.id === id); if(comp) await dbService.save('complements', id, {...comp, active: !comp.active}); }}
             onRemoveComplement={async (id) => { await dbService.remove('complements', id); }}
-            onAddZipRange={async (s, e, f) => { const id = `zip_${Date.now()}`; await dbService.save('zip_ranges', id, {id, start: s, end: e, fee: Number(f)}); }}
+            onAddZipRange={async (start, end, fee) => { const id = `zip_${Date.now()}`; await dbService.save('zip_ranges', id, {id, start, end, fee: Number(fee)}); }}
             onRemoveZipRange={async (id) => { await dbService.remove('zip_ranges', id); }}
-            onAddCoupon={async (c, d, t) => { const id = `coup_${Date.now()}`; await dbService.save('coupons', id, {id, code: c.toUpperCase(), discount: Number(d), type: t, active: true}); }}
+            onAddCoupon={async (code, discount, type) => { const id = `coup_${Date.now()}`; await dbService.save('coupons', id, {id, code: code.toUpperCase(), discount: Number(discount), type, active: true}); }}
             onRemoveCoupon={async (id) => { await dbService.remove('coupons', id); }}
             paymentSettings={paymentMethods} 
             onTogglePaymentMethod={async (id) => { const p = paymentMethods.find(x => x.id === id); if(p) await dbService.save('payment_methods', id, {...p, enabled: !p.enabled}); }}
-            onAddPaymentMethod={async (n, t) => { const id = `pay_${Date.now()}`; await dbService.save('payment_methods', id, {id, name: n, type: t, enabled: true}); }}
+            onAddPaymentMethod={async (name, type) => { const id = `pay_${Date.now()}`; await dbService.save('payment_methods', id, {id, name, type, enabled: true}); }}
             onRemovePaymentMethod={async (id) => { await dbService.remove('payment_methods', id); }}
-            onUpdatePaymentSettings={async (id, u) => { const p = paymentMethods.find(x => x.id === id); if(p) await dbService.save('payment_methods', id, {...p, ...u}); }}
+            onUpdatePaymentSettings={async (id, updates) => { const p = paymentMethods.find(x => x.id === id); if(p) await dbService.save('payment_methods', id, {...p, ...updates}); }}
             onLogout={() => { setIsAdmin(false); setIsAdminAuthenticated(false); sessionStorage.removeItem('nl_admin_auth'); }} 
             onBackToSite={() => setIsAdmin(false)}
           />
@@ -285,52 +256,45 @@ _Enviado via App Nilo Lanches_
           <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} />
         ) : (
           <div className="flex flex-col w-full items-center">
-            {/* HERO */}
-            <section className="relative w-full min-h-[400px] sm:min-h-[500px] bg-slate-950 flex items-center justify-center overflow-hidden">
-               <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Hero" />
-               <div className="max-w-5xl mx-auto px-6 relative z-10 w-full text-center">
-                  <h1 className="font-brand text-6xl sm:text-[120px] leading-none uppercase text-white drop-shadow-2xl">
+            {/* Hero */}
+            <section className="relative w-full min-h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden">
+               <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+               <div className="relative z-10 text-center px-4">
+                  <h1 className="font-brand text-6xl sm:text-[100px] text-white uppercase leading-none">
                     <span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span>
                   </h1>
-                  <button onClick={() => document.getElementById('menu-anchor')?.scrollIntoView({behavior:'smooth'})} className="mt-10 bg-emerald-600 text-white px-12 py-5 rounded-2xl font-brand text-2xl tracking-widest border-b-4 border-emerald-800 shadow-xl transition-all active:scale-95">VER CARDÁPIO</button>
+                  <button onClick={() => document.getElementById('menu-anchor')?.scrollIntoView({behavior:'smooth'})} className="mt-8 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-brand text-xl border-b-4 border-emerald-800 shadow-xl transition-all active:scale-95 uppercase tracking-widest">Ver Cardápio</button>
                </div>
             </section>
             
-            {/* BARRA DE CATEGORIAS - Ordenada Alfabeticamente */}
-            <div id="menu-anchor" className="sticky top-20 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b w-full flex justify-center py-4 px-6 gap-3 overflow-x-auto no-scrollbar">
-               <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>Todos</button>
-               {sortedCategories.map(cat => (
-                 <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>{cat.name}</button>
-               ))}
-            </div>
-
-            {/* BARRA DE SUBCATEGORIAS - Ordenada Alfabeticamente */}
-            {activeSubCategories.length > 0 && (
-              <div className="sticky top-[148px] z-20 bg-red-50/90 backdrop-blur-sm border-b w-full flex justify-center py-3 px-6 gap-2 overflow-x-auto no-scrollbar">
-                 <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${selectedSubCategory === 'Todos' ? 'bg-red-600 text-white shadow-lg' : 'bg-white text-red-400 border border-red-100'}`}>Todas as opções</button>
-                 {activeSubCategories.map(sub => (
-                   <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${selectedSubCategory === sub.name ? 'bg-red-600 text-white shadow-lg' : 'bg-white text-red-400 border border-red-100'}`}>{sub.name}</button>
+            <div id="menu-anchor" className="sticky top-20 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b w-full flex flex-col items-center py-4 px-4 gap-3">
+               <div className="flex justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl">
+                 <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>Todos</button>
+                 {sortedCategories.map(cat => (
+                   <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>{cat.name}</button>
                  ))}
-              </div>
-            )}
-
-            {/* GRID DE PRODUTOS - CENTRALIZADO */}
-            <div className="w-full max-w-7xl mx-auto px-6 py-12 flex flex-col items-center">
-               <div className="w-full mb-10 text-center">
-                  <h2 className="text-2xl font-black text-emerald-600 uppercase inline-block border-l-4 border-emerald-600 pl-4">
-                    {selectedCategory === 'Todos' ? 'Nosso Cardápio' : (selectedSubCategory === 'Todos' ? selectedCategory : `${selectedCategory} > ${selectedSubCategory}`)}
-                  </h2>
                </div>
                
-               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 w-full max-w-7xl mx-auto justify-items-center justify-center">
-                  {/* Atualizado para usar handleProductClick */}
-                  {groupedMenu.map(p => <FoodCard key={p.id} product={p} onAdd={handleAddToCart} onClick={handleProductClick} />)}
-               </div>
+               {activeSubCategories.length > 0 && (
+                 <div className="flex justify-center gap-2 overflow-x-auto no-scrollbar w-full max-w-7xl animate-fade-in">
+                   <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedSubCategory === 'Todos' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-400'}`}>Tudo</button>
+                   {activeSubCategories.map(sub => (
+                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedSubCategory === sub.name ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-400'}`}>{sub.name}</button>
+                   ))}
+                 </div>
+               )}
+            </div>
 
-               {groupedMenu.length === 0 && (
-                 <div className="py-20 text-center opacity-40 flex flex-col items-center">
-                    <span className="text-5xl mb-4">🔍</span>
-                    <p className="font-black uppercase text-xs tracking-widest">Nenhum item encontrado nesta seleção.</p>
+            <div className="w-full max-w-7xl mx-auto px-6 py-12">
+               {groupedMenu.length > 0 ? (
+                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {groupedMenu.map(p => <FoodCard key={p.id} product={p} onAdd={handleAddToCart} onClick={handleProductClick} />)}
+                 </div>
+               ) : (
+                 <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in bg-white rounded-[40px] border-2 border-dashed border-slate-200">
+                   <span className="text-6xl mb-6">🍔</span>
+                   <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Ops... Cardápio vazio</h3>
+                   <p className="text-slate-400 font-bold text-sm mt-2 max-w-xs uppercase tracking-widest">Nenhum produto cadastrado no momento.</p>
                  </div>
                )}
             </div>
@@ -359,10 +323,7 @@ _Enviado via App Nilo Lanches_
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCustomers(prev => [...prev, u]); setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
-      
-      {/* Modal de Sucesso com Ação do WhatsApp */}
       <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} orderId={lastOrder?.id || ''} onSendWhatsApp={handleSendWhatsApp} />
-      
       {!isAdmin && <ChatBot products={products} />}
     </div>
   );
