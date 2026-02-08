@@ -2,21 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types.ts";
 
-// Helper para extrair apenas texto das partes da resposta, evitando avisos de 'thoughtSignature'
-const extractTextOnly = (response: any): string => {
-  try {
-    const parts = response.candidates?.[0]?.content?.parts || [];
-    // Filtramos apenas as partes que contêm a propriedade 'text'
-    return parts
-      .filter((part: any) => part.text)
-      .map((part: any) => part.text)
-      .join("")
-      .trim();
-  } catch (e) {
-    return response.text || "";
-  }
-};
-
 export const getAiRecommendation = async (cart: any[], allProducts: Product[]) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const cartDesc = cart.map(i => `${i.quantity}x ${i.name}`).join(", ");
@@ -45,12 +30,11 @@ export const getAiRecommendation = async (cart: any[], allProducts: Product[]) =
             }
           },
           propertyOrdering: ["suggestion", "reasoning"]
-        },
-        thinkingConfig: { thinkingBudget: 0 }
+        }
       }
     });
     
-    const text = extractTextOnly(response);
+    const text = response.text;
     return text ? JSON.parse(text) : null;
   } catch (error) {
     console.error("Erro na recomendação AI:", error);
@@ -68,6 +52,7 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
     ${productsList}
   `;
 
+  // Garante que o histórico alterne entre user e model e comece com user
   const validHistory = history.filter(h => h.role === 'user' || h.role === 'model');
   if (validHistory.length > 0 && validHistory[0].role === 'model') {
     validHistory.shift();
@@ -79,13 +64,11 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
       contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
-        temperature: 0.7,
-        thinkingConfig: { thinkingBudget: 0 }
+        temperature: 0.7
       }
     });
 
-    const text = extractTextOnly(response);
-    return text || "Ops, tive um probleminha. Pode repetir? 🍔";
+    return response.text || "Ops, tive um probleminha. Pode repetir? 🍔";
   } catch (error) {
     console.error("Erro no chat AI:", error);
     return "Ops, tive um probleminha. Pode repetir? 🍔";

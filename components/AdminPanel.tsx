@@ -643,7 +643,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <p className="text-[9px] font-black uppercase text-slate-400">2. Edite o registro Tipo CNAME</p>
+                    <div className="flex justify-between items-end">
+                      <p className="text-[9px] font-black uppercase text-slate-400">2. Edite o registro Tipo CNAME</p>
+                      <span className="text-[8px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg">Não duplique o WWW!</span>
+                    </div>
                     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 font-mono text-xs">
                       <div className="flex flex-col">
                         <span className="text-[8px] text-slate-400 uppercase">Nome/Host</span>
@@ -654,6 +657,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         <span className="font-bold text-emerald-600">cname.vercel-dns.com</span>
                       </div>
                     </div>
+                    <p className="text-[9px] text-slate-400 font-medium">
+                      Se já existir uma linha com nome <b>www</b>, você deve <span className="text-red-500 font-bold">EXCLUIR a antiga</span> ou <span className="text-emerald-600 font-bold">EDITAR</span> para o novo valor.
+                    </p>
                   </div>
                 </div>
 
