@@ -1,11 +1,13 @@
 
 /**
  * Redimensiona e comprime uma imagem (base64 ou URL) para garantir que caiba no limite do Firestore (1MB).
- * Ajustado para 512px para garantir compatibilidade com ícones de app PWA.
+ * Converte obrigatoriamente para JPEG para máxima economia de espaço.
  */
-export const compressImage = (base64Str: string, maxWidth = 512, maxHeight = 512, quality = 0.85): Promise<string> => {
+export const compressImage = (base64Str: string, maxWidth = 800, maxHeight = 800, quality = 0.6): Promise<string> => {
   return new Promise((resolve) => {
-    if (!base64Str || (!base64Str.startsWith('data:') && !base64Str.startsWith('http'))) {
+    if (!base64Str) return resolve("");
+    
+    if (!base64Str.startsWith('data:') && !base64Str.startsWith('http')) {
       return resolve(base64Str);
     }
 
@@ -20,7 +22,6 @@ export const compressImage = (base64Str: string, maxWidth = 512, maxHeight = 512
       let width = img.width;
       let height = img.height;
 
-      // Mantém a proporção mas limita ao tamanho de ícone padrão
       if (width > height) {
         if (width > maxWidth) {
           height *= maxWidth / width;
@@ -36,10 +37,20 @@ export const compressImage = (base64Str: string, maxWidth = 512, maxHeight = 512
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
+      
       if (ctx) {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
-        // Exporta como JPEG para permitir compressão real (PNG é sempre lossless e ignoraria o quality)
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        
+        let compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        
+        // Se ainda for muito grande (raro em JPEG), reduz qualidade agressivamente
+        if (compressedBase64.length > 850000) {
+          compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
+        }
+        
+        resolve(compressedBase64);
       } else {
         resolve(base64Str);
       }

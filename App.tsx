@@ -58,6 +58,11 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : null;
   });
 
+  // Categorias ordenadas alfabeticamente para a UI
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
+
   // Atualiza o Favicon dinamicamente quando a logo muda
   useEffect(() => {
     if (logoUrl) {
@@ -103,7 +108,9 @@ const App: React.FC = () => {
     if (selectedCategory === 'Todos') return [];
     const cat = categories.find(c => c.name === selectedCategory);
     if (!cat) return [];
-    return subCategories.filter(s => s.categoryId === cat.id);
+    const filtered = subCategories.filter(s => s.categoryId === cat.id);
+    // Ordena as subcategorias alfabeticamente
+    return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
   }, [selectedCategory, categories, subCategories]);
 
   const groupedMenu = useMemo(() => {
@@ -198,7 +205,7 @@ ${addressBlock}
 ${itemsList}
 --------------------------------
 📦 Subtotal: R$ ${(lastOrder.total - lastOrder.deliveryFee + (lastOrder.discountValue || 0)).toFixed(2)}
-🛵 Taxa Entrega: R$ {lastOrder.deliveryFee.toFixed(2)}
+🛵 Taxa Entrega: R$ ${lastOrder.deliveryFee.toFixed(2)}
 ${lastOrder.discountValue ? `🎟️ Desconto: - R$ ${lastOrder.discountValue.toFixed(2)}` : ''}
 
 💰 *TOTAL: R$ ${lastOrder.total.toFixed(2)}*
@@ -289,15 +296,15 @@ _Enviado via App Nilo Lanches_
                </div>
             </section>
             
-            {/* BARRA DE CATEGORIAS */}
+            {/* BARRA DE CATEGORIAS - Ordenada Alfabeticamente */}
             <div id="menu-anchor" className="sticky top-20 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b w-full flex justify-center py-4 px-6 gap-3 overflow-x-auto no-scrollbar">
                <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>Todos</button>
-               {categories.map(cat => (
+               {sortedCategories.map(cat => (
                  <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>{cat.name}</button>
                ))}
             </div>
 
-            {/* BARRA DE SUBCATEGORIAS - BOTÕES EM VERMELHO */}
+            {/* BARRA DE SUBCATEGORIAS - Ordenada Alfabeticamente */}
             {activeSubCategories.length > 0 && (
               <div className="sticky top-[148px] z-20 bg-red-50/90 backdrop-blur-sm border-b w-full flex justify-center py-3 px-6 gap-2 overflow-x-auto no-scrollbar">
                  <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${selectedSubCategory === 'Todos' ? 'bg-red-600 text-white shadow-lg' : 'bg-white text-red-400 border border-red-100'}`}>Todas as opções</button>

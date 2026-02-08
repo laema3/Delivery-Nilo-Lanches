@@ -1,24 +1,40 @@
-# Logs
-logs
-*.log
+
+# Dependências (Nunca enviar ao GitHub)
+node_modules/
+.pnp
+.pnp.js
+
+# Pastas de Build e Produção
+dist/
+build/
+.vercel
+out/
+
+# Variáveis de Ambiente (Segurança)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs do Sistema
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
+# Configurações de Editor (Opcional)
+.vscode/
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Arquivos de Sistema Operacional
+.DS_Store
+Thumbs.db
+
+# Mobile (Capacitor/Android)
+android/
+ios/
