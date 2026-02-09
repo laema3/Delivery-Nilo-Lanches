@@ -1,8 +1,8 @@
 
 import { initializeApp } from "firebase/app";
-import { initializeFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
-// As chaves do projeto Nilo Lanches (Recuperadas e fixadas para garantir conexão)
+// As chaves do projeto Nilo Lanches
 const FALLBACK_CONFIG = {
   apiKey: "AIzaSyB6YrCB2qiFY-QMS5rCZBKHK5LQcM6s7ls",
   authDomain: "nilo-lanches-f2557.firebaseapp.com",
@@ -43,15 +43,18 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   try {
     app = initializeApp(firebaseConfig);
     
-    // CORREÇÃO DE SINCRONIZAÇÃO MOBILE:
-    // Forçamos Long Polling e desligamos fetch streams. 
-    // Isso resolve problemas onde o celular não envia/recebe dados em tempo real no 4G.
+    // OTIMIZAÇÃO PARA MOBILE E INSTABILIDADE:
+    // Habilitamos o cache persistente para que o Firebase salve dados no disco local
+    // e tente sincronizar em segundo plano mesmo se a rede falhar momentaneamente.
     db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      }),
       experimentalForceLongPolling: true,
       useFetchStreams: false
     });
     
-    console.log("🔥 [Firebase] Conectado e Otimizado (Long Polling Ativo):", firebaseConfig.projectId);
+    console.log("🔥 [Firebase] Conectado com Cache Persistente Ativado.");
   } catch (error: any) {
     console.error("❌ [Firebase] Erro:", error);
     connectionError = error.message;

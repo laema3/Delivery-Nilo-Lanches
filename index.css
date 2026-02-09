@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -29,31 +30,46 @@ html, body {
   min-height: 100vh;
 }
 
+/* CLASSE PARA ELEMENTOS QUE SÓ APARECEM NA IMPRESSÃO */
+.print-only {
+  display: none;
+}
+
 /* ESTILOS DE IMPRESSÃO - CUPOM TÉRMICO */
 @media print {
+  /* Esconde absolutamente tudo na tela */
   body * {
     visibility: hidden !important;
   }
   
-  #printable-coupon, #printable-coupon * {
+  /* Mostra apenas o container de impressão e seus filhos */
+  .print-only, .print-only * {
     visibility: visible !important;
+    display: block !important;
   }
   
   #printable-coupon {
-    position: fixed;
+    display: block !important;
+    position: absolute;
     left: 0;
     top: 0;
-    width: 80mm;
-    padding: 10px;
+    width: 80mm; /* Largura padrão de bobina térmica */
+    padding: 5mm;
     background: white;
     color: black;
     font-family: 'Courier New', Courier, monospace;
     font-size: 10pt;
-    line-height: 1.2;
-    z-index: 9999;
+    line-height: 1.4;
+    z-index: 99999;
   }
 
-  header, footer, nav, button, .no-print {
+  /* Remove margens e cabeçalhos padrão do navegador */
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  header, footer, nav, button, .no-print, aside, main {
     display: none !important;
   }
 }

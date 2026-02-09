@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, OrderStatus, Complement, PaymentSettings, Coupon } from '../types.ts';
 import { compressImage } from '../services/imageService.ts';
@@ -110,9 +111,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const handlePrint = (order: Order) => {
     setPrintingOrder(order);
+    // Pequeno delay para o React atualizar o DOM do cupom antes de abrir a janela de impressão
     setTimeout(() => {
       window.print();
-    }, 100);
+    }, 150);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'product' | 'logo') => {
@@ -222,60 +224,78 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
       
-      {/* COMPONENTE DE IMPRESSÃO (OCULTO NA TELA) */}
-      <div id="printable-coupon" className="hidden">
-        <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-          <h2 style={{ fontSize: '14pt', margin: 0 }}>NILO LANCHES</h2>
-          <p style={{ fontSize: '9pt', margin: 0 }}>Pedido #{printingOrder?.id}</p>
-          <p style={{ fontSize: '8pt', margin: 0 }}>{printingOrder && new Date(printingOrder.createdAt).toLocaleString()}</p>
-        </div>
-        <hr style={{ border: 'none', borderTop: '1px dashed black' }} />
-        <div style={{ padding: '5px 0' }}>
-          <strong>CLIENTE:</strong> {printingOrder?.customerName}<br />
-          <strong>FONE:</strong> {printingOrder?.customerPhone}<br />
-          <strong>END:</strong> {printingOrder?.customerAddress}
-        </div>
-        <hr style={{ border: 'none', borderTop: '1px dashed black' }} />
-        <div style={{ padding: '10px 0' }}>
-          {printingOrder?.items.map((item, i) => (
-            <div key={i} style={{ marginBottom: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>{item.quantity}x {item.name}</span>
-                <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
-              </div>
-              {item.selectedComplements?.map((c, j) => (
-                <div key={j} style={{ fontSize: '8pt', color: '#555', paddingLeft: '10px' }}>+ {c.name}</div>
+      {/* COMPONENTE DE IMPRESSÃO (ESTILO TÉRMICO) */}
+      <div id="printable-coupon" className="print-only">
+        {printingOrder && (
+          <>
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+              <h2 style={{ fontSize: '16pt', margin: '0 0 5px 0', fontWeight: 'bold' }}>NILO LANCHES</h2>
+              <p style={{ fontSize: '10pt', margin: 0 }}>--------------------------------</p>
+              <p style={{ fontSize: '11pt', margin: '5px 0', fontWeight: 'bold' }}>PEDIDO #{printingOrder.id}</p>
+              <p style={{ fontSize: '9pt', margin: 0 }}>{new Date(printingOrder.createdAt).toLocaleString('pt-BR')}</p>
+              <p style={{ fontSize: '10pt', margin: 0 }}>--------------------------------</p>
+            </div>
+
+            <div style={{ fontSize: '10pt', marginBottom: '10px' }}>
+              <p style={{ margin: '2px 0' }}><strong>CLIENTE:</strong> {printingOrder.customerName}</p>
+              <p style={{ margin: '2px 0' }}><strong>TELEFONE:</strong> {printingOrder.customerPhone}</p>
+              <p style={{ margin: '2px 0' }}><strong>ENTREGA:</strong> {printingOrder.customerAddress}</p>
+              <p style={{ margin: '2px 0' }}><strong>TIPO:</strong> {printingOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : 'DELIVERY'}</p>
+            </div>
+
+            <p style={{ fontSize: '10pt', margin: 0 }}>--------------------------------</p>
+            <div style={{ margin: '10px 0' }}>
+              <p style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '5px' }}>ITENS DO PEDIDO:</p>
+              {printingOrder.items.map((item, i) => (
+                <div key={i} style={{ marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 'bold' }}>{item.quantity}x {item.name}</span>
+                    <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                  {item.selectedComplements && item.selectedComplements.length > 0 && (
+                    <div style={{ fontSize: '9pt', color: '#333', paddingLeft: '10px', marginTop: '2px' }}>
+                      {item.selectedComplements.map((c, j) => (
+                        <div key={j}>+ {c.name}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
-          ))}
-        </div>
-        <hr style={{ border: 'none', borderTop: '1px dashed black' }} />
-        <div style={{ padding: '5px 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Subtotal:</span>
-            <span>R$ {(printingOrder?.total || 0 - (printingOrder?.deliveryFee || 0) + (printingOrder?.discountValue || 0)).toFixed(2)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Frete:</span>
-            <span>R$ {printingOrder?.deliveryFee.toFixed(2)}</span>
-          </div>
-          {printingOrder?.discountValue ? (
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Desconto:</span>
-              <span>- R$ {printingOrder.discountValue.toFixed(2)}</span>
+
+            <p style={{ fontSize: '10pt', margin: 0 }}>--------------------------------</p>
+            <div style={{ margin: '10px 0', fontSize: '10pt' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>SUBTOTAL:</span>
+                <span>R$ {(printingOrder.total - printingOrder.deliveryFee + (printingOrder.discountValue || 0)).toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>TAXA ENTREGA:</span>
+                <span>R$ {printingOrder.deliveryFee.toFixed(2)}</span>
+              </div>
+              {printingOrder.discountValue && printingOrder.discountValue > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'red' }}>
+                  <span>DESCONTO:</span>
+                  <span>- R$ {printingOrder.discountValue.toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14pt', fontWeight: 'bold', marginTop: '8px', borderTop: '2px solid black', paddingTop: '5px' }}>
+                <span>TOTAL:</span>
+                <span>R$ {printingOrder.total.toFixed(2)}</span>
+              </div>
             </div>
-          ) : null}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12pt', fontWeight: 'bold', marginTop: '5px' }}>
-            <span>TOTAL:</span>
-            <span>R$ {printingOrder?.total.toFixed(2)}</span>
-          </div>
-        </div>
-        <hr style={{ border: 'none', borderTop: '1px dashed black' }} />
-        <div style={{ marginTop: '10px', textAlign: 'center' }}>
-          <strong>PAGAMENTO:</strong> {printingOrder?.paymentMethod.toUpperCase()}
-          {printingOrder?.changeFor ? <p style={{ margin: 0 }}>Troco para: R$ {printingOrder.changeFor.toFixed(2)}</p> : null}
-          <p style={{ marginTop: '10px', fontSize: '8pt' }}>Obrigado pela preferência!</p>
-        </div>
+
+            <p style={{ fontSize: '10pt', margin: 0 }}>--------------------------------</p>
+            <div style={{ marginTop: '10px', textAlign: 'center', fontSize: '11pt' }}>
+              <p style={{ margin: '5px 0' }}><strong>PAGAMENTO:</strong> {printingOrder.paymentMethod.toUpperCase()}</p>
+              {printingOrder.changeFor && printingOrder.changeFor > 0 && (
+                <p style={{ margin: '5px 0' }}><strong>TROCO PARA:</strong> R$ {printingOrder.changeFor.toFixed(2)}</p>
+              )}
+              <p style={{ marginTop: '15px', fontSize: '9pt', fontStyle: 'italic' }}>www.nilolanches.com.br</p>
+              <p style={{ fontSize: '9pt' }}>Obrigado pela preferência!</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* SIDEBAR */}

@@ -109,7 +109,7 @@ const App: React.FC = () => {
     return () => unsubs.forEach(u => u && u());
   }, []);
 
-  // ORDENAÇÃO ALFABÉTICA DOS PRODUTOS (Garante que 'Todos' também ordene de A a Z)
+  // ORDENAÇÃO ALFABÉTICA DOS PRODUTOS (Melhorada para garantir ordem de A-Z em 'Todos')
   const groupedMenu = useMemo(() => {
     if (!products || products.length === 0) return [];
     
@@ -124,7 +124,7 @@ const App: React.FC = () => {
       .sort((a, b) => {
         const nameA = a.name.toLowerCase().trim();
         const nameB = b.name.toLowerCase().trim();
-        return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base', ignorePunctuation: true });
+        return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
       });
   }, [products, searchTerm, selectedCategory, selectedSubCategory]);
 
@@ -286,7 +286,7 @@ const App: React.FC = () => {
                </div>
             </section>
             
-            {/* MENU: Sticky Category Bar - Sincronizado com a Navbar para ficar fixo no topo */}
+            {/* MENU: Sticky Category Bar - Sincronizado com a Navbar para ficar fixo no topo com Z-INDEX maior */}
             <div id="menu-anchor" className="sticky top-20 sm:top-28 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b w-full flex flex-col items-center py-4 gap-3 transition-all duration-300">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
                  <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg transform scale-105' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Todos</button>
