@@ -1,42 +1,49 @@
 
 # 🍔 Nilo Lanches - Delivery App
 
-## 👋 Olá! Seu app já está funcionando!
-Atualmente ele está rodando em **Modo Demonstração (Offline)**. Isso significa que:
-1. Os dados (produtos, pedidos) ficam salvos **apenas no seu navegador**.
-2. Se você abrir em outro celular, os dados não aparecerão lá.
-3. Não é necessário configurar nada para testar.
+Sistema completo de delivery com Inteligência Artificial (Gemini), Cardápio Digital e Painel Administrativo.
+
+## 🚀 Funcionalidades
+- **Cardápio Digital:** Produtos, categorias e adicionais.
+- **Carrinho e Checkout:** Cálculo de frete por CEP e cupom de desconto.
+- **IA do Nilo:** Chatbot que sugere lanches e tira dúvidas (Gemini AI).
+- **Painel Admin:** Gerenciamento de pedidos, produtos e clientes.
+- **PWA:** Instalável no celular (Android/iOS).
 
 ---
 
-## ☁️ Como Configurar o Firebase (Modo Online Real)
+## ⚠️ Segurança e Configuração (.env)
 
-Para que os pedidos cheguem em tempo real no painel do administrador em outro computador, você precisa conectar ao Google Firebase:
+Este projeto utiliza chaves de API sensíveis (Firebase e Google AI).
+**NUNCA suba o arquivo `.env` para o GitHub.**
 
-1. Acesse [console.firebase.google.com](https://console.firebase.google.com) e crie um projeto novo.
-2. Crie um app **Web** dentro do projeto (ícone `</>`).
-3. Copie as chaves geradas e crie um arquivo chamado `.env` na raiz do projeto (onde está o `package.json`).
-4. Cole as chaves no arquivo `.env` seguindo este modelo exato:
+O arquivo `.gitignore` já está configurado para impedir isso.
 
-```env
-# ARQUIVO: .env
-
-VITE_FIREBASE_API_KEY=AIzaSyD... (sua chave)
-VITE_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=seu-projeto
-VITE_FIREBASE_STORAGE_BUCKET=seu-projeto.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456...
-VITE_FIREBASE_APP_ID=1:123456:web:abcdef...
-
-# (Opcional) Chave Gemini AI para o Chatbot
-API_KEY=...
-```
-
-5. No Console do Firebase, vá em **Firestore Database** e clique em "Criar Banco de Dados" (em modo de teste).
-6. Reinicie seu projeto (`npm run dev`) e o aviso de "Modo Offline" desaparecerá!
+### Como configurar localmente:
+1. Crie um arquivo `.env` na raiz.
+2. Copie o conteúdo de `.env.example`.
+3. Preencha com suas chaves reais.
 
 ---
 
-## 🔐 Acesso Admin
+## ☁️ Como fazer Deploy (Colocar no ar)
+
+A maneira mais fácil é usar a **Vercel**.
+
+1. Suba este código para o seu GitHub.
+2. Crie uma conta na [Vercel](https://vercel.com) e importe o projeto.
+3. **PASSO IMPORTANTE:**
+   Na tela de configuração da Vercel, vá em **Environment Variables** e adicione as mesmas chaves que estão no seu arquivo `.env` local:
+
+   - `VITE_API_KEY`
+   - `VITE_FIREBASE_API_KEY`
+   - `VITE_FIREBASE_AUTH_DOMAIN`
+   - etc...
+
+Se você não fizer isso, o site entrará no ar mas o banco de dados e a IA não funcionarão.
+
+---
+
+## 🔐 Acesso Admin Padrão
 - **Usuário:** `nilo`
 - **Senha:** `nilo123`

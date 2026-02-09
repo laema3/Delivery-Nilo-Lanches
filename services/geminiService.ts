@@ -5,17 +5,35 @@ import { Product } from "../types.ts";
 // Função simplificada e segura para pegar a chave
 const getApiKey = () => {
   try {
-    let key = "";
+    let rawKey = "";
     
-    // Verificação defensiva para garantir que o ambiente existe antes de acessar
+    // Acesso seguro ao ambiente Vite
     // @ts-ignore
-    if (typeof import.meta !== "undefined" && import.meta.env) {
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
       // @ts-ignore
-      key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || "";
+      const env = import.meta.env;
+      rawKey = env.VITE_API_KEY || env.API_KEY || "";
     }
+
+    if (!rawKey) return "";
+
+    // 1. Tenta extrair a chave EXATA usando padrão do Google (AIza + 35 chars)
+    // Isso resolve o problema de textos colados junto com a chave (ex: "AIza...eu só colei...")
+    const googleKeyPattern = /AIza[0-9A-Za-z\-_]{35}/;
+    const match = rawKey.match(googleKeyPattern);
     
-    if (key && key.length > 10 && !key.includes(' ') && !key.includes('?')) {
-      return key;
+    if (match) {
+      return match[0];
+    }
+
+    // 2. Fallback: Limpeza manual se o regex falhar
+    let clean = rawKey.trim();
+    if (clean.includes(' ')) clean = clean.split(' ')[0]; // Pega só a primeira palavra
+    if (clean.includes('\n')) clean = clean.split('\n')[0];
+
+    // Validação básica de segurança
+    if (clean.length > 20 && !clean.includes('?') && !clean.includes('Olá')) {
+      return clean;
     }
   } catch (e) {
     console.error("Erro ao ler API Key:", e);
@@ -26,6 +44,7 @@ const getApiKey = () => {
 const getAIClient = () => {
   const apiKey = getApiKey();
   if (!apiKey) {
+    // Retorna null silenciosamente para não quebrar a app, o chat tratará isso
     return null;
   }
   return new GoogleGenAI({ apiKey });
@@ -39,7 +58,7 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
   const ai = getAIClient();
   
   if (!ai) {
-    return "Olá! 🤖 Para que eu possa te ajudar, o dono do site precisa configurar a chave de inteligência artificial (Gemini API Key) no arquivo .env. Obtenha em: aistudio.google.com/app/apikey";
+    return "Olá! 🤖 Para conversar comigo, o dono do site precisa verificar a configuração da Chave de API (Gemini Key).";
   }
 
   try {
