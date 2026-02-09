@@ -282,19 +282,20 @@ const App: React.FC = () => {
                </div>
             </section>
             
-            <div id="menu-anchor" className="sticky top-20 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b w-full flex flex-col items-center py-4 px-4 gap-3">
-               <div className="flex justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl">
-                 <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>Todos</button>
+            {/* MENU: Atualizado para melhor alinhamento e contraste, e agora FIXO (sticky top-20 sm:top-28) */}
+            <div id="menu-anchor" className="sticky top-20 sm:top-28 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b w-full flex flex-col items-center py-4 gap-3 transition-all duration-300">
+               <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
+                 <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg transform scale-105' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Todos</button>
                  {sortedCategories.map(cat => (
-                   <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>{cat.name}</button>
+                   <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-lg transform scale-105' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{cat.name}</button>
                  ))}
                </div>
                
                {activeSubCategories.length > 0 && (
-                 <div className="flex justify-center gap-2 overflow-x-auto no-scrollbar w-full max-w-7xl animate-fade-in">
-                   <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedSubCategory === 'Todos' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-400'}`}>Tudo</button>
+                 <div className="flex justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar w-full max-w-7xl animate-fade-in px-4 pb-1">
+                   <button onClick={() => setSelectedSubCategory('Todos')} className={`px-5 py-2 rounded-full text-[11px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedSubCategory === 'Todos' ? 'text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-slate-700'}`}>Tudo</button>
                    {activeSubCategories.map(sub => (
-                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedSubCategory === sub.name ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-400'}`}>{sub.name}</button>
+                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-5 py-2 rounded-full text-[11px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedSubCategory === sub.name ? 'text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-slate-700'}`}>{sub.name}</button>
                    ))}
                  </div>
                )}

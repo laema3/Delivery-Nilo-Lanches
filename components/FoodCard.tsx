@@ -14,14 +14,14 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
       {/* MOLDURA DA FOTO */}
       <div className="p-3 bg-white">
         <div 
-          className="relative h-48 sm:h-56 bg-slate-50 cursor-pointer overflow-hidden rounded-[26px] flex items-center justify-center p-3"
+          className="relative h-48 sm:h-56 bg-slate-50 cursor-pointer overflow-hidden rounded-[26px] flex items-center justify-center p-2"
           onClick={() => onClick(product)}
         >
           <img 
             crossOrigin="anonymous"
             src={product.image || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500'} 
             alt={product.name}
-            className="w-full h-full object-contain rounded-[26px] transition-transform duration-700 group-hover:scale-110"
+            className="w-full h-full object-contain rounded-[20px] transition-transform duration-700 group-hover:scale-110"
           />
           <div className="absolute top-3 right-3 bg-white/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm z-10 border border-white/50">
             <span className="text-yellow-500 text-[10px]">⭐</span>
@@ -36,14 +36,15 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
         </div>
       </div>
 
-      <div className="px-6 pt-2 pb-4 cursor-pointer" onClick={() => onClick(product)}>
+      {/* ÁREA DE TEXTO: Centralizado, Título Verde, Descrição Vermelha */}
+      <div className="px-6 pt-2 pb-4 cursor-pointer text-center" onClick={() => onClick(product)}>
         <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest block mb-1 truncate opacity-80">
           {product.category}
         </span>
-        <h3 className="text-lg font-black uppercase text-slate-900 leading-tight tracking-tight line-clamp-1 mb-1">
+        <h3 className="text-lg font-black uppercase text-emerald-600 leading-tight tracking-tight line-clamp-1 mb-1">
           {product.name}
         </h3>
-        <p className="text-slate-500 text-[11px] font-bold leading-snug line-clamp-2 uppercase">
+        <p className="text-red-600 text-[11px] font-bold leading-snug line-clamp-2 uppercase">
           {product.description || 'Lanche artesanal preparado com dedicação pela equipe Nilo Lanches.'}
         </p>
       </div>

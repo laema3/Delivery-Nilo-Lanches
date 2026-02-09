@@ -11,23 +11,25 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // Verifica se o usuário já recusou permanentemente
-    const isDismissed = localStorage.getItem('nilo_pwa_dismissed') === 'true';
+    // Verifica se já foi dispensado NA SESSÃO ATUAL
+    const isDismissed = sessionStorage.getItem('nilo_pwa_dismissed') === 'true';
     if (isDismissed) return;
 
     // Verifica se é iOS
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
-    // Captura o evento de instalação do Android/Chrome
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
 
     const handleScroll = () => {
-      // Se rolou mais que 300px e o prompt está pronto (ou é iOS) e ainda não está visível
-      if (window.scrollY > 300 && !isVisible && !localStorage.getItem('nilo_pwa_dismissed')) {
+      if (sessionStorage.getItem('nilo_pwa_dismissed') === 'true') return;
+
+      // Mostra após rolar 200px
+      if (window.scrollY > 200 && !isVisible) {
+        // Se tem prompt (Android) ou é iOS (que não tem prompt nativo, mas mostramos manual)
         if (deferredPrompt || (isIOSDevice && !(window.navigator as any).standalone)) {
           setIsVisible(true);
         }
@@ -49,20 +51,19 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setIsVisible(false);
-        localStorage.setItem('nilo_pwa_dismissed', 'true');
+        sessionStorage.setItem('nilo_pwa_dismissed', 'true');
       }
       setDeferredPrompt(null);
     } else if (isIOS) {
       alert('📱 No iPhone: Clique no ícone de "Compartilhar" (quadrado com seta no rodapé do Safari) e depois em "Adicionar à Tela de Início".');
       setIsVisible(false);
-      localStorage.setItem('nilo_pwa_dismissed', 'true');
+      sessionStorage.setItem('nilo_pwa_dismissed', 'true');
     }
   };
 
   const handleDismiss = () => {
     setIsVisible(false);
-    // Salva no localStorage para não insistir mais nesta sessão/dispositivo
-    localStorage.setItem('nilo_pwa_dismissed', 'true');
+    sessionStorage.setItem('nilo_pwa_dismissed', 'true');
   };
 
   if (!isVisible) return null;
@@ -103,7 +104,7 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
             </button>
             <button 
               onClick={handleDismiss}
-              className="text-[9px] text-slate-500 font-black uppercase tracking-widest text-center py-1"
+              className="text-[9px] text-slate-500 font-black uppercase tracking-widest text-center py-1 hover:text-white transition-colors"
             >
               Agora não
             </button>

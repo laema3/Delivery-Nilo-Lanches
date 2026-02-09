@@ -465,6 +465,189 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               </div>
             </div>
           )}
+          
+          {activeView === 'categorias' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 w-full space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Nova Categoria</label>
+                  <input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Ex: Bebidas" className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none" />
+                </div>
+                <button onClick={() => { if(catName) { onAddCategory(catName); setCatName(''); } }} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-700 transition-all w-full md:w-auto">Adicionar</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {categories.map(c => (
+                  <div key={c.id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex justify-between items-center">
+                    <span className="font-black text-sm text-slate-700 uppercase">{c.name}</span>
+                    <button onClick={() => onRemoveCategory(c.id)} className="text-red-400 hover:text-red-600 font-bold px-3 py-1 bg-red-50 rounded-lg text-[10px] uppercase">Excluir</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'subcategorias' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-400">Nova Subcategoria</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <select value={subCatParent} onChange={e => setSubCatParent(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none">
+                    <option value="">Selecione a Categoria Pai...</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <input value={subCatName} onChange={e => setSubCatName(e.target.value)} placeholder="Nome da Subcategoria" className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none" />
+                </div>
+                <button onClick={() => { if(subCatName && subCatParent) { onAddSubCategory(subCatParent, subCatName); setSubCatName(''); } }} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Adicionar</button>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {subCategories.map(s => {
+                  const parent = categories.find(c => c.id === s.categoryId)?.name || 'Desconhecida';
+                  return (
+                    <div key={s.id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex justify-between items-center">
+                      <div>
+                        <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">{parent}</span>
+                        <span className="font-black text-sm text-slate-700 uppercase">{s.name}</span>
+                      </div>
+                      <button onClick={() => onRemoveSubCategory(s.id)} className="text-red-400 hover:text-red-600 font-bold px-3 py-1 bg-red-50 rounded-lg text-[10px] uppercase">Excluir</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'adicionais' && (
+            <div className="space-y-6 animate-fade-in">
+               <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-4">
+                 <h3 className="text-xs font-black uppercase text-slate-400">Novo Adicional</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <input value={compName} onChange={e => setCompName(e.target.value)} placeholder="Nome (ex: Bacon)" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
+                   <input type="number" value={compPrice} onChange={e => setCompPrice(e.target.value)} placeholder="Preço (ex: 3.50)" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
+                 </div>
+                 <div className="flex gap-2 flex-wrap">
+                   {categories.map(cat => (
+                     <button 
+                       key={cat.id}
+                       onClick={() => {
+                          if(selectedCompCats.includes(cat.id)) setSelectedCompCats(prev => prev.filter(id => id !== cat.id));
+                          else setSelectedCompCats(prev => [...prev, cat.id]);
+                       }}
+                       className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase border transition-all ${selectedCompCats.includes(cat.id) ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-400 border-slate-200'}`}
+                     >
+                       {cat.name}
+                     </button>
+                   ))}
+                 </div>
+                 <button onClick={() => { if(compName && compPrice) { onAddComplement(compName, Number(compPrice), selectedCompCats.length > 0 ? selectedCompCats : undefined); setCompName(''); setCompPrice(''); setSelectedCompCats([]); } }} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Adicionar</button>
+               </div>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 {complements.map(comp => (
+                   <div key={comp.id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex justify-between items-center">
+                      <div>
+                        <span className="font-black text-sm text-slate-700 uppercase block">{comp.name}</span>
+                        <span className="text-xs font-bold text-emerald-600">R$ {comp.price.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => onToggleComplement(comp.id)} className={`w-10 h-6 rounded-full p-1 transition-colors ${comp.active ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                          <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${comp.active ? 'translate-x-4' : ''}`}></div>
+                        </button>
+                        <button onClick={() => onRemoveComplement(comp.id)} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-100">🗑️</button>
+                      </div>
+                   </div>
+                 ))}
+               </div>
+            </div>
+          )}
+
+          {activeView === 'entregas' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-400">Novo Intervalo de CEP</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input value={zipStart} onChange={e => setZipStart(e.target.value)} placeholder="Início (38000000)" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
+                  <input value={zipEnd} onChange={e => setZipEnd(e.target.value)} placeholder="Fim (38999999)" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
+                  <input type="number" value={zipFee} onChange={e => setZipFee(e.target.value)} placeholder="Taxa (R$)" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
+                </div>
+                <button onClick={() => { if(zipStart && zipEnd && zipFee) { onAddZipRange(zipStart, zipEnd, Number(zipFee)); setZipStart(''); setZipEnd(''); setZipFee(''); } }} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Adicionar Região</button>
+              </div>
+              <div className="space-y-3">
+                {zipRanges.map(z => (
+                  <div key={z.id} className="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm flex justify-between items-center">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+                       <div className="flex items-center gap-2">
+                         <span className="text-[10px] font-black uppercase bg-slate-100 px-2 py-1 rounded text-slate-500">Início</span>
+                         <span className="font-bold text-slate-700">{z.start}</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <span className="text-[10px] font-black uppercase bg-slate-100 px-2 py-1 rounded text-slate-500">Fim</span>
+                         <span className="font-bold text-slate-700">{z.end}</span>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="font-black text-emerald-600">R$ {z.fee.toFixed(2)}</span>
+                      <button onClick={() => onRemoveZipRange(z.id)} className="text-red-400 hover:text-red-600">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {activeView === 'clientes' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Nome</th>
+                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Contato</th>
+                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Endereço</th>
+                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">Pedidos</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {customers.map(cust => (
+                      <tr key={cust.id} className="group hover:bg-slate-50 transition-colors">
+                        <td className="py-4 pr-4">
+                          <span className="block font-bold text-slate-800 text-sm">{cust.name}</span>
+                          <span className="text-[10px] text-slate-400">{cust.email}</span>
+                        </td>
+                        <td className="py-4 pr-4 font-bold text-slate-600 text-xs">{cust.phone}</td>
+                        <td className="py-4 pr-4 text-xs text-slate-500 max-w-[200px] truncate">{cust.address}</td>
+                        <td className="py-4 text-right font-black text-emerald-600">{cust.totalOrders || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {customers.length === 0 && <p className="text-center py-10 text-slate-400 font-bold uppercase text-xs">Nenhum cliente cadastrado</p>}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'pagamentos' && (
+            <div className="space-y-6 animate-fade-in">
+               <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-4">
+                 <h3 className="text-xs font-black uppercase text-slate-400">Novo Método</h3>
+                 <div className="flex gap-4">
+                   <input value={payName} onChange={e => setPayName(e.target.value)} placeholder="Nome (ex: Pix, Cartão)" className="flex-1 p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
+                   <button onClick={() => { if(payName) { onAddPaymentMethod(payName, 'DELIVERY'); setPayName(''); } }} className="px-8 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Adicionar</button>
+                 </div>
+               </div>
+               <div className="grid grid-cols-1 gap-3">
+                  {paymentSettings.map(p => (
+                    <div key={p.id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex justify-between items-center">
+                      <span className="font-black text-sm text-slate-700 uppercase">{p.name}</span>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => onTogglePaymentMethod(p.id)} className={`w-12 h-7 rounded-full p-1 transition-colors ${p.enabled ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                          <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${p.enabled ? 'translate-x-5' : ''}`}></div>
+                        </button>
+                        <button onClick={() => onRemovePaymentMethod(p.id)} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-100">🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+               </div>
+            </div>
+          )}
 
           {activeView === 'ajustes' && (
             <div className="max-w-2xl animate-fade-in space-y-8 text-left pb-10">

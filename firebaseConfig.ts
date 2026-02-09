@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 
 // As chaves do projeto Nilo Lanches (Recuperadas e fixadas para garantir conexão)
 const FALLBACK_CONFIG = {
@@ -44,14 +44,14 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     app = initializeApp(firebaseConfig);
     
     // CORREÇÃO DE SINCRONIZAÇÃO MOBILE:
-    // Forçamos Long Polling. Redes móveis (4G/5G) frequentemente derrubam WebSockets do Firebase,
-    // o que causa a falha de sincronização entre Smartphone e Desktop.
+    // Forçamos Long Polling e desligamos fetch streams. 
+    // Isso resolve problemas onde o celular não envia/recebe dados em tempo real no 4G.
     db = initializeFirestore(app, {
       experimentalForceLongPolling: true,
       useFetchStreams: false
     });
     
-    console.log("🔥 [Firebase] Conectado e Otimizado (Nilo Lanches):", firebaseConfig.projectId);
+    console.log("🔥 [Firebase] Conectado e Otimizado (Long Polling Ativo):", firebaseConfig.projectId);
   } catch (error: any) {
     console.error("❌ [Firebase] Erro:", error);
     connectionError = error.message;
