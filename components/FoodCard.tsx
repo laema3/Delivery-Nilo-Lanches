@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Product } from '../types.ts';
 
@@ -28,20 +27,23 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
             <span className="text-yellow-500 text-[10px]">⭐</span>
             <span className="text-[10px] font-black text-slate-800">{product.rating || 5.0}</span>
           </div>
+          
+          <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none">
+            <span className="text-[7px] font-black text-red-600 uppercase tracking-widest bg-white/70 backdrop-blur-sm px-2 py-0.5 rounded-full border border-red-100">
+              Fotos meramente ilustrativas
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* TEXTO - VOLTOU PARA DENTRO DA MOLDURA (ABAIXO DA FOTO) */}
       <div className="px-6 pt-2 pb-4 cursor-pointer" onClick={() => onClick(product)}>
-        <span className="text-[9px] font-black uppercase text-red-600 tracking-widest block mb-1 truncate opacity-80">
+        <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest block mb-1 truncate opacity-80">
           {product.category}
         </span>
-        {/* TÍTULO EM VERDE (MESMO DO SITE/BOTÃO +) */}
-        <h3 className="text-lg font-black uppercase text-emerald-600 leading-tight tracking-tight line-clamp-1 mb-1">
+        <h3 className="text-lg font-black uppercase text-slate-900 leading-tight tracking-tight line-clamp-1 mb-1">
           {product.name}
         </h3>
-        {/* DESCRIÇÃO EM VERMELHO - FORÇADA PARA UPPERCASE */}
-        <p className="text-red-600 text-[11px] font-bold leading-snug line-clamp-2 uppercase">
+        <p className="text-slate-500 text-[11px] font-bold leading-snug line-clamp-2 uppercase">
           {product.description || 'Lanche artesanal preparado com dedicação pela equipe Nilo Lanches.'}
         </p>
       </div>

@@ -29,72 +29,53 @@ html, body {
   min-height: 100vh;
 }
 
-.animate-bounce-subtle {
-  animation: bounceSubtle 0.8s infinite ease-in-out;
+/* ESTILOS DE IMPRESSÃO - CUPOM TÉRMICO */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  
+  #printable-coupon, #printable-coupon * {
+    visibility: visible !important;
+  }
+  
+  #printable-coupon {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 10px;
+    background: white;
+    color: black;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10pt;
+    line-height: 1.2;
+    z-index: 9999;
+  }
+
+  header, footer, nav, button, .no-print {
+    display: none !important;
+  }
 }
 
-@keyframes bounceSubtle {
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@keyframes bounce-subtle {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-15px) scale(1.1); }
+  50% { transform: translateY(-10px); }
 }
 
-.glass-morphism { 
-  background: rgba(255, 255, 255, 0.98); 
-  backdrop-filter: blur(10px); 
-  -webkit-backdrop-filter: blur(10px); 
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05); 
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s ease-in-out infinite;
 }
 
-.no-scrollbar::-webkit-scrollbar { 
-  display: none; 
+@keyframes loading-bar {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0); }
+  100% { transform: translateX(100%); }
 }
 
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.animate-fade-in { 
-  animation: fadeIn 0.4s ease-out;
-}
-
-@keyframes fadeIn { 
-  from { opacity: 0; transform: translateY(8px); } 
-  to { opacity: 1; transform: translateY(0); } 
-}
-
-@keyframes loadingBar {
-  0% { width: 0; left: 0; }
-  50% { width: 70%; left: 15%; }
-  100% { width: 100%; left: 0; }
-}
-
-/* Sincronizado com o loader de 1 segundo */
 .animate-loading-bar {
-  animation: loadingBar 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-.mask-linear-right {
-  mask-image: linear-gradient(to right, black 90%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
-.main-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 24px;
-  width: 100%;
-}
-
-.spinner {
-  width: 48px; height: 48px; border: 4px solid #f3f3f3;
-  border-top: 4px solid #008000; border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: loading-bar 1.5s infinite linear;
 }

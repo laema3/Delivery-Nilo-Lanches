@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface OrderSuccessModalProps {
@@ -10,6 +9,10 @@ interface OrderSuccessModalProps {
 
 export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ isOpen, onClose, orderId, onSendWhatsApp }) => {
   if (!isOpen) return null;
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-emerald-950/90 backdrop-blur-xl animate-in fade-in duration-300">
@@ -26,8 +29,8 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ isOpen, on
         </div>
 
         <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
-          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Atenção</p>
-          <p className="text-xs font-bold text-slate-600 mt-1 italic">Clique no botão abaixo para confirmar seu pedido pelo WhatsApp.</p>
+          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Sucesso</p>
+          <p className="text-xs font-bold text-slate-600 mt-1 italic">Deseja guardar seu comprovante ou confirmar agora?</p>
         </div>
 
         <div className="flex flex-col gap-3">
@@ -39,6 +42,13 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ isOpen, on
               <span className="text-lg">💬</span> Enviar p/ WhatsApp
             </button>
           )}
+
+          <button 
+            onClick={handlePrint}
+            className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-[10px] flex items-center justify-center gap-2"
+          >
+            🖨️ Imprimir Comprovante
+          </button>
           
           <button 
             onClick={onClose}

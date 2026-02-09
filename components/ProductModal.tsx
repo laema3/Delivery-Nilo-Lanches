@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Product, Complement, CategoryItem } from '../types.ts';
 
@@ -40,8 +39,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, complements
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]">
-        <div className="md:w-[40%] relative h-64 md:h-auto overflow-hidden bg-slate-50 flex items-center justify-center p-6">
+        <div className="md:w-[40%] relative h-64 md:h-auto overflow-hidden bg-slate-50 flex flex-col items-center justify-center p-6 shrink-0">
           <img src={product.image} alt={product.name} className="w-full h-full object-contain rounded-[28px]" />
+          <p className="mt-4 text-[9px] font-black text-red-600 uppercase tracking-widest text-center bg-red-50 px-3 py-1 rounded-full border border-red-100">
+            Fotos meramente ilustrativas
+          </p>
           <button onClick={onClose} className="absolute top-4 left-4 bg-black/40 text-white p-2 rounded-full md:hidden">✕</button>
         </div>
         <div className="md:w-[60%] p-6 md:p-8 flex flex-col overflow-y-auto no-scrollbar">
@@ -50,8 +52,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, complements
               <span className="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest">{product.category}</span>
               <button onClick={onClose} className="hidden md:block p-1.5 text-slate-400">✕</button>
             </div>
-            <h2 className="text-xl md:text-3xl font-black uppercase text-red-600 tracking-tight leading-tight">{product.name}</h2>
-            {/* DESCRIÇÃO EM MAIÚSCULO NO MODAL */}
+            <h2 className="text-xl md:text-3xl font-black uppercase text-slate-900 tracking-tight leading-tight">{product.name}</h2>
             <p className="text-slate-500 text-xs font-medium uppercase">{product.description}</p>
 
             <div className="space-y-3 pt-4">

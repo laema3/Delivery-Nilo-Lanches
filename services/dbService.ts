@@ -1,3 +1,4 @@
+
 import { db } from '../firebaseConfig.ts';
 import { 
   collection, 
@@ -76,8 +77,9 @@ export const dbService = {
         // Atualiza o cache local com os dados frescos da nuvem
         this.setLocal(key, data);
         
-        // Atualiza a tela
+        // Atualiza a tela com o dado REAL da nuvem
         callback(data as unknown as T);
+        console.log(`🔄 [Sync] Recebido update de ${key}: ${data.length} items`);
         
       }, (error) => {
         console.warn(`⚠️ [Sync] Erro ao sincronizar '${key}':`, error.code);
@@ -137,10 +139,14 @@ export const dbService = {
       try {
         const collectionName = COLLECTION_MAP[key] || key;
         await setDoc(doc(db, collectionName, id), cleanData, { merge: true });
+        // Log para confirmar que o envio para a nuvem ocorreu
+        console.log(`☁️ [Cloud] Dado enviado para ${key}/${id}`);
       } catch (e: any) {
         console.error(`❌ Erro ao salvar no Firebase (${key}):`, e);
         // Opcional: Mostrar toast de erro para o usuário
       }
+    } else {
+      console.warn("⚠️ [Cloud] Tentativa de salvar sem conexão (Modo Offline)");
     }
   },
 
@@ -156,6 +162,7 @@ export const dbService = {
       try {
         const collectionName = COLLECTION_MAP[key] || key;
         await deleteDoc(doc(db, collectionName, id));
+        console.log(`🗑️ [Cloud] Dado removido de ${key}/${id}`);
       } catch (e) {
         console.error(`❌ Erro ao deletar no Firebase (${key}):`, e);
       }

@@ -11,6 +11,10 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Verifica se o usuário já recusou permanentemente
+    const isDismissed = localStorage.getItem('nilo_pwa_dismissed') === 'true';
+    if (isDismissed) return;
+
     // Verifica se é iOS
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
@@ -19,12 +23,11 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      // Não exibe imediatamente, aguarda o scroll
     };
 
     const handleScroll = () => {
-      // Se rolou mais que 150px e o prompt está pronto (ou é iOS) e ainda não está visível
-      if (window.scrollY > 150 && !isVisible) {
+      // Se rolou mais que 300px e o prompt está pronto (ou é iOS) e ainda não está visível
+      if (window.scrollY > 300 && !isVisible && !localStorage.getItem('nilo_pwa_dismissed')) {
         if (deferredPrompt || (isIOSDevice && !(window.navigator as any).standalone)) {
           setIsVisible(true);
         }
@@ -46,12 +49,20 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setIsVisible(false);
+        localStorage.setItem('nilo_pwa_dismissed', 'true');
       }
       setDeferredPrompt(null);
     } else if (isIOS) {
       alert('📱 No iPhone: Clique no ícone de "Compartilhar" (quadrado com seta no rodapé do Safari) e depois em "Adicionar à Tela de Início".');
       setIsVisible(false);
+      localStorage.setItem('nilo_pwa_dismissed', 'true');
     }
+  };
+
+  const handleDismiss = () => {
+    setIsVisible(false);
+    // Salva no localStorage para não insistir mais nesta sessão/dispositivo
+    localStorage.setItem('nilo_pwa_dismissed', 'true');
   };
 
   if (!isVisible) return null;
@@ -91,7 +102,7 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
               Instalar
             </button>
             <button 
-              onClick={() => setIsVisible(false)}
+              onClick={handleDismiss}
               className="text-[9px] text-slate-500 font-black uppercase tracking-widest text-center py-1"
             >
               Agora não

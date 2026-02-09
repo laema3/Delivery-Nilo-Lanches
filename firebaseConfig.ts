@@ -1,5 +1,6 @@
+
 import { initializeApp } from "firebase/app";
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, getFirestore } from "firebase/firestore";
 
 // As chaves do projeto Nilo Lanches (Recuperadas e fixadas para garantir conexão)
 const FALLBACK_CONFIG = {
@@ -16,7 +17,8 @@ const getEnv = (key: string, fallback: string) => {
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
       // @ts-ignore
-      return import.meta.env[key];
+      const val = import.meta.env[key];
+      return (val && val !== "undefined") ? val : fallback;
     }
   } catch (e) {
     // Ignora erro
@@ -34,20 +36,22 @@ const firebaseConfig = {
 };
 
 let app = null;
-let db = null;
+let db: any = null;
 let connectionError = "";
 
 if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   try {
     app = initializeApp(firebaseConfig);
     
+    // CORREÇÃO DE SINCRONIZAÇÃO MOBILE:
+    // Forçamos Long Polling. Redes móveis (4G/5G) frequentemente derrubam WebSockets do Firebase,
+    // o que causa a falha de sincronização entre Smartphone e Desktop.
     db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
+      experimentalForceLongPolling: true,
+      useFetchStreams: false
     });
     
-    console.log("🔥 [Firebase] Conectado (Nilo Lanches):", firebaseConfig.projectId);
+    console.log("🔥 [Firebase] Conectado e Otimizado (Nilo Lanches):", firebaseConfig.projectId);
   } catch (error: any) {
     console.error("❌ [Firebase] Erro:", error);
     connectionError = error.message;

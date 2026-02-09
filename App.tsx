@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Navbar } from './components/Navbar.tsx';
 import { FoodCard } from './components/FoodCard.tsx';
@@ -135,6 +136,20 @@ const App: React.FC = () => {
       .filter(s => s.categoryId === cat.id)
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [selectedCategory, categories, subCategories]);
+
+  // CALCULO DO FRETE AUTOMÁTICO
+  const currentDeliveryFee = useMemo(() => {
+    if (!currentUser?.zipCode || zipRanges.length === 0) return 0;
+    const cleanZip = parseInt(currentUser.zipCode.replace(/\D/g, ''));
+    
+    const range = zipRanges.find(z => {
+      const start = parseInt(z.start.replace(/\D/g, ''));
+      const end = parseInt(z.end.replace(/\D/g, ''));
+      return cleanZip >= start && cleanZip <= end;
+    });
+
+    return range ? range.fee : 0;
+  }, [currentUser, zipRanges]);
 
   const handleProductClick = (product: Product) => {
     setIsProductLoading(true);
@@ -315,7 +330,7 @@ const App: React.FC = () => {
         onAuthClick={() => setIsAuthModalOpen(true)} 
         paymentSettings={paymentMethods} 
         currentUser={currentUser} 
-        deliveryFee={0} 
+        deliveryFee={currentDeliveryFee} 
         availableCoupons={[]} 
         isStoreOpen={isStoreOpen} 
       />
