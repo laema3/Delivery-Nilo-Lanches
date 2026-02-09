@@ -65,11 +65,9 @@ const App: React.FC = () => {
     const initApp = async () => {
       console.log("🚀 Iniciando Nilo Lanches...");
       
-      // Tenta carregar dados existentes
       const currentProds = await dbService.getAll<Product[]>('products', []);
       const currentCats = await dbService.getAll<CategoryItem[]>('categories', []);
 
-      // Se não tiver dados (primeira vez ou reset), carrega o demo
       if (currentProds.length === 0 || currentCats.length === 0) {
         console.log("📦 Populando dados iniciais (Demo)...");
         
@@ -80,7 +78,6 @@ const App: React.FC = () => {
              dbService.save('settings', 'general', { ...DEMO_SETTINGS[0], isStoreOpen: true })
         ]);
 
-        // Força atualização do estado local para visualização imediata
         setCategories(DEMO_CATEGORIES);
         setProducts(DEMO_PRODUCTS);
         setComplements(DEMO_COMPLEMENTS);
@@ -90,7 +87,6 @@ const App: React.FC = () => {
 
     initApp();
 
-    // Inscreve nos listeners (Firebase ou LocalStorage)
     const unsubs = [
       dbService.subscribe<Product[]>('products', setProducts),
       dbService.subscribe<Order[]>('orders', setOrders),
@@ -113,19 +109,27 @@ const App: React.FC = () => {
     return () => unsubs.forEach(u => u && u());
   }, []);
 
+  // ORDENAÇÃO ALFABÉTICA DOS PRODUTOS (Garante que 'Todos' também ordene de A a Z)
   const groupedMenu = useMemo(() => {
     if (!products || products.length === 0) return [];
-    return products.filter(p => {
-      const s = safeNormalize(searchTerm);
-      const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
-      const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
-      const matchesSubCategory = selectedSubCategory === 'Todos' || p.subCategory === selectedSubCategory;
-      return matchesSearch && matchesCategory && matchesSubCategory;
-    });
+    
+    return [...products]
+      .filter(p => {
+        const s = safeNormalize(searchTerm);
+        const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
+        const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
+        const matchesSubCategory = selectedSubCategory === 'Todos' || p.subCategory === selectedSubCategory;
+        return matchesSearch && matchesCategory && matchesSubCategory;
+      })
+      .sort((a, b) => {
+        const nameA = a.name.toLowerCase().trim();
+        const nameB = b.name.toLowerCase().trim();
+        return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base', ignorePunctuation: true });
+      });
   }, [products, searchTerm, selectedCategory, selectedSubCategory]);
 
   const sortedCategories = useMemo(() => {
-    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }, [categories]);
 
   const activeSubCategories = useMemo(() => {
@@ -134,7 +138,7 @@ const App: React.FC = () => {
     if (!cat) return [];
     return subCategories
       .filter(s => s.categoryId === cat.id)
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }, [selectedCategory, categories, subCategories]);
 
   // CALCULO DO FRETE AUTOMÁTICO
@@ -282,7 +286,7 @@ const App: React.FC = () => {
                </div>
             </section>
             
-            {/* MENU: Atualizado para melhor alinhamento e contraste, e agora FIXO (sticky top-20 sm:top-28) */}
+            {/* MENU: Sticky Category Bar - Sincronizado com a Navbar para ficar fixo no topo */}
             <div id="menu-anchor" className="sticky top-20 sm:top-28 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b w-full flex flex-col items-center py-4 gap-3 transition-all duration-300">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
                  <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg transform scale-105' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Todos</button>

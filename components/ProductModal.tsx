@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Product, Complement, CategoryItem } from '../types.ts';
 
@@ -17,11 +18,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, complements
   const filteredComplements = useMemo(() => {
     if (!product) return [];
     const productCategoryId = categories.find(c => c.name === product.category)?.id;
-    return complements.filter(c => {
-      if (!c.active) return false;
-      if (!c.applicable_categories || c.applicable_categories.length === 0) return true;
-      return productCategoryId && c.applicable_categories.includes(productCategoryId);
-    });
+    return complements
+      .filter(c => {
+        if (!c.active) return false;
+        if (!c.applicable_categories || c.applicable_categories.length === 0) return true;
+        return productCategoryId && c.applicable_categories.includes(productCategoryId);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)); // Ordenação alfabética nos adicionais
   }, [product, complements, categories]);
 
   const selectedComplementsList = useMemo(() => {
