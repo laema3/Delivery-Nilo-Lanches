@@ -31,8 +31,13 @@ html, body {
 }
 
 /* CLASSE PARA ELEMENTOS QUE SÓ APARECEM NA IMPRESSÃO */
+/* Mudamos de display:none para garantir que o motor de impressão o capture */
 .print-only {
-  display: none;
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ESTILOS DE IMPRESSÃO - CUPOM TÉRMICO */
@@ -46,21 +51,20 @@ html, body {
   .print-only, .print-only * {
     visibility: visible !important;
     display: block !important;
+    position: static !important;
+    opacity: 1 !important;
   }
   
   #printable-coupon {
     display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 80mm; /* Largura padrão de bobina térmica */
-    padding: 5mm;
-    background: white;
-    color: black;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 10pt;
-    line-height: 1.4;
-    z-index: 99999;
+    width: 80mm !important; /* Largura padrão de bobina térmica */
+    padding: 2mm !important;
+    margin: 0 !important;
+    background: white !important;
+    color: black !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 10pt !important;
+    line-height: 1.2 !important;
   }
 
   /* Remove margens e cabeçalhos padrão do navegador */
