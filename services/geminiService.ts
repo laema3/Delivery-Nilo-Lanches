@@ -7,7 +7,7 @@ const getApiKey = () => {
   try {
     // @ts-ignore
     const key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY;
-    if (key && key.length > 10 && !key.includes(' ')) {
+    if (key && key.length > 10 && !key.includes(' ') && !key.includes('?')) {
       return key;
     }
   } catch (e) {
@@ -19,7 +19,6 @@ const getApiKey = () => {
 const getAIClient = () => {
   const apiKey = getApiKey();
   if (!apiKey) {
-    console.warn("⚠️ Chatbot: API Key não encontrada ou inválida.");
     return null;
   }
   return new GoogleGenAI({ apiKey });
@@ -33,10 +32,7 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
   const ai = getAIClient();
   
   if (!ai) {
-    const msg = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    // Fallback simples se não tiver chave
-    if (msg.includes('ola') || msg.includes('oi')) return "Olá! Sou o assistente do Nilo. (Sistema: Chave de API não configurada corretamente)";
-    return "Estou funcionando em modo básico. Para eu ficar inteligente, configure a VITE_API_KEY no arquivo .env!";
+    return "Olá! 🤖 Para que eu possa te ajudar, o dono do site precisa configurar a chave de inteligência artificial (Gemini API Key) no arquivo .env. Obtenha em: aistudio.google.com/app/apikey";
   }
 
   try {

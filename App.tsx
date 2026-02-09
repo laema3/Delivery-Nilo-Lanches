@@ -175,34 +175,43 @@ const App: React.FC = () => {
   const handleCheckout = async (paymentMethod: string, fee: number, discount: number, couponCode: string, deliveryType: DeliveryType, changeFor?: number) => {
     if (!currentUser) return setIsAuthModalOpen(true);
     
-    const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const total = subtotal + fee - discount;
+    try {
+        const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const total = subtotal + fee - discount;
 
-    const newOrder: Order = {
-      id: orderId, 
-      customerId: currentUser.email, 
-      customerName: currentUser.name, 
-      customerPhone: currentUser.phone,
-      customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA NO BALCÃO' : `${currentUser.address} - ${currentUser.neighborhood}`,
-      items: [...cart], 
-      total: total, 
-      deliveryFee: fee, 
-      deliveryType, 
-      status: 'NOVO',
-      paymentMethod, 
-      changeFor, 
-      discountValue: discount,
-      couponCode, 
-      pointsEarned: Math.floor(total), 
-      createdAt: new Date().toISOString()
-    };
+        const newOrder: Order = {
+        id: orderId, 
+        customerId: currentUser.email, 
+        customerName: currentUser.name, 
+        customerPhone: currentUser.phone,
+        customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA NO BALCÃO' : `${currentUser.address} - ${currentUser.neighborhood}`,
+        items: [...cart], 
+        total: total, 
+        deliveryFee: fee, 
+        deliveryType, 
+        status: 'NOVO',
+        paymentMethod, 
+        changeFor, 
+        discountValue: discount,
+        couponCode, 
+        pointsEarned: Math.floor(total), 
+        createdAt: new Date().toISOString()
+        };
 
-    await dbService.save('orders', orderId, newOrder);
-    setLastOrder(newOrder);
-    setIsSuccessModalOpen(true);
-    setCart([]);
-    setIsCartOpen(false);
+        await dbService.save('orders', orderId, newOrder);
+        setLastOrder(newOrder);
+        setIsSuccessModalOpen(true);
+        setCart([]);
+        setIsCartOpen(false);
+    } catch (e: any) {
+        console.error("Erro no checkout:", e);
+        if (e.message.includes('permission')) {
+            setToast({ show: true, msg: 'Erro: Permissão negada no Banco de Dados. Verifique as Regras do Firestore.', type: 'error' });
+        } else {
+            setToast({ show: true, msg: 'Erro ao enviar pedido. Tente novamente.', type: 'error' });
+        }
+    }
   };
 
   const handleSendWhatsApp = () => {
@@ -247,7 +256,7 @@ const App: React.FC = () => {
             onToggleStore={async () => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen: !isStoreOpen, logoUrl }); }} 
             logoUrl={logoUrl} 
             onUpdateLogo={async (url) => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen, logoUrl: url }); }}
-            onAddProduct={async (p) => { const id = `prod_${Date.now()}`; await dbService.save('products', id, {...p, id} as Product); }} 
+            onAddProduct={async (p) => { try { const id = `prod_${Date.now()}`; await dbService.save('products', id, {...p, id} as Product); } catch(e) { setToast({show:true, msg:'Erro ao salvar produto', type:'error'}); } }} 
             onDeleteProduct={async (id) => { await dbService.remove('products', id); }}
             onUpdateProduct={async (p) => { await dbService.save('products', p.id, p); }} 
             onUpdateOrderStatus={async (id, s) => { const o = orders.find(x => x.id === id); if(o) await dbService.save('orders', id, {...o, status: s}); }}

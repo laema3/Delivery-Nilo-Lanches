@@ -67,6 +67,7 @@ export const dbService = {
         callback(data as unknown as T);
       }, (error) => {
         console.warn(`⚠️ [Sync] Erro na coleção '${key}':`, error.message);
+        // Se for erro de permissão, podemos tentar notificar de outra forma se necessário
       });
 
       return unsubscribe;
@@ -113,7 +114,8 @@ export const dbService = {
         console.log(`✅ [Cloud] Sincronizado: ${key}/${id}`);
       } catch (e: any) {
         console.error(`❌ [Cloud] FALHA CRÍTICA ao salvar ${key}:`, e.message);
-        // Em caso de erro real, avisamos no console para depuração
+        // LANÇAR O ERRO para que a UI saiba que falhou
+        throw new Error(`Erro de Sincronização: ${e.message}`);
       }
     } else {
       console.warn("⚠️ [Cloud] Offline: Aguardando conexão para sincronizar.");
@@ -129,8 +131,9 @@ export const dbService = {
       try {
         const collectionName = COLLECTION_MAP[key] || key;
         await deleteDoc(doc(db, collectionName, id));
-      } catch (e) {
+      } catch (e: any) {
         console.error(`❌ Erro ao deletar (${key}):`, e);
+        throw new Error(`Erro ao deletar: ${e.message}`);
       }
     }
   },
