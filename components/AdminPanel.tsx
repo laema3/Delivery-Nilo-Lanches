@@ -114,7 +114,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     // Tempo para o estado atualizar e o cupom aparecer no container de impressão
     setTimeout(() => {
       window.print();
-    }, 300);
+    }, 500);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'product' | 'logo') => {
@@ -224,8 +224,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
       
-      {/* CONTAINER DE IMPRESSÃO - CENTRALIZADO PARA EVITAR PÁGINA EM BRANCO */}
-      <div id="printable-coupon-container" className="hidden print:block">
+      {/* CONTAINER DE IMPRESSÃO - CORREÇÃO DE VISIBILIDADE */}
+      {/* Usamos opacity e pointer-events para esconder na tela, mas mantemos no DOM para impressão */}
+      <div id="printable-coupon-container" style={{ position: 'fixed', top: 0, left: 0, zIndex: -1, opacity: 0, pointerEvents: 'none', width: '100%', height: 0, overflow: 'hidden' }}>
         {printingOrder && (
           <div style={{ backgroundColor: 'white', color: 'black', padding: '15px', width: '80mm', fontFamily: 'monospace', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '10px' }}>

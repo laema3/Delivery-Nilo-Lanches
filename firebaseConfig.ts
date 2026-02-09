@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 
 // As chaves do projeto Nilo Lanches
 const FALLBACK_CONFIG = {
@@ -43,18 +43,11 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   try {
     app = initializeApp(firebaseConfig);
     
-    // OTIMIZAÇÃO PARA MOBILE E INSTABILIDADE:
-    // Habilitamos o cache persistente para que o Firebase salve dados no disco local
-    // e tente sincronizar em segundo plano mesmo se a rede falhar momentaneamente.
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      }),
-      experimentalForceLongPolling: true,
-      useFetchStreams: false
-    });
+    // Inicialização Padrão: Garante que os dados sejam enviados para o servidor imediatamente.
+    // Removemos caches complexos para evitar que o pedido fique "preso" no celular do cliente.
+    db = getFirestore(app);
     
-    console.log("🔥 [Firebase] Conectado com Cache Persistente Ativado.");
+    console.log("🔥 [Firebase] Conectado e Sincronizando.");
   } catch (error: any) {
     console.error("❌ [Firebase] Erro:", error);
     connectionError = error.message;

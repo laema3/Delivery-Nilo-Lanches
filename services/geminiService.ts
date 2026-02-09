@@ -2,29 +2,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types.ts";
 
-const getSafeEnv = () => {
+// Função simplificada para pegar a chave
+const getApiKey = () => {
   try {
     // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // @ts-ignore
-      return import.meta.env;
+    const key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY;
+    if (key && key.length > 10 && !key.includes(' ')) {
+      return key;
     }
   } catch (e) {
-    return {};
+    console.error("Erro ao ler API Key:", e);
   }
-  return {};
-};
-
-const getApiKey = () => {
-  const env = getSafeEnv();
-  const key = env.VITE_API_KEY || env.API_KEY || "";
-  if (!key || key.includes(" ") || key.length < 20) return "";
-  return key;
+  return "";
 };
 
 const getAIClient = () => {
   const apiKey = getApiKey();
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.warn("⚠️ Chatbot: API Key não encontrada ou inválida.");
+    return null;
+  }
   return new GoogleGenAI({ apiKey });
 };
 
@@ -37,9 +34,9 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
   
   if (!ai) {
     const msg = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (msg.includes('ola') || msg.includes('oi')) return "Olá! Sou o assistente do Nilo. Como posso te ajudar com seu pedido hoje? 🍔";
-    if (msg.includes('cardapio') || msg.includes('fome')) return "Dê uma olhada no nosso cardápio acima! Temos Hambúrgueres Artesanais e Combos incríveis. O que você gosta mais?";
-    return "Estou aqui para te ajudar! Você pode ver nosso cardápio acima ou me perguntar sobre os ingredientes. Para pedir, basta clicar no botão '+' do lanche escolhido!";
+    // Fallback simples se não tiver chave
+    if (msg.includes('ola') || msg.includes('oi')) return "Olá! Sou o assistente do Nilo. (Sistema: Chave de API não configurada corretamente)";
+    return "Estou funcionando em modo básico. Para eu ficar inteligente, configure a VITE_API_KEY no arquivo .env!";
   }
 
   try {
@@ -71,7 +68,8 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
 
     return extractTextOnly(response);
   } catch (error) {
-    return "Tive um pequeno soluço aqui! 🍔 Mas olha, o cardápio tá logo ali em cima, cheio de coisa boa. O que vai ser hoje?";
+    console.error("Erro no Chat Gemini:", error);
+    return "Ops! Tive um problema de conexão com minha inteligência. Pode repetir?";
   }
 };
 
