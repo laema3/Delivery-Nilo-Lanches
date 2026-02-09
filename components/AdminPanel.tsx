@@ -224,10 +224,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
       
-      {/* CONTAINER DE IMPRESSÃO - FORA DO ROOT DE TELA PARA EVITAR CONFLITOS */}
+      {/* CONTAINER DE IMPRESSÃO - CENTRALIZADO PARA EVITAR PÁGINA EM BRANCO */}
       <div id="printable-coupon-container" className="hidden print:block">
         {printingOrder && (
-          <div style={{ backgroundColor: 'white', color: 'black', padding: '10px', width: '80mm', fontFamily: 'Courier New, monospace' }}>
+          <div style={{ backgroundColor: 'white', color: 'black', padding: '15px', width: '80mm', fontFamily: 'monospace', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '10px' }}>
               <h1 style={{ fontSize: '18pt', margin: '0', fontWeight: 'bold' }}>NILO LANCHES</h1>
               <p style={{ fontSize: '9pt', margin: '5px 0' }}>Av. Lucas Borges, 317 - Uberaba MG</p>
@@ -289,8 +289,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               {printingOrder.changeFor && (
                 <p style={{ fontSize: '9pt' }}>Troco para: R$ {printingOrder.changeFor.toFixed(2)}</p>
               )}
-              <p style={{ marginTop: '15px', fontSize: '8pt' }}>Obrigado! Peça pelo site oficial:</p>
-              <p style={{ fontSize: '9pt', fontWeight: 'bold' }}>nilolanches.com.br</p>
+              <p style={{ marginTop: '15px', fontSize: '8pt' }}>www.nilolanches.com.br</p>
+              <p style={{ fontSize: '8pt' }}>Obrigado pela preferência!</p>
             </div>
           </div>
         )}

@@ -30,39 +30,31 @@ html, body {
   min-height: 100vh;
 }
 
-/* CAMADA DE IMPRESSÃO - CORREÇÃO PARA CUPOM BRANCO */
-.print-only {
-  display: none;
-}
-
+/* ESTILOS DE IMPRESSÃO - CORREÇÃO DEFINITIVA */
 @media print {
-  /* Reseta estilos de tela que podem quebrar a impressão */
-  html, body {
-    background: white !important;
-    height: auto !important;
-    overflow: visible !important;
+  /* Esconde tudo via visibilidade (evita que o navegador ignore o elemento) */
+  body * {
+    visibility: hidden !important;
+  }
+  
+  /* Mostra apenas o container do cupom */
+  #printable-coupon-container, #printable-coupon-container * {
+    visibility: visible !important;
   }
 
-  /* Esconde tudo que não é o cupom */
-  body > *:not(#printable-coupon-container) {
-    display: none !important;
-  }
-
-  /* Garante que o container de impressão seja visível e ocupe a largura da bobina */
+  /* Posiciona o cupom no topo da página de impressão */
   #printable-coupon-container {
     display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 80mm !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    visibility: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
   }
 
-  #printable-coupon-container * {
-    visibility: visible !important;
-    color: black !important;
-  }
-
+  /* Ajustes de página */
   @page {
     margin: 0;
     size: auto;
