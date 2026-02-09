@@ -30,51 +30,42 @@ html, body {
   min-height: 100vh;
 }
 
-/* CLASSE PARA ELEMENTOS QUE SÓ APARECEM NA IMPRESSÃO */
-/* Mudamos de display:none para garantir que o motor de impressão o capture */
+/* CAMADA DE IMPRESSÃO - CORREÇÃO PARA CUPOM BRANCO */
 .print-only {
-  position: absolute;
-  left: -9999px;
-  top: -9999px;
-  opacity: 0;
-  pointer-events: none;
+  display: none;
 }
 
-/* ESTILOS DE IMPRESSÃO - CUPOM TÉRMICO */
 @media print {
-  /* Esconde absolutamente tudo na tela */
-  body * {
-    visibility: hidden !important;
-  }
-  
-  /* Mostra apenas o container de impressão e seus filhos */
-  .print-only, .print-only * {
-    visibility: visible !important;
-    display: block !important;
-    position: static !important;
-    opacity: 1 !important;
-  }
-  
-  #printable-coupon {
-    display: block !important;
-    width: 80mm !important; /* Largura padrão de bobina térmica */
-    padding: 2mm !important;
-    margin: 0 !important;
+  /* Reseta estilos de tela que podem quebrar a impressão */
+  html, body {
     background: white !important;
-    color: black !important;
-    font-family: 'Courier New', Courier, monospace !important;
-    font-size: 10pt !important;
-    line-height: 1.2 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  /* Remove margens e cabeçalhos padrão do navegador */
+  /* Esconde tudo que não é o cupom */
+  body > *:not(#printable-coupon-container) {
+    display: none !important;
+  }
+
+  /* Garante que o container de impressão seja visível e ocupe a largura da bobina */
+  #printable-coupon-container {
+    display: block !important;
+    width: 80mm !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    visibility: visible !important;
+  }
+
+  #printable-coupon-container * {
+    visibility: visible !important;
+    color: black !important;
+  }
+
   @page {
     margin: 0;
     size: auto;
-  }
-
-  header, footer, nav, button, .no-print, aside, main {
-    display: none !important;
   }
 }
 

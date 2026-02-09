@@ -111,10 +111,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const handlePrint = (order: Order) => {
     setPrintingOrder(order);
-    // Pequeno delay para garantir o re-render
+    // Tempo para o estado atualizar e o cupom aparecer no container de impressão
     setTimeout(() => {
       window.print();
-    }, 200);
+    }, 300);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'product' | 'logo') => {
@@ -224,36 +224,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
       
-      {/* COMPONENTE DE IMPRESSÃO (ESTILO TÉRMICO) */}
-      <div id="printable-coupon" className="print-only">
+      {/* CONTAINER DE IMPRESSÃO - FORA DO ROOT DE TELA PARA EVITAR CONFLITOS */}
+      <div id="printable-coupon-container" className="hidden print:block">
         {printingOrder && (
-          <div style={{ backgroundColor: 'white', color: 'black', padding: '10px' }}>
-            <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+          <div style={{ backgroundColor: 'white', color: 'black', padding: '10px', width: '80mm', fontFamily: 'Courier New, monospace' }}>
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
               <h1 style={{ fontSize: '18pt', margin: '0', fontWeight: 'bold' }}>NILO LANCHES</h1>
               <p style={{ fontSize: '9pt', margin: '5px 0' }}>Av. Lucas Borges, 317 - Uberaba MG</p>
-              <p style={{ fontSize: '12pt', margin: '10px 0', borderTop: '1px dashed black', borderBottom: '1px dashed black', padding: '5px 0', fontWeight: 'bold' }}>
-                PEDIDO: #{printingOrder.id}
-              </p>
-              <p style={{ fontSize: '9pt', margin: '0' }}>{new Date(printingOrder.createdAt).toLocaleString('pt-BR')}</p>
+              <div style={{ borderTop: '1px dashed black', borderBottom: '1px dashed black', padding: '5px 0', margin: '10px 0' }}>
+                <p style={{ fontSize: '12pt', margin: '0', fontWeight: 'bold' }}>PEDIDO: #{printingOrder.id}</p>
+                <p style={{ fontSize: '8pt', margin: '0' }}>{new Date(printingOrder.createdAt).toLocaleString('pt-BR')}</p>
+              </div>
             </div>
 
-            <div style={{ fontSize: '10pt', marginBottom: '15px' }}>
-              <p style={{ margin: '3px 0' }}><strong>CLIENTE:</strong> {printingOrder.customerName}</p>
-              <p style={{ margin: '3px 0' }}><strong>FONE:</strong> {printingOrder.customerPhone}</p>
-              <p style={{ margin: '3px 0' }}><strong>END:</strong> {printingOrder.customerAddress}</p>
-              <p style={{ margin: '3px 0' }}><strong>FORMA:</strong> {printingOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : 'DELIVERY'}</p>
+            <div style={{ fontSize: '10pt', marginBottom: '10px' }}>
+              <p style={{ margin: '2px 0' }}><strong>CLIENTE:</strong> {printingOrder.customerName}</p>
+              <p style={{ margin: '2px 0' }}><strong>FONE:</strong> {printingOrder.customerPhone}</p>
+              <p style={{ margin: '2px 0' }}><strong>END:</strong> {printingOrder.customerAddress}</p>
+              <p style={{ margin: '2px 0' }}><strong>TIPO:</strong> {printingOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : 'DELIVERY'}</p>
             </div>
 
-            <div style={{ borderTop: '1px solid black', paddingTop: '10px' }}>
-              <p style={{ fontWeight: 'bold', fontSize: '10pt', marginBottom: '5px' }}>ITENS:</p>
+            <div style={{ borderTop: '1px solid black', paddingTop: '5px' }}>
+              <p style={{ fontWeight: 'bold', fontSize: '9pt', marginBottom: '5px' }}>ITENS DO PEDIDO:</p>
               {printingOrder.items.map((item, i) => (
-                <div key={i} style={{ marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11pt' }}>
+                <div key={i} style={{ marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10pt' }}>
                     <span style={{ fontWeight: 'bold' }}>{item.quantity}x {item.name}</span>
                     <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                   {item.selectedComplements && item.selectedComplements.length > 0 && (
-                    <div style={{ fontSize: '9pt', paddingLeft: '15px', color: '#333' }}>
+                    <div style={{ fontSize: '8pt', paddingLeft: '10px', color: '#444' }}>
                       {item.selectedComplements.map((c, j) => (
                         <div key={j}>+ {c.name}</div>
                       ))}
@@ -263,34 +263,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               ))}
             </div>
 
-            <div style={{ borderTop: '1px dashed black', marginTop: '10px', paddingTop: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10pt' }}>
+            <div style={{ borderTop: '1px dashed black', marginTop: '10px', paddingTop: '5px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9pt' }}>
                 <span>Subtotal:</span>
                 <span>R$ {(printingOrder.total - printingOrder.deliveryFee + (printingOrder.discountValue || 0)).toFixed(2)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10pt' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9pt' }}>
                 <span>Taxa Entrega:</span>
                 <span>R$ {printingOrder.deliveryFee.toFixed(2)}</span>
               </div>
               {printingOrder.discountValue && printingOrder.discountValue > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10pt', color: 'red' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9pt', color: 'red' }}>
                   <span>Desconto:</span>
                   <span>- R$ {printingOrder.discountValue.toFixed(2)}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16pt', fontWeight: 'bold', marginTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14pt', fontWeight: 'bold', marginTop: '5px' }}>
                 <span>TOTAL:</span>
                 <span>R$ {printingOrder.total.toFixed(2)}</span>
               </div>
             </div>
 
-            <div style={{ marginTop: '20px', borderTop: '1px solid black', paddingTop: '10px', textAlign: 'center' }}>
-              <p style={{ fontSize: '11pt', fontWeight: 'bold' }}>PAGAMENTO: {printingOrder.paymentMethod.toUpperCase()}</p>
+            <div style={{ marginTop: '15px', borderTop: '1px solid black', paddingTop: '10px', textAlign: 'center' }}>
+              <p style={{ fontSize: '10pt', fontWeight: 'bold' }}>PAGAMENTO: {printingOrder.paymentMethod.toUpperCase()}</p>
               {printingOrder.changeFor && (
-                <p style={{ fontSize: '10pt' }}>Troco para: R$ {printingOrder.changeFor.toFixed(2)}</p>
+                <p style={{ fontSize: '9pt' }}>Troco para: R$ {printingOrder.changeFor.toFixed(2)}</p>
               )}
-              <p style={{ marginTop: '20px', fontSize: '8pt' }}>Obrigado pela preferência!</p>
-              <p style={{ fontSize: '8pt' }}>www.nilolanches.com.br</p>
+              <p style={{ marginTop: '15px', fontSize: '8pt' }}>Obrigado! Peça pelo site oficial:</p>
+              <p style={{ fontSize: '9pt', fontWeight: 'bold' }}>nilolanches.com.br</p>
             </div>
           </div>
         )}
