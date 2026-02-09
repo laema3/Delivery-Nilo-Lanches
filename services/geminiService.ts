@@ -2,11 +2,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types.ts";
 
-// Função simplificada para pegar a chave
+// Função simplificada e segura para pegar a chave
 const getApiKey = () => {
   try {
+    let key = "";
+    
+    // Verificação defensiva para garantir que o ambiente existe antes de acessar
     // @ts-ignore
-    const key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY;
+    if (typeof import.meta !== "undefined" && import.meta.env) {
+      // @ts-ignore
+      key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || "";
+    }
+    
     if (key && key.length > 10 && !key.includes(' ') && !key.includes('?')) {
       return key;
     }
