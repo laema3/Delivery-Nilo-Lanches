@@ -1,49 +1,15 @@
 
-# 🍔 Nilo Lanches - Delivery App
+# 🍔 Nilo Lanches
 
-Sistema completo de delivery com Inteligência Artificial (Gemini), Cardápio Digital e Painel Administrativo.
+Seu site de delivery já está configurado e pronto para testes locais!
 
-## 🚀 Funcionalidades
-- **Cardápio Digital:** Produtos, categorias e adicionais.
-- **Carrinho e Checkout:** Cálculo de frete por CEP e cupom de desconto.
-- **IA do Nilo:** Chatbot que sugere lanches e tira dúvidas (Gemini AI).
-- **Painel Admin:** Gerenciamento de pedidos, produtos e clientes.
-- **PWA:** Instalável no celular (Android/iOS).
+## ✨ Como testar agora
+O site deve aparecer na janela ao lado (Preview).
+Você pode navegar, adicionar itens ao carrinho e conversar com o "Nilo" (o robô).
 
----
+## 🛠️ Funcionalidades Ativas
+- **Cardápio Digital:** Produtos de exemplo já carregados.
+- **Chatbot (IA):** Funcionando com a chave configurada.
+- **Painel Admin:** Acesse clicando em "Acesso" no rodapé (Usuário: `nilo`, Senha: `nilo123`).
 
-## ⚠️ Segurança e Configuração (.env)
-
-Este projeto utiliza chaves de API sensíveis (Firebase e Google AI).
-**NUNCA suba o arquivo `.env` para o GitHub.**
-
-O arquivo `.gitignore` já está configurado para impedir isso.
-
-### Como configurar localmente:
-1. Crie um arquivo `.env` na raiz.
-2. Copie o conteúdo de `.env.example`.
-3. Preencha com suas chaves reais.
-
----
-
-## ☁️ Como fazer Deploy (Colocar no ar)
-
-A maneira mais fácil é usar a **Vercel**.
-
-1. Suba este código para o seu GitHub.
-2. Crie uma conta na [Vercel](https://vercel.com) e importe o projeto.
-3. **PASSO IMPORTANTE:**
-   Na tela de configuração da Vercel, vá em **Environment Variables** e adicione as mesmas chaves que estão no seu arquivo `.env` local:
-
-   - `VITE_API_KEY`
-   - `VITE_FIREBASE_API_KEY`
-   - `VITE_FIREBASE_AUTH_DOMAIN`
-   - etc...
-
-Se você não fizer isso, o site entrará no ar mas o banco de dados e a IA não funcionarão.
-
----
-
-## 🔐 Acesso Admin Padrão
-- **Usuário:** `nilo`
-- **Senha:** `nilo123`
+Não se preocupe com configurações complexas de GitHub ou Vercel agora. Divirta-se testando seu novo app aqui mesmo!

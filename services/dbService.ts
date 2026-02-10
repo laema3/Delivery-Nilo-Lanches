@@ -67,7 +67,6 @@ export const dbService = {
         callback(data as unknown as T);
       }, (error) => {
         console.warn(`⚠️ [Sync] Erro na coleção '${key}':`, error.message);
-        // Se for erro de permissão, podemos tentar notificar de outra forma se necessário
       });
 
       return unsubscribe;
@@ -94,7 +93,10 @@ export const dbService = {
 
   async save(key: string, id: string, data: any) {
     if (!id) return;
-    const cleanData = { ...data };
+    
+    // CORREÇÃO CRÍTICA: Firestore não aceita 'undefined'.
+    // removemos propriedades undefined e deep clone usando JSON.stringify/parse.
+    const cleanData = JSON.parse(JSON.stringify(data));
     delete cleanData.id; 
 
     // 1. Update Local (Optimistic)
@@ -114,7 +116,6 @@ export const dbService = {
         console.log(`✅ [Cloud] Sincronizado: ${key}/${id}`);
       } catch (e: any) {
         console.error(`❌ [Cloud] FALHA CRÍTICA ao salvar ${key}:`, e.message);
-        // LANÇAR O ERRO para que a UI saiba que falhou
         throw new Error(`Erro de Sincronização: ${e.message}`);
       }
     } else {

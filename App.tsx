@@ -109,7 +109,7 @@ const App: React.FC = () => {
     return () => unsubs.forEach(u => u && u());
   }, []);
 
-  // ORDENAÇÃO ALFABÉTICA DOS PRODUTOS (Melhorada para garantir ordem de A-Z em 'Todos')
+  // ORDENAÇÃO ALFABÉTICA DOS PRODUTOS
   const groupedMenu = useMemo(() => {
     if (!products || products.length === 0) return [];
     
@@ -174,29 +174,43 @@ const App: React.FC = () => {
 
   const handleCheckout = async (paymentMethod: string, fee: number, discount: number, couponCode: string, deliveryType: DeliveryType, changeFor?: number) => {
     if (!currentUser) return setIsAuthModalOpen(true);
+
+    if (currentUser.isBlocked) {
+      setToast({ show: true, msg: 'Sua conta está temporariamente bloqueada. Contate o suporte.', type: 'error' });
+      return;
+    }
     
     try {
         const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
         const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const total = subtotal + fee - discount;
 
+        // Limpa os itens para garantir que não existam campos undefined
+        const cleanItems = cart.map(item => ({
+            ...item,
+            subCategory: item.subCategory || "",
+            calories: item.calories || 0,
+            complements: item.complements || [],
+            selectedComplements: item.selectedComplements || []
+        }));
+
         const newOrder: Order = {
-        id: orderId, 
-        customerId: currentUser.email, 
-        customerName: currentUser.name, 
-        customerPhone: currentUser.phone,
-        customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA NO BALCÃO' : `${currentUser.address} - ${currentUser.neighborhood}`,
-        items: [...cart], 
-        total: total, 
-        deliveryFee: fee, 
-        deliveryType, 
-        status: 'NOVO',
-        paymentMethod, 
-        changeFor, 
-        discountValue: discount,
-        couponCode, 
-        pointsEarned: Math.floor(total), 
-        createdAt: new Date().toISOString()
+          id: orderId, 
+          customerId: currentUser.email, 
+          customerName: currentUser.name || "Cliente sem nome", 
+          customerPhone: currentUser.phone || "",
+          customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA NO BALCÃO' : `${currentUser.address} - ${currentUser.neighborhood}`,
+          items: cleanItems, 
+          total: total, 
+          deliveryFee: fee, 
+          deliveryType, 
+          status: 'NOVO',
+          paymentMethod, 
+          changeFor: changeFor ?? 0,
+          discountValue: discount ?? 0,
+          couponCode: couponCode || "",
+          pointsEarned: Math.floor(total), 
+          createdAt: new Date().toISOString()
         };
 
         await dbService.save('orders', orderId, newOrder);
@@ -209,7 +223,7 @@ const App: React.FC = () => {
         if (e.message.includes('permission')) {
             setToast({ show: true, msg: 'Erro: Permissão negada no Banco de Dados. Verifique as Regras do Firestore.', type: 'error' });
         } else {
-            setToast({ show: true, msg: 'Erro ao enviar pedido. Tente novamente.', type: 'error' });
+            setToast({ show: true, msg: `Erro ao enviar pedido: ${e.message}`, type: 'error' });
         }
     }
   };
@@ -261,6 +275,7 @@ const App: React.FC = () => {
             onUpdateProduct={async (p) => { await dbService.save('products', p.id, p); }} 
             onUpdateOrderStatus={async (id, s) => { const o = orders.find(x => x.id === id); if(o) await dbService.save('orders', id, {...o, status: s}); }}
             onUpdateCustomer={async (id, u) => { const c = customers.find(x => x.id === id); if(c) await dbService.save('customers', id, {...c, ...u}); }}
+            onDeleteCustomer={async (id) => { await dbService.remove('customers', id); }}
             onAddCategory={async (n) => { const id = `cat_${Date.now()}`; await dbService.save('categories', id, {id, name: n}); }}
             onRemoveCategory={async (id) => { await dbService.remove('categories', id); }}
             onAddSubCategory={async (catId, n) => { const id = `sub_${Date.now()}`; await dbService.save('sub_categories', id, {id, categoryId: catId, name: n}); }}
@@ -352,7 +367,7 @@ const App: React.FC = () => {
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCustomers(prev => [...prev, u]); setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
-      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} orderId={lastOrder?.id || ''} onSendWhatsApp={handleSendWhatsApp} />
+      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} order={lastOrder} onSendWhatsApp={handleSendWhatsApp} />
       {!isAdmin && <ChatBot products={products} />}
     </div>
   );
