@@ -49,6 +49,7 @@ export const dbService = {
   },
 
   subscribe<T>(key: string, callback: (data: T) => void) {
+    // 1. Carrega dados locais imediatamente para a UI aparecer rápido
     const localData = this.getLocal(key);
     if (localData && localData.length > 0) callback(localData as T);
 
@@ -63,11 +64,11 @@ export const dbService = {
           ...doc.data(),
           id: doc.id
         }));
+        // Atualiza o cache local com os dados novos da nuvem
         this.setLocal(key, data);
         callback(data as unknown as T);
       }, (error) => {
-        console.warn(`⚠️ [Sync] Erro na coleção '${key}':`, error.message);
-        // Se for erro de permissão, podemos tentar notificar de outra forma se necessário
+        console.warn(`⚠️ [Sync] Modo Offline para '${key}':`, error.message);
       });
 
       return unsubscribe;
@@ -78,6 +79,7 @@ export const dbService = {
   },
 
   async getAll<T>(key: string, defaultValue: T): Promise<T> {
+    // Tenta pegar da nuvem primeiro se conectado
     if (db) {
       try {
         const collectionName = COLLECTION_MAP[key] || key;
@@ -87,8 +89,11 @@ export const dbService = {
           this.setLocal(key, data);
           return data as unknown as T;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("⚠️ Falha ao buscar online, usando cache local.");
+      }
     }
+    // Fallback para local
     return (this.getLocal(key) as unknown as T) || defaultValue;
   },
 
@@ -97,7 +102,9 @@ export const dbService = {
     const cleanData = { ...data };
     delete cleanData.id; 
 
-    // 1. Update Local (Optimistic)
+    // 1. SALVAMENTO LOCAL (Garantido)
+    // Isso assegura que o pedido apareça na tela do Admin (se for na mesma máquina) 
+    // ou no "Meus Pedidos" do cliente, mesmo sem internet.
     const currentList = this.getLocal(key) as any[];
     const index = currentList.findIndex(item => item.id === id);
     const newItem = { ...cleanData, id };
@@ -106,34 +113,36 @@ export const dbService = {
     if (index >= 0) newList[index] = newItem;
     this.setLocal(key, newList);
 
-    // 2. Cloud Save
+    // 2. SALVAMENTO EM NUVEM (Tentativa)
     if (db) {
       try {
         const collectionName = COLLECTION_MAP[key] || key;
         await setDoc(doc(db, collectionName, id), cleanData, { merge: true });
-        console.log(`✅ [Cloud] Sincronizado: ${key}/${id}`);
+        console.log(`✅ [Cloud] Salvo com sucesso: ${key}/${id}`);
       } catch (e: any) {
-        console.error(`❌ [Cloud] FALHA CRÍTICA ao salvar ${key}:`, e.message);
-        // LANÇAR O ERRO para que a UI saiba que falhou
-        throw new Error(`Erro de Sincronização: ${e.message}`);
+        // MUDANÇA CRÍTICA: Não lançamos erro (throw) aqui.
+        // Se falhar no Firebase (cota, permissão, internet), apenas logamos.
+        // O app considera sucesso porque salvou localmente.
+        console.error(`⚠️ [Cloud] Falha no upload (mas salvo localmente):`, e.message);
       }
     } else {
-      console.warn("⚠️ [Cloud] Offline: Aguardando conexão para sincronizar.");
+      console.warn("⚠️ [Cloud] Desconectado. Dados salvos apenas neste dispositivo.");
     }
   },
 
   async remove(key: string, id: string) {
+    // 1. Remove Local
     const currentList = this.getLocal(key) as any[];
     const newList = currentList.filter(item => item.id !== id);
     this.setLocal(key, newList);
 
+    // 2. Remove Nuvem
     if (db) {
       try {
         const collectionName = COLLECTION_MAP[key] || key;
         await deleteDoc(doc(db, collectionName, id));
       } catch (e: any) {
-        console.error(`❌ Erro ao deletar (${key}):`, e);
-        throw new Error(`Erro ao deletar: ${e.message}`);
+        console.error(`⚠️ [Cloud] Erro ao deletar online:`, e.message);
       }
     }
   },

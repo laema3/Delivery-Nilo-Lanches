@@ -112,10 +112,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   }, [orders, audioEnabled]);
 
   const handlePrint = (e: React.MouseEvent, order: Order) => {
-    e.stopPropagation(); // Impede cliques fantasmas
+    e.preventDefault();
+    e.stopPropagation();
     setPrintingOrder(order);
-    
-    // Pequeno delay para garantir que o Portal renderizou
     setTimeout(() => {
       window.print();
     }, 500);
@@ -247,7 +246,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left">
       
-      {/* PORTAL DO CUPOM (Só aparece no DOM quando printingOrder é setado, e CSS esconde na tela) */}
+      {/* PORTAL DO CUPOM */}
       {printingOrder && createPortal(
         <div id="printable-coupon-root">
           <div className="coupon-content">
@@ -371,24 +370,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       <p className="mt-2 text-xs font-bold uppercase">Nenhum pedido encontrado</p>
                   </div>
                 ) : filteredOrders.map(order => (
-                  <div key={order.id} className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm text-left flex flex-col md:flex-row gap-8 relative overflow-hidden">
-                    <div className="flex-1 space-y-4 relative z-10">
+                  <div key={order.id} className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm text-left flex flex-col md:flex-row gap-8">
+                    {/* COLUNA ESQUERDA: Info e Itens */}
+                    <div className="flex-1 space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
                           <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${order.status === 'NOVO' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>{order.status}</span>
                         </div>
+                        {/* Botão de Impressão (Agarrado no fluxo normal, sem z-index maluco) */}
                         <button 
                           onClick={(e) => handlePrint(e, order)}
-                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-black transition-colors z-20"
+                          className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 transition-colors cursor-pointer"
                         >
-                          🖨️ Imprimir Cupom
+                          🖨️ Cupom
                         </button>
                       </div>
+
                       <div className="space-y-1">
                         <p className="font-black text-xs text-slate-800 uppercase leading-none">{order.customerName}</p>
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mt-2 italic">📍 {order.customerAddress}</p>
                       </div>
+
                       <div className="pt-4 border-t border-slate-50 space-y-2">
                         {order.items.map((item, idx) => (
                           <div key={idx} className="space-y-1">
@@ -403,44 +406,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         ))}
                       </div>
                     </div>
-                    <div className="md:w-64 space-y-4 relative z-10">
+
+                    {/* COLUNA DIREITA: Total e Ações */}
+                    <div className="md:w-64 space-y-4 flex flex-col">
                         <div className="flex flex-col items-end">
                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Total do Pedido</p>
                           <p className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</p>
                         </div>
                         
-                        {/* ALTERAÇÃO DE STATUS COM MENU (SELECT) */}
-                        <div className="relative">
+                        <div>
                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Alterar Status</p>
                            <div className={`relative rounded-xl border-2 ${getStatusColor(order.status)} bg-white`}>
                              <select 
                                value={order.status}
-                               onChange={(e) => {
-                                 e.stopPropagation();
-                                 onUpdateOrderStatus(order.id, e.target.value as OrderStatus);
-                               }}
-                               className="w-full appearance-none bg-transparent py-3 px-4 pr-8 rounded-xl leading-tight focus:outline-none font-black text-[10px] uppercase tracking-widest cursor-pointer text-slate-700 relative z-30"
+                               onChange={(e) => onUpdateOrderStatus(order.id, e.target.value as OrderStatus)}
+                               className="w-full appearance-none bg-transparent py-3 px-4 pr-8 rounded-xl leading-tight focus:outline-none font-black text-[10px] uppercase tracking-widest cursor-pointer text-slate-700"
                              >
                                {ALL_STATUSES.map(status => (
                                  <option key={status} value={status}>{status}</option>
                                ))}
                              </select>
-                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-50 z-20">
-                               <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                             </div>
                            </div>
                         </div>
 
+                        {/* Botão de Exclusão (Visível apenas se cancelado) */}
                         {order.status === 'CANCELADO' && (
                           <button 
                             type="button"
                             onClick={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               onDeleteOrder(order.id);
                             }}
-                            className="w-full py-3 bg-red-100 hover:bg-red-200 text-red-600 border border-red-200 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2 z-20"
+                            className="w-full py-3 bg-red-100 hover:bg-red-200 text-red-600 border border-red-200 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-auto cursor-pointer"
                           >
-                            🗑️ Excluir Definitivamente
+                            🗑️ Excluir
                           </button>
                         )}
                     </div>
