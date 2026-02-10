@@ -8,22 +8,28 @@ interface Message {
   text: string;
 }
 
-export const ChatBot: React.FC<{ products: Product[] }> = ({ products }) => {
+interface ChatBotProps {
+  products: Product[];
+  onAddToCart?: (product: Product, quantity: number) => void;
+}
+
+export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'Olá! Sou o Nilo. Tá com fome de quê hoje? 🍔' }
+    { role: 'model', text: 'Fala chefia! Sou o Nilo. O que vai ser hoje? A chapa tá quente! 🍔🔥' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, isOpen]);
 
-  // Previne scroll do body quando o chat está aberto no mobile
+  // Bloqueio de scroll no mobile
   useEffect(() => {
     if (isOpen && window.innerWidth < 640) {
       document.body.style.overflow = 'hidden';
@@ -42,37 +48,79 @@ export const ChatBot: React.FC<{ products: Product[] }> = ({ products }) => {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
 
+    // Prepara histórico para a API
     const history = messages.map(m => ({
       role: m.role,
       parts: [{ text: m.text }]
     }));
 
+    // Chama o serviço de IA
     const response = await chatWithAssistant(userMsg, history, products);
     
-    setMessages(prev => [...prev, { role: 'model', text: response || '' }]);
+    let finalText = response.text;
+
+    // --- LÓGICA DE FERRAMENTAS (ADD TO CART) ---
+    if (response.toolCalls && response.toolCalls.length > 0 && onAddToCart) {
+      for (const call of response.toolCalls) {
+        if (call.name === 'addToCart') {
+          const args = call.args as any;
+          const searchName = (args.productName || '').toLowerCase();
+          const qty = Number(args.quantity) || 1;
+
+          // Busca o produto mais parecido na lista
+          const foundProduct = products.find(p => 
+            p.name.toLowerCase().includes(searchName) || 
+            searchName.includes(p.name.toLowerCase())
+          );
+
+          if (foundProduct) {
+            onAddToCart(foundProduct, qty);
+            
+            // Adiciona feedback visual no chat
+            setMessages(prev => [...prev, { 
+              role: 'model', 
+              text: `✅ Adicionei ${qty}x *${foundProduct.name}* ao seu pedido!` 
+            }]);
+            
+            // Se a IA não mandou texto junto com a ação, mandamos um texto padrão
+            if (!finalText) finalText = "Prontinho! Mais alguma coisa, patrão?";
+          } else {
+            finalText += `\n(Ops, tentei adicionar "${args.productName}" mas não achei exatamente esse item no cardápio. Pode confirmar o nome?)`;
+          }
+        }
+      }
+    }
+
+    if (finalText) {
+      setMessages(prev => [...prev, { role: 'model', text: finalText }]);
+    }
+    
     setIsLoading(false);
   };
 
   return (
     <div className={`fixed z-[100] flex flex-col items-end ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-6 right-6'}`}>
       {isOpen && (
-        <div className="w-full h-full sm:w-[400px] sm:h-[500px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+        <div className="w-full h-full sm:w-[400px] sm:h-[550px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
           {/* Header */}
-          <div className="bg-emerald-600 p-6 flex items-center justify-between shrink-0">
+          <div className="bg-emerald-600 p-5 flex items-center justify-between shrink-0 shadow-md z-10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl">🤖</div>
+              <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-2xl border-2 border-emerald-500 shadow-sm relative overflow-hidden">
+                🤖
+                <div className="absolute inset-0 bg-emerald-500/10 animate-pulse"></div>
+              </div>
               <div>
-                <h3 className="text-white font-black text-xs uppercase tracking-widest">Nilo Assistente</h3>
-                <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
-                   <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse"></span> Online agora
+                <h3 className="text-white font-black text-sm uppercase tracking-widest">Nilo Assistente</h3>
+                <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 opacity-90">
+                   <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse shadow-[0_0_5px_#fff]"></span> Online e com Fome
                 </p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="p-2 text-white/60 hover:text-white transition-colors bg-white/10 rounded-full">✕</button>
+            <button onClick={() => setIsOpen(false)} className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded-full transition-colors font-bold">✕</button>
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50 no-scrollbar overscroll-contain">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50 no-scrollbar overscroll-contain">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm font-medium shadow-sm leading-relaxed ${
@@ -80,34 +128,37 @@ export const ChatBot: React.FC<{ products: Product[] }> = ({ products }) => {
                   ? 'bg-emerald-600 text-white rounded-tr-none' 
                   : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'
                 }`}>
-                  {m.text}
+                  {/* Renderização simples de Markdown para negrito */}
+                  {m.text.split('*').map((part, idx) => 
+                    idx % 2 === 1 ? <strong key={idx}>{part}</strong> : part
+                  )}
                 </div>
               </div>
             ))}
             {isLoading && (
               <div className="flex justify-start animate-fade-in">
-                <div className="bg-white px-5 py-4 rounded-2xl rounded-tl-none border border-slate-100 flex flex-col gap-2 shadow-sm">
-                  <div className="flex gap-1.5">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-none border border-slate-100 flex items-center gap-2 shadow-sm">
+                   <span className="text-lg">🍔</span>
+                   <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                   </div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Nilo está pensando...</span>
                 </div>
               </div>
             )}
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2 sm:mb-0 pb-10 sm:pb-4 safe-area-bottom">
+          <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2 sm:mb-0 pb-8 sm:pb-4 safe-area-bottom shadow-[0_-5px_15px_rgba(0,0,0,0.02)] z-10">
             <input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="O que deseja saber?" 
-              className="flex-1 bg-slate-100 border-none rounded-xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+              placeholder="Ex: Me vê um X-Bacon..." 
+              className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all placeholder:text-slate-400"
             />
-            <button className="bg-emerald-600 text-white w-12 h-12 flex items-center justify-center rounded-xl hover:bg-emerald-700 transition-all shadow-lg active:scale-90 shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <button disabled={isLoading || !input.trim()} className="bg-emerald-600 disabled:bg-slate-300 text-white w-14 h-14 flex items-center justify-center rounded-xl hover:bg-emerald-700 transition-all shadow-lg active:scale-90 shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
             </button>
@@ -115,13 +166,17 @@ export const ChatBot: React.FC<{ products: Product[] }> = ({ products }) => {
         </div>
       )}
 
-      {/* Toggle Button (escondido se aberto no mobile) */}
+      {/* Toggle Button */}
       {!isOpen && (
         <button 
           onClick={() => setIsOpen(true)}
-          className="w-16 h-16 bg-emerald-600 rounded-full shadow-2xl flex items-center justify-center text-2xl hover:scale-110 active:scale-95 transition-all shadow-emerald-200 border-4 border-white"
+          className="group relative w-16 h-16 bg-emerald-600 rounded-full shadow-[0_8px_30px_rgba(16,185,129,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 border-4 border-white"
         >
-          💬
+          <span className="text-3xl group-hover:hidden">💬</span>
+          <span className="text-3xl hidden group-hover:block">🍔</span>
+          
+          {/* Notification Dot */}
+          <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-bounce"></span>
         </button>
       )}
     </div>

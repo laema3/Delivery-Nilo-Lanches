@@ -1,138 +1,149 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, FunctionDeclaration, SchemaType } from "@google/genai";
 import { Product } from "../types.ts";
 
-// Função simplificada e segura para pegar a chave
+// Configuração segura da API Key
 const getApiKey = () => {
   try {
-    let rawKey = "";
-    
-    // Acesso seguro ao ambiente Vite
     // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // @ts-ignore
-      const env = import.meta.env;
-      rawKey = env.VITE_API_KEY || env.API_KEY || "";
-    }
-
-    if (!rawKey) return "";
-
-    // 1. Tenta extrair a chave EXATA usando padrão do Google (AIza + 35 chars)
-    // Isso resolve o problema de textos colados junto com a chave (ex: "AIza...eu só colei...")
-    const googleKeyPattern = /AIza[0-9A-Za-z\-_]{35}/;
-    const match = rawKey.match(googleKeyPattern);
+    const env = import.meta.env;
+    let key = env.VITE_API_KEY || env.API_KEY || "";
     
-    if (match) {
-      return match[0];
-    }
+    // Limpeza básica caso tenha sido copiado com espaços ou quebras de linha
+    key = key.trim();
+    if (key.includes('\n')) key = key.split('\n')[0];
+    if (key.includes(' ')) key = key.split(' ')[0];
 
-    // 2. Fallback: Limpeza manual se o regex falhar
-    let clean = rawKey.trim();
-    if (clean.includes(' ')) clean = clean.split(' ')[0]; // Pega só a primeira palavra
-    if (clean.includes('\n')) clean = clean.split('\n')[0];
-
-    // Validação básica de segurança
-    if (clean.length > 20 && !clean.includes('?') && !clean.includes('Olá')) {
-      return clean;
-    }
+    return key;
   } catch (e) {
     console.error("Erro ao ler API Key:", e);
+    return "";
   }
-  return "";
 };
 
 const getAIClient = () => {
   const apiKey = getApiKey();
-  if (!apiKey) {
-    // Retorna null silenciosamente para não quebrar a app, o chat tratará isso
-    return null;
-  }
+  if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
 };
 
-const extractTextOnly = (response: any): string => {
-  return response.text || "";
+// Definição da Ferramenta de Adicionar ao Carrinho
+const addToCartTool: FunctionDeclaration = {
+  name: "addToCart",
+  description: "Adiciona um item do cardápio ao carrinho de compras do cliente. Use isso quando o cliente confirmar que quer pedir algo.",
+  parameters: {
+    type: "OBJECT" as SchemaType,
+    properties: {
+      productName: {
+        type: "STRING" as SchemaType,
+        description: "O nome exato ou aproximado do produto que o cliente quer."
+      },
+      quantity: {
+        type: "NUMBER" as SchemaType,
+        description: "A quantidade desejada. Padrão é 1."
+      },
+      observation: {
+        type: "STRING" as SchemaType,
+        description: "Observação sobre o item (ex: sem cebola), se houver."
+      }
+    },
+    required: ["productName"]
+  }
 };
 
 export const chatWithAssistant = async (message: string, history: any[], allProducts: Product[]) => {
   const ai = getAIClient();
   
   if (!ai) {
-    return "Olá! 🤖 Para conversar comigo, o dono do site precisa verificar a configuração da Chave de API (Gemini Key).";
+    return { 
+      text: "⚠️ Configuração necessária: Adicione sua VITE_API_KEY no arquivo .env para ativar meu cérebro!", 
+      toolCalls: null 
+    };
   }
 
   try {
-    const productsList = allProducts.map(p => `${p.name}: R$ ${p.price} - ${p.description}`).join("\n");
+    // Cria um contexto rico com o cardápio atualizado
+    const productsList = allProducts.map(p => `- ${p.name} (R$ ${p.price.toFixed(2)}): ${p.description}`).join("\n");
+    
     const systemInstruction = `
-      Você é o "Nilo", o assistente virtual gente fina da Nilo Lanches.
-      Seu objetivo é ser um vendedor consultivo e amigável.
+      Você é o Nilo, o assistente virtual gente fina da hamburgueria Nilo Lanches.
       
-      REGRAS DE OURO:
-      1. Use gírias leves de lanchonete (ex: "Fala mestre", "Caprichado", "Mata a fome").
-      2. Se o cliente estiver em dúvida, sugira o "X-Bacon Artesanal" ou o "Combo Casal".
-      3. Incentive o cliente a adicionar itens ao carrinho clicando no botão (+) verde do cardápio.
-      4. Sempre pergunte: "Vai querer uma Coca geladinha para acompanhar?" ou "Aceita um adicional de Bacon?".
-      5. Se ele perguntar sobre o pedido, explique que após adicionar ao carrinho, ele deve clicar no ícone da sacola e preencher os dados.
+      SUA PERSONALIDADE:
+      - Amigável, usa gírias leves ("Mestre", "Meu chapa", "Bora pedir").
+      - Vendedor nato: Sempre sugira uma bebida ou batata para acompanhar.
+      - Objetivo: Fazer o cliente fechar o pedido.
+
+      SEUS SUPER PODERES (TOOLS):
+      - Você tem a ferramenta 'addToCart'.
+      - QUANDO USAR: Se o cliente disser "quero um X-Bacon", "me vê dois coca", "adiciona o combo", USE A FERRAMENTA IMEDIATAMENTE.
+      - Não pergunte "posso adicionar?". Se a intenção for clara, adicione e avise: "Já coloquei no carrinho, chefia!".
       
-      CARDÁPIO ATUAL:
+      CARDÁPIO ATUALIZADO:
       ${productsList}
-      
-      Seja breve, direto e foque em converter a conversa em um pedido.
+
+      REGRAS:
+      1. Se o cliente pedir algo que não está na lista, peça desculpas e sugira algo parecido.
+      2. Se for adicionar ao carrinho, chame a tool e responda no texto algo como "Beleza, adicionando [produto]...".
     `;
 
-    const validHistory = history.filter(h => h.role === 'user' || h.role === 'model');
+    // Filtra histórico para garantir formato correto
+    const validHistory = history.map(h => ({
+      role: h.role,
+      parts: h.parts || [{ text: h.text }]
+    }));
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+    const model = ai.models;
+
+    const response = await model.generateContent({
+      model: "gemini-2.5-flash", // Modelo rápido e bom com tools
       contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
-      config: { systemInstruction }
+      config: {
+        systemInstruction,
+        tools: [{ functionDeclarations: [addToCartTool] }],
+        temperature: 0.7
+      }
     });
 
-    return extractTextOnly(response);
+    // Processamento da resposta
+    const candidate = response.candidates?.[0];
+    const modelText = candidate?.content?.parts?.find(p => p.text)?.text || "";
+    
+    // Extração de chamadas de função (Tools)
+    const functionCalls = candidate?.content?.parts
+      ?.filter(p => p.functionCall)
+      .map(p => p.functionCall) || [];
+
+    return {
+      text: modelText,
+      toolCalls: functionCalls.length > 0 ? functionCalls : null
+    };
+
   } catch (error) {
     console.error("Erro no Chat Gemini:", error);
-    return "Ops! Tive um problema de conexão com minha inteligência. Pode repetir?";
+    return { 
+      text: "Ops! Tive um problema de conexão com a cozinha (Erro na IA). Tente novamente.", 
+      toolCalls: null 
+    };
   }
 };
 
-export const getAiRecommendation = async (cart: any[], allProducts: Product[]) => {
-  const ai = getAIClient();
-  if (!ai) return null;
-  try {
-    const cartDesc = cart.map(i => `${i.quantity}x ${i.name}`).join(", ");
-    const productsList = allProducts.map(p => `${p.name} (R$ ${p.price})`).join(", ");
-    const prompt = `Com base no carrinho [${cartDesc}], sugira um acompanhamento ou lanche do menu [${productsList}]. Retorne JSON: { "suggestion": "Nome", "reasoning": "Motivo" }`;
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            suggestion: { type: Type.STRING },
-            reasoning: { type: Type.STRING }
-          }
-        }
-      }
-    });
-    const text = extractTextOnly(response);
-    return text ? JSON.parse(text) : null;
-  } catch (e) { return null; }
-};
-
+// Mantém a função de gerar imagem funcionando
 export const generateProductImage = async (productName: string) => {
   const ai = getAIClient();
   if (!ai) return null;
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-2.5-flash-image', // Modelo otimizado para imagens
       contents: { parts: [{ text: `Professional food photography of ${productName}, delicious burger, studio lighting, white background, high quality.` }] },
       config: { imageConfig: { aspectRatio: "1:1" } }
     });
+    
+    // Maneira segura de pegar a imagem
     const parts = response.candidates?.[0]?.content?.parts || [];
     for (const part of parts) {
-      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+      if (part.inlineData && part.inlineData.data) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
     }
     return null;
   } catch (e) { return null; }
