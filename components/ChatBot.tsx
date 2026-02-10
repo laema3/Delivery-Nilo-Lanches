@@ -48,26 +48,28 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
 
-    // Prepara histórico para a API
+    // Prepara histórico
     const history = messages.map(m => ({
       role: m.role,
       parts: [{ text: m.text }]
     }));
 
-    // Chama o serviço de IA
+    // Chama a IA
     const response = await chatWithAssistant(userMsg, history, products);
     
     let finalText = response.text;
 
-    // --- LÓGICA DE FERRAMENTAS (ADD TO CART) ---
-    if (response.toolCalls && response.toolCalls.length > 0 && onAddToCart) {
-      for (const call of response.toolCalls) {
+    // --- PROCESSAMENTO DE FERRAMENTAS (CARRINHO) ---
+    if (response.functionCalls && onAddToCart) {
+      for (const call of response.functionCalls) {
         if (call.name === 'addToCart') {
+          console.log("🛠️ Tool Call Detectada:", call);
+          
           const args = call.args as any;
           const searchName = (args.productName || '').toLowerCase();
           const qty = Number(args.quantity) || 1;
 
-          // Busca o produto mais parecido na lista
+          // Busca Inteligente no Cardápio Local
           const foundProduct = products.find(p => 
             p.name.toLowerCase().includes(searchName) || 
             searchName.includes(p.name.toLowerCase())
@@ -76,16 +78,15 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
           if (foundProduct) {
             onAddToCart(foundProduct, qty);
             
-            // Adiciona feedback visual no chat
+            // Mensagem de sistema simulando a ação
             setMessages(prev => [...prev, { 
               role: 'model', 
-              text: `✅ Adicionei ${qty}x *${foundProduct.name}* ao seu pedido!` 
+              text: `✅ *ADICIONADO:* ${qty}x ${foundProduct.name}\n🛒 *Valor:* R$ ${(foundProduct.price * qty).toFixed(2)}` 
             }]);
             
-            // Se a IA não mandou texto junto com a ação, mandamos um texto padrão
-            if (!finalText) finalText = "Prontinho! Mais alguma coisa, patrão?";
+            if (!finalText) finalText = "Prontinho patrão, já tá na mão! Mais alguma coisa?";
           } else {
-            finalText += `\n(Ops, tentei adicionar "${args.productName}" mas não achei exatamente esse item no cardápio. Pode confirmar o nome?)`;
+            finalText += `\n(Tentei adicionar "${args.productName}", mas não achei exatamente esse item. Confere o nome pra mim?)`;
           }
         }
       }
@@ -128,10 +129,14 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
                   ? 'bg-emerald-600 text-white rounded-tr-none' 
                   : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'
                 }`}>
-                  {/* Renderização simples de Markdown para negrito */}
-                  {m.text.split('*').map((part, idx) => 
-                    idx % 2 === 1 ? <strong key={idx}>{part}</strong> : part
-                  )}
+                  {/* Markdown simplificado */}
+                  {m.text.split('\n').map((line, lIdx) => (
+                    <p key={lIdx} className={lIdx > 0 ? "mt-1" : ""}>
+                      {line.split('*').map((part, idx) => 
+                        idx % 2 === 1 ? <strong key={idx} className="font-black">{part}</strong> : part
+                      )}
+                    </p>
+                  ))}
                 </div>
               </div>
             ))}
@@ -174,8 +179,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
         >
           <span className="text-3xl group-hover:hidden">💬</span>
           <span className="text-3xl hidden group-hover:block">🍔</span>
-          
-          {/* Notification Dot */}
           <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-bounce"></span>
         </button>
       )}
