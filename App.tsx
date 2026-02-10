@@ -60,20 +60,59 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
-  // ATUALIZAÇÃO DO ÍCONE DO SITE (FAVICON) COM O LOGO
+  // ATUALIZAÇÃO DO ÍCONE DO SITE (FAVICON) E DO PWA (MANIFEST) COM O LOGO
   useEffect(() => {
     if (logoUrl) {
-      // Atualiza Favicon da aba
+      // 1. Atualiza Favicon da aba
       const link = document.getElementById('favicon') as HTMLLinkElement;
       if (link) {
         link.href = logoUrl;
-        link.type = "image/png"; // Assume PNG/JPEG do upload
+        // Tenta detectar o tipo se for data URI, senão assume png
+        link.type = logoUrl.startsWith('data:') ? logoUrl.split(';')[0].split(':')[1] : "image/png";
       }
 
-      // Atualiza ícone Apple (iOS)
+      // 2. Atualiza ícone Apple (iOS)
       const appleLink = document.getElementById('apple-icon') as HTMLLinkElement;
       if (appleLink) {
         appleLink.href = logoUrl;
+      }
+
+      // 3. Atualiza MANIFEST Dinamicamente para o PWA (Instalação)
+      const mimeType = logoUrl.startsWith('data:') ? logoUrl.split(';')[0].split(':')[1] : 'image/png';
+      
+      const dynamicManifest = {
+        short_name: "Nilo Lanches",
+        name: "Nilo Lanches Delivery",
+        description: "O melhor lanche de Uberaba na palma da sua mão.",
+        icons: [
+          {
+            src: logoUrl,
+            type: mimeType,
+            sizes: "192x192",
+            purpose: "any maskable"
+          },
+          {
+            src: logoUrl,
+            type: mimeType,
+            sizes: "512x512",
+            purpose: "any maskable"
+          }
+        ],
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        orientation: "portrait",
+        theme_color: "#008000",
+        background_color: "#ffffff"
+      };
+
+      const stringManifest = JSON.stringify(dynamicManifest);
+      const blob = new Blob([stringManifest], { type: 'application/json' });
+      const manifestURL = URL.createObjectURL(blob);
+      
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      if (manifestLink) {
+        manifestLink.setAttribute('href', manifestURL);
       }
     }
   }, [logoUrl]);
