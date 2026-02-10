@@ -25,6 +25,12 @@ const COLLECTION_MAP: Record<string, string> = {
   'coupons': 'coupons'
 };
 
+// FUNÇÃO CRÍTICA: O Firestore rejeita objetos com campos 'undefined'.
+// Esta função remove qualquer campo indefinido recursivamente antes de enviar.
+const sanitizeData = (data: any) => {
+  return JSON.parse(JSON.stringify(data));
+};
+
 export const dbService = {
   isFirebaseConnected() {
     return !!db;
@@ -49,7 +55,7 @@ export const dbService = {
   },
 
   subscribe<T>(key: string, callback: (data: T) => void) {
-    // 1. Carrega dados locais imediatamente para a UI aparecer rápido
+    // 1. Carrega dados locais imediatamente
     const localData = this.getLocal(key);
     if (localData && localData.length > 0) callback(localData as T);
 
@@ -64,11 +70,11 @@ export const dbService = {
           ...doc.data(),
           id: doc.id
         }));
-        // Atualiza o cache local com os dados novos da nuvem
+        // Atualiza cache local
         this.setLocal(key, data);
         callback(data as unknown as T);
       }, (error) => {
-        console.warn(`⚠️ [Sync] Modo Offline para '${key}':`, error.message);
+        console.warn(`⚠️ [Sync] Erro na leitura '${key}':`, error.message);
       });
 
       return unsubscribe;
@@ -79,7 +85,6 @@ export const dbService = {
   },
 
   async getAll<T>(key: string, defaultValue: T): Promise<T> {
-    // Tenta pegar da nuvem primeiro se conectado
     if (db) {
       try {
         const collectionName = COLLECTION_MAP[key] || key;
@@ -93,40 +98,36 @@ export const dbService = {
         console.warn("⚠️ Falha ao buscar online, usando cache local.");
       }
     }
-    // Fallback para local
     return (this.getLocal(key) as unknown as T) || defaultValue;
   },
 
   async save(key: string, id: string, data: any) {
     if (!id) return;
-    const cleanData = { ...data };
-    delete cleanData.id; 
+    
+    // 1. Sanitização (Remove undefined que quebra o Firebase)
+    const cleanData = sanitizeData({ ...data });
+    delete cleanData.id; // Não duplicar ID dentro do documento
 
-    // 1. SALVAMENTO LOCAL (Garantido)
-    // Isso assegura que o pedido apareça na tela do Admin (se for na mesma máquina) 
-    // ou no "Meus Pedidos" do cliente, mesmo sem internet.
+    // 2. Salva Local (Garantia de Offline)
     const currentList = this.getLocal(key) as any[];
     const index = currentList.findIndex(item => item.id === id);
     const newItem = { ...cleanData, id };
-
+    
     let newList = index >= 0 ? [...currentList] : [...currentList, newItem];
     if (index >= 0) newList[index] = newItem;
     this.setLocal(key, newList);
 
-    // 2. SALVAMENTO EM NUVEM (Tentativa)
+    // 3. Salva Nuvem (Firebase)
     if (db) {
       try {
         const collectionName = COLLECTION_MAP[key] || key;
         await setDoc(doc(db, collectionName, id), cleanData, { merge: true });
-        console.log(`✅ [Cloud] Salvo com sucesso: ${key}/${id}`);
+        console.log(`✅ [Cloud] Salvo: ${key}/${id}`);
       } catch (e: any) {
-        // MUDANÇA CRÍTICA: Não lançamos erro (throw) aqui.
-        // Se falhar no Firebase (cota, permissão, internet), apenas logamos.
-        // O app considera sucesso porque salvou localmente.
-        console.error(`⚠️ [Cloud] Falha no upload (mas salvo localmente):`, e.message);
+        // Log detalhado para debug
+        console.error(`❌ [Cloud Error] Falha ao salvar em ${key}:`, e);
+        // Não jogamos o erro para a UI para não travar o cliente, mas o log mostra o problema.
       }
-    } else {
-      console.warn("⚠️ [Cloud] Desconectado. Dados salvos apenas neste dispositivo.");
     }
   },
 

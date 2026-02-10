@@ -378,7 +378,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                           <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
                           <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${order.status === 'NOVO' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>{order.status}</span>
                         </div>
-                        {/* Botão de Impressão (Agarrado no fluxo normal, sem z-index maluco) */}
+                        {/* Botão de Impressão (Sem z-index ou position relative que atrapalhe) */}
                         <button 
                           onClick={(e) => handlePrint(e, order)}
                           className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 transition-colors cursor-pointer"
