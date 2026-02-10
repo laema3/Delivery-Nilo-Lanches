@@ -111,18 +111,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     else { audioRef.current?.pause(); if(audioRef.current) audioRef.current.currentTime = 0; }
   }, [orders, audioEnabled]);
 
-  const handlePrint = (order: Order) => {
+  const handlePrint = (e: React.MouseEvent, order: Order) => {
+    e.stopPropagation(); // Impede cliques fantasmas
     setPrintingOrder(order);
-    // Timeout para renderizar o portal antes de chamar o print
+    
+    // Pequeno delay para garantir que o Portal renderizou
     setTimeout(() => {
       window.print();
     }, 500);
   };
 
+  // Limpa estado após impressão
   useEffect(() => {
-    const handleAfterPrint = () => {
-      setPrintingOrder(null);
-    };
+    const handleAfterPrint = () => setPrintingOrder(null);
     window.addEventListener('afterprint', handleAfterPrint);
     return () => window.removeEventListener('afterprint', handleAfterPrint);
   }, []);
@@ -244,17 +245,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
+    <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left">
       
-      {/* CUPOM DE IMPRESSÃO - VIA PORTAL (Renderiza direto no body) */}
+      {/* PORTAL DO CUPOM (Só aparece no DOM quando printingOrder é setado, e CSS esconde na tela) */}
       {printingOrder && createPortal(
         <div id="printable-coupon-root">
           <div className="coupon-content">
             <div className="header">
               <h1>NILO LANCHES</h1>
               <p>Av. Lucas Borges, 317 - Uberaba MG</p>
-              <div className="divider"></div>
-              <h2>PEDIDO: #{printingOrder.id}</h2>
+              <h2>PEDIDO #{printingOrder.id}</h2>
               <p className="date">{new Date(printingOrder.createdAt).toLocaleString('pt-BR')}</p>
             </div>
 
@@ -262,39 +262,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               <p><strong>CLIENTE:</strong> {printingOrder.customerName}</p>
               <p><strong>FONE:</strong> {printingOrder.customerPhone}</p>
               <p><strong>END:</strong> {printingOrder.customerAddress}</p>
-              <p><strong>TIPO:</strong> {printingOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : 'DELIVERY'}</p>
+              <p><strong>TIPO:</strong> {printingOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : 'ENTREGA'}</p>
             </div>
 
             <div className="items">
-              <p className="label">ITENS DO PEDIDO:</p>
               {printingOrder.items.map((item, i) => (
                 <div key={i} className="item-row">
-                  <div className="item-line">
-                    <span className="qty">{item.quantity}x {item.name}</span>
-                    <span className="price">R$ {(item.price * item.quantity).toFixed(2)}</span>
-                  </div>
-                  {item.selectedComplements?.map((c, j) => (
-                    <div key={j} className="complement">+ {c.name}</div>
-                  ))}
+                  <span>{item.quantity}x {item.name}</span>
+                  <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
 
             <div className="totals">
-              <div className="divider"></div>
-              <div className="total-row"><span>Subtotal:</span><span>R$ {(printingOrder.total - printingOrder.deliveryFee + (printingOrder.discountValue || 0)).toFixed(2)}</span></div>
-              <div className="total-row"><span>Taxa Entrega:</span><span>R$ {printingOrder.deliveryFee.toFixed(2)}</span></div>
-              {printingOrder.discountValue && printingOrder.discountValue > 0 && (
-                <div className="total-row discount"><span>Desconto:</span><span>- R$ {printingOrder.discountValue.toFixed(2)}</span></div>
-              )}
+              <div className="item-row"><span>Subtotal:</span><span>{(printingOrder.total - printingOrder.deliveryFee + (printingOrder.discountValue || 0)).toFixed(2)}</span></div>
+              <div className="item-row"><span>Entrega:</span><span>{printingOrder.deliveryFee.toFixed(2)}</span></div>
+              {printingOrder.discountValue ? <div className="item-row"><span>Desc:</span><span>-{printingOrder.discountValue.toFixed(2)}</span></div> : null}
               <div className="total-final"><span>TOTAL:</span><span>R$ {printingOrder.total.toFixed(2)}</span></div>
             </div>
 
             <div className="footer">
-              <p><strong>PAGAMENTO:</strong> {printingOrder.paymentMethod.toUpperCase()}</p>
-              {printingOrder.changeFor && <p>Troco para: R$ {printingOrder.changeFor.toFixed(2)}</p>}
-              <p className="site">www.nilolanches.com.br</p>
-              <p>Obrigado pela preferência!</p>
+              <p>PAGAMENTO: {printingOrder.paymentMethod}</p>
+              {printingOrder.changeFor && <p>Troco para: R$ {printingOrder.changeFor}</p>}
+              <p style={{marginTop:'10px'}}>www.nilolanches.com.br</p>
             </div>
           </div>
         </div>,
@@ -381,16 +371,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       <p className="mt-2 text-xs font-bold uppercase">Nenhum pedido encontrado</p>
                   </div>
                 ) : filteredOrders.map(order => (
-                  <div key={order.id} className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm text-left flex flex-col md:flex-row gap-8">
-                    <div className="flex-1 space-y-4">
+                  <div key={order.id} className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm text-left flex flex-col md:flex-row gap-8 relative overflow-hidden">
+                    <div className="flex-1 space-y-4 relative z-10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
                           <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${order.status === 'NOVO' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>{order.status}</span>
                         </div>
                         <button 
-                          onClick={() => handlePrint(order)}
-                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-black transition-colors"
+                          onClick={(e) => handlePrint(e, order)}
+                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-black transition-colors z-20"
                         >
                           🖨️ Imprimir Cupom
                         </button>
@@ -413,7 +403,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         ))}
                       </div>
                     </div>
-                    <div className="md:w-64 space-y-4">
+                    <div className="md:w-64 space-y-4 relative z-10">
                         <div className="flex flex-col items-end">
                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Total do Pedido</p>
                           <p className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</p>
@@ -425,14 +415,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                            <div className={`relative rounded-xl border-2 ${getStatusColor(order.status)} bg-white`}>
                              <select 
                                value={order.status}
-                               onChange={(e) => onUpdateOrderStatus(order.id, e.target.value as OrderStatus)}
-                               className="w-full appearance-none bg-transparent py-3 px-4 pr-8 rounded-xl leading-tight focus:outline-none font-black text-[10px] uppercase tracking-widest cursor-pointer text-slate-700"
+                               onChange={(e) => {
+                                 e.stopPropagation();
+                                 onUpdateOrderStatus(order.id, e.target.value as OrderStatus);
+                               }}
+                               className="w-full appearance-none bg-transparent py-3 px-4 pr-8 rounded-xl leading-tight focus:outline-none font-black text-[10px] uppercase tracking-widest cursor-pointer text-slate-700 relative z-30"
                              >
                                {ALL_STATUSES.map(status => (
                                  <option key={status} value={status}>{status}</option>
                                ))}
                              </select>
-                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-50">
+                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-50 z-20">
                                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                              </div>
                            </div>
@@ -441,8 +434,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         {order.status === 'CANCELADO' && (
                           <button 
                             type="button"
-                            onClick={() => onDeleteOrder(order.id)}
-                            className="w-full py-3 bg-red-100 hover:bg-red-200 text-red-600 border border-red-200 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteOrder(order.id);
+                            }}
+                            className="w-full py-3 bg-red-100 hover:bg-red-200 text-red-600 border border-red-200 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2 z-20"
                           >
                             🗑️ Excluir Definitivamente
                           </button>
@@ -463,11 +459,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                   <div className="space-y-4">
                     <input value={(editingProduct ? editingProduct.name : newProduct.name) || ''} onChange={e => editingProduct ? setEditingProduct({...editingProduct, name: e.target.value}) : setNewProduct({...newProduct, name: e.target.value})} placeholder="Nome" className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none" />
                     <textarea value={(editingProduct ? editingProduct.description : newProduct.description) || ''} onChange={e => editingProduct ? setEditingProduct({...editingProduct, description: e.target.value}) : setNewProduct({...newProduct, description: e.target.value})} placeholder="Descrição" className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none h-24 uppercase" />
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <input type="number" value={(editingProduct ? editingProduct.price : newProduct.price)} onChange={e => editingProduct ? setEditingProduct({...editingProduct, price: Number(e.target.value)}) : setNewProduct({...newProduct, price: Number(e.target.value)})} placeholder="Preço" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
-                      <select value={(editingProduct ? editingProduct.category : newProduct.category) || ''} onChange={e => editingProduct ? setEditingProduct({...editingProduct, category: e.target.value}) : setNewProduct({...newProduct, category: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none">
+                      <select 
+                        value={(editingProduct ? editingProduct.category : newProduct.category) || ''} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (editingProduct) setEditingProduct({...editingProduct, category: val, subCategory: ''});
+                          else setNewProduct({...newProduct, category: val, subCategory: ''});
+                        }} 
+                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none"
+                      >
                           <option value="">Categoria...</option>
                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                      <select 
+                        value={(editingProduct ? editingProduct.subCategory : newProduct.subCategory) || ''} 
+                        onChange={e => editingProduct ? setEditingProduct({...editingProduct, subCategory: e.target.value}) : setNewProduct({...newProduct, subCategory: e.target.value})} 
+                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none"
+                        disabled={!(editingProduct ? editingProduct.category : newProduct.category)}
+                      >
+                          <option value="">Subcategoria...</option>
+                          {subCategories
+                            .filter(s => {
+                              const currentCatName = (editingProduct ? editingProduct.category : newProduct.category);
+                              const parentCat = categories.find(c => c.name === currentCatName);
+                              return parentCat && s.categoryId === parentCat.id;
+                            })
+                            .map(s => <option key={s.id} value={s.name}>{s.name}</option>)
+                          }
                       </select>
                     </div>
                   </div>
