@@ -5,20 +5,19 @@ import { Order } from '../types.ts';
 
 interface PrintableCouponProps {
   order: Order | null;
-  onAfterPrint?: () => void;
+  timestamp?: number; // Gatilho para forçar reimpressão
 }
 
-export const PrintableCoupon: React.FC<PrintableCouponProps> = ({ order, onAfterPrint }) => {
+export const PrintableCoupon: React.FC<PrintableCouponProps> = ({ order, timestamp }) => {
   useEffect(() => {
     if (order) {
-      // Pequeno delay para garantir que o Portal foi renderizado no DOM e estilos aplicados
+      // Pequeno delay para garantir renderização do DOM antes de abrir o dialog
       const timer = setTimeout(() => {
         window.print();
-        if (onAfterPrint) onAfterPrint();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [order, onAfterPrint]);
+  }, [order, timestamp]); // Reage a mudanças no pedido ou no timestamp
 
   if (!order) return null;
 

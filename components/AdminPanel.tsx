@@ -78,6 +78,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   
   // Imprimir Cupom State
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
+  const [printTrigger, setPrintTrigger] = useState(0);
 
   // States para Formulários
   const [catName, setCatName] = useState('');
@@ -118,12 +119,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   }, [orders, audioEnabled]);
 
   const handlePrint = (order: Order) => {
-    // Truque para forçar o componente PrintableCoupon a desmontar e montar novamente
-    // Isso garante que o useEffect de impressão seja acionado, mesmo se for o mesmo pedido
-    setPrintingOrder(null);
-    setTimeout(() => {
-      setPrintingOrder(order);
-    }, 50);
+    setPrintingOrder(order);
+    setPrintTrigger(Date.now()); // Força o useEffect do cupom a rodar novamente
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'product' | 'logo') => {
@@ -241,8 +238,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
       
-      {/* CUPOM DE IMPRESSÃO - USANDO COMPONENTE DEDICADO */}
-      <PrintableCoupon order={printingOrder} />
+      {/* CUPOM DE IMPRESSÃO - USANDO COMPONENTE DEDICADO COM TRIGGER */}
+      <PrintableCoupon order={printingOrder} timestamp={printTrigger} />
 
       {/* SIDEBAR */}
       <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shrink-0 md:h-full h-auto max-h-[300px] md:max-h-full overflow-y-auto no-scrollbar border-r border-white/5 shadow-2xl z-20">
@@ -333,7 +330,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         </div>
                         <button 
                           onClick={() => handlePrint(order)}
-                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-black transition-colors"
+                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-black transition-colors shadow-lg active:scale-95"
                         >
                           🖨️ Imprimir Cupom
                         </button>
@@ -361,10 +358,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Total do Pedido</p>
                           <p className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {ALL_STATUSES.filter(s => s !== order.status).map(s => (
-                            <button key={s} onClick={() => onUpdateOrderStatus(order.id, s)} className="py-2 bg-slate-50 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 border border-slate-100 rounded-xl text-[8px] font-black uppercase tracking-tighter transition-all">{s}</button>
-                          ))}
+                        <div className="relative">
+                          <select
+                            value={order.status}
+                            onChange={(e) => onUpdateOrderStatus(order.id, e.target.value as OrderStatus)}
+                            className={`w-full appearance-none px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none border-2 cursor-pointer transition-all ${
+                               order.status === 'NOVO' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                               order.status === 'FINALIZADO' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                               order.status === 'CANCELADO' ? 'bg-red-50 text-red-600 border-red-100' :
+                               'bg-slate-50 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▼</div>
                         </div>
                     </div>
                   </div>
@@ -373,7 +380,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             </div>
           )}
 
-          {/* ... Resto do componente permanece igual ... */}
           {activeView === 'produtos' && (
             <div className="space-y-10 animate-fade-in">
               <div ref={productFormRef} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">

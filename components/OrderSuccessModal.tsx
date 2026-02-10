@@ -11,21 +11,26 @@ interface OrderSuccessModalProps {
 }
 
 export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ isOpen, onClose, order, onSendWhatsApp }) => {
-  const [isPrinting, setIsPrinting] = useState(false);
+  // Estado para controlar se o cupom deve ser renderizado no DOM
+  const [shouldRenderCoupon, setShouldRenderCoupon] = useState(false);
+  // Estado para forçar a ação de impressão (mesmo se o componente já estiver renderizado)
+  const [printTrigger, setPrintTrigger] = useState(0);
 
   if (!isOpen || !order) return null;
 
   const handlePrint = () => {
-    setIsPrinting(true);
-    // A impressão é acionada automaticamente dentro do PrintableCoupon
-    // Podemos resetar o estado após um tempo ou deixar o usuário fechar manualmente (se fosse um modal separado)
-    // Aqui, apenas setamos para true para renderizar o componente.
-    setTimeout(() => setIsPrinting(false), 2000); 
+    // 1. Garante que o componente do cupom exista no DOM
+    setShouldRenderCoupon(true);
+    
+    // 2. Atualiza o trigger para disparar o useEffect do PrintableCoupon
+    // Isso garante que window.print() seja chamado toda vez que o botão for clicado
+    setPrintTrigger(Date.now());
   };
 
   return (
     <>
-      {isPrinting && <PrintableCoupon order={order} />}
+      {/* O cupom fica renderizado invisível (display:none via CSS) esperando o comando de print */}
+      {shouldRenderCoupon && <PrintableCoupon order={order} timestamp={printTrigger} />}
       
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-emerald-950/90 backdrop-blur-xl animate-in fade-in duration-300">
         <div className="bg-white rounded-[40px] w-full max-w-sm overflow-hidden shadow-2xl p-8 sm:p-10 text-center space-y-6 transform animate-in zoom-in-95 duration-500">
