@@ -30,37 +30,58 @@ html, body {
   min-height: 100vh;
 }
 
-/* ESTILOS DE IMPRESSÃO - CORREÇÃO DEFINITIVA */
+/* ESTILOS DE IMPRESSÃO VIA PORTAL - DEFINITIVO */
 @media print {
-  body {
+  /* Oculta tudo na página */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Exibe apenas o portal do cupom e seus filhos */
+  #printable-coupon-root, #printable-coupon-root * {
+    visibility: visible;
+  }
+
+  /* Posiciona o cupom no topo absoluto */
+  #printable-coupon-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
     background: white;
   }
   
-  /* Esconde tudo que não está dentro do container de impressão */
-  body > *:not(#printable-coupon-container) {
-    display: none !important;
+  /* Estilização do Cupom */
+  .coupon-content {
+    width: 80mm;
+    margin: 0 auto;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 10px;
+    font-size: 12px;
+    color: black;
   }
 
-  /* Garante que o container de impressão apareça */
-  #printable-coupon-container {
-    display: block !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    height: auto !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: white !important;
-  }
+  .coupon-content .header { text-align: center; margin-bottom: 10px; }
+  .coupon-content h1 { font-size: 18px; font-weight: bold; margin: 0; }
+  .coupon-content h2 { font-size: 14px; font-weight: bold; margin: 5px 0; }
+  .coupon-content p { margin: 2px 0; }
+  .coupon-content .divider { border-top: 1px dashed black; margin: 8px 0; }
   
-  #printable-coupon-container * {
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
+  .coupon-content .info { margin-bottom: 10px; font-size: 11px; }
+  
+  .coupon-content .items { border-top: 1px solid black; padding-top: 5px; }
+  .coupon-content .label { font-weight: bold; font-size: 11px; margin-bottom: 5px; }
+  .coupon-content .item-row { margin-bottom: 5px; }
+  .coupon-content .item-line { display: flex; justify-content: space-between; font-weight: bold; }
+  .coupon-content .complement { font-size: 10px; padding-left: 10px; }
+
+  .coupon-content .totals { margin-top: 10px; font-size: 11px; }
+  .coupon-content .total-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+  .coupon-content .total-final { display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; margin-top: 5px; }
+  
+  .coupon-content .footer { text-align: center; margin-top: 15px; border-top: 1px solid black; padding-top: 10px; font-size: 10px; }
 
   @page {
     margin: 0;

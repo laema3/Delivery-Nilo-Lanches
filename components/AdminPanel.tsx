@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, OrderStatus, Complement, PaymentSettings, Coupon } from '../types.ts';
 import { compressImage } from '../services/imageService.ts';
 import { dbService } from '../services/dbService.ts';
@@ -112,17 +113,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const handlePrint = (order: Order) => {
     setPrintingOrder(order);
-    // Timeout maior para garantir que o navegador renderize o cupom invisível antes de abrir a janela de impressão
+    // Timeout para renderizar o portal antes de chamar o print
     setTimeout(() => {
       window.print();
-    }, 1000);
+    }, 500);
   };
 
-  // Garante que o estado de impressão seja limpo após imprimir
   useEffect(() => {
-    window.onafterprint = () => {
+    const handleAfterPrint = () => {
       setPrintingOrder(null);
     };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
   }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'product' | 'logo') => {
@@ -244,77 +246,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
       
-      {/* CONTAINER DE IMPRESSÃO */}
-      <div id="printable-coupon-container" style={{ position: 'fixed', top: 0, left: 0, zIndex: -1, opacity: 0, pointerEvents: 'none', width: '100%', height: 0, overflow: 'hidden' }}>
-        {printingOrder && (
-          <div style={{ backgroundColor: 'white', color: 'black', padding: '15px', width: '80mm', fontFamily: 'monospace', margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-              <h1 style={{ fontSize: '18pt', margin: '0', fontWeight: 'bold' }}>NILO LANCHES</h1>
-              <p style={{ fontSize: '9pt', margin: '5px 0' }}>Av. Lucas Borges, 317 - Uberaba MG</p>
-              <div style={{ borderTop: '1px dashed black', borderBottom: '1px dashed black', padding: '5px 0', margin: '10px 0' }}>
-                <p style={{ fontSize: '12pt', margin: '0', fontWeight: 'bold' }}>PEDIDO: #{printingOrder.id}</p>
-                <p style={{ fontSize: '8pt', margin: '0' }}>{new Date(printingOrder.createdAt).toLocaleString('pt-BR')}</p>
-              </div>
+      {/* CUPOM DE IMPRESSÃO - VIA PORTAL (Renderiza direto no body) */}
+      {printingOrder && createPortal(
+        <div id="printable-coupon-root">
+          <div className="coupon-content">
+            <div className="header">
+              <h1>NILO LANCHES</h1>
+              <p>Av. Lucas Borges, 317 - Uberaba MG</p>
+              <div className="divider"></div>
+              <h2>PEDIDO: #{printingOrder.id}</h2>
+              <p className="date">{new Date(printingOrder.createdAt).toLocaleString('pt-BR')}</p>
             </div>
 
-            <div style={{ fontSize: '10pt', marginBottom: '10px' }}>
-              <p style={{ margin: '2px 0' }}><strong>CLIENTE:</strong> {printingOrder.customerName}</p>
-              <p style={{ margin: '2px 0' }}><strong>FONE:</strong> {printingOrder.customerPhone}</p>
-              <p style={{ margin: '2px 0' }}><strong>END:</strong> {printingOrder.customerAddress}</p>
-              <p style={{ margin: '2px 0' }}><strong>TIPO:</strong> {printingOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : 'DELIVERY'}</p>
+            <div className="info">
+              <p><strong>CLIENTE:</strong> {printingOrder.customerName}</p>
+              <p><strong>FONE:</strong> {printingOrder.customerPhone}</p>
+              <p><strong>END:</strong> {printingOrder.customerAddress}</p>
+              <p><strong>TIPO:</strong> {printingOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : 'DELIVERY'}</p>
             </div>
 
-            <div style={{ borderTop: '1px solid black', paddingTop: '5px' }}>
-              <p style={{ fontWeight: 'bold', fontSize: '9pt', marginBottom: '5px' }}>ITENS DO PEDIDO:</p>
+            <div className="items">
+              <p className="label">ITENS DO PEDIDO:</p>
               {printingOrder.items.map((item, i) => (
-                <div key={i} style={{ marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10pt' }}>
-                    <span style={{ fontWeight: 'bold' }}>{item.quantity}x {item.name}</span>
-                    <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                <div key={i} className="item-row">
+                  <div className="item-line">
+                    <span className="qty">{item.quantity}x {item.name}</span>
+                    <span className="price">R$ {(item.price * item.quantity).toFixed(2)}</span>
                   </div>
-                  {item.selectedComplements && item.selectedComplements.length > 0 && (
-                    <div style={{ fontSize: '8pt', paddingLeft: '10px', color: '#444' }}>
-                      {item.selectedComplements.map((c, j) => (
-                        <div key={j}>+ {c.name}</div>
-                      ))}
-                    </div>
-                  )}
+                  {item.selectedComplements?.map((c, j) => (
+                    <div key={j} className="complement">+ {c.name}</div>
+                  ))}
                 </div>
               ))}
             </div>
 
-            <div style={{ borderTop: '1px dashed black', marginTop: '10px', paddingTop: '5px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9pt' }}>
-                <span>Subtotal:</span>
-                <span>R$ {(printingOrder.total - printingOrder.deliveryFee + (printingOrder.discountValue || 0)).toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9pt' }}>
-                <span>Taxa Entrega:</span>
-                <span>R$ {printingOrder.deliveryFee.toFixed(2)}</span>
-              </div>
+            <div className="totals">
+              <div className="divider"></div>
+              <div className="total-row"><span>Subtotal:</span><span>R$ {(printingOrder.total - printingOrder.deliveryFee + (printingOrder.discountValue || 0)).toFixed(2)}</span></div>
+              <div className="total-row"><span>Taxa Entrega:</span><span>R$ {printingOrder.deliveryFee.toFixed(2)}</span></div>
               {printingOrder.discountValue && printingOrder.discountValue > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9pt', color: 'red' }}>
-                  <span>Desconto:</span>
-                  <span>- R$ {printingOrder.discountValue.toFixed(2)}</span>
-                </div>
+                <div className="total-row discount"><span>Desconto:</span><span>- R$ {printingOrder.discountValue.toFixed(2)}</span></div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14pt', fontWeight: 'bold', marginTop: '5px' }}>
-                <span>TOTAL:</span>
-                <span>R$ {printingOrder.total.toFixed(2)}</span>
-              </div>
+              <div className="total-final"><span>TOTAL:</span><span>R$ {printingOrder.total.toFixed(2)}</span></div>
             </div>
 
-            <div style={{ marginTop: '15px', borderTop: '1px solid black', paddingTop: '10px', textAlign: 'center' }}>
-              <p style={{ fontSize: '10pt', fontWeight: 'bold' }}>PAGAMENTO: {printingOrder.paymentMethod.toUpperCase()}</p>
-              {printingOrder.changeFor && (
-                <p style={{ fontSize: '9pt' }}>Troco para: R$ {printingOrder.changeFor.toFixed(2)}</p>
-              )}
-              <p style={{ marginTop: '15px', fontSize: '8pt' }}>www.nilolanches.com.br</p>
-              <p style={{ fontSize: '8pt' }}>Obrigado pela preferência!</p>
+            <div className="footer">
+              <p><strong>PAGAMENTO:</strong> {printingOrder.paymentMethod.toUpperCase()}</p>
+              {printingOrder.changeFor && <p>Troco para: R$ {printingOrder.changeFor.toFixed(2)}</p>}
+              <p className="site">www.nilolanches.com.br</p>
+              <p>Obrigado pela preferência!</p>
             </div>
           </div>
-        )}
-      </div>
+        </div>,
+        document.body
+      )}
 
       {/* SIDEBAR */}
       <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shrink-0 md:h-full h-auto max-h-[300px] md:max-h-full overflow-y-auto no-scrollbar border-r border-white/5 shadow-2xl z-20">
@@ -437,17 +422,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         {/* ALTERAÇÃO DE STATUS COM MENU (SELECT) */}
                         <div className="relative">
                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Alterar Status</p>
-                           <div className={`relative rounded-xl border-2 ${getStatusColor(order.status)}`}>
+                           <div className={`relative rounded-xl border-2 ${getStatusColor(order.status)} bg-white`}>
                              <select 
                                value={order.status}
                                onChange={(e) => onUpdateOrderStatus(order.id, e.target.value as OrderStatus)}
-                               className="w-full appearance-none bg-transparent py-3 px-4 pr-8 rounded-xl leading-tight focus:outline-none font-black text-[10px] uppercase tracking-widest cursor-pointer"
+                               className="w-full appearance-none bg-transparent py-3 px-4 pr-8 rounded-xl leading-tight focus:outline-none font-black text-[10px] uppercase tracking-widest cursor-pointer text-slate-700"
                              >
                                {ALL_STATUSES.map(status => (
-                                 <option key={status} value={status} className="text-slate-700 font-bold bg-white">{status}</option>
+                                 <option key={status} value={status}>{status}</option>
                                ))}
                              </select>
-                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current">
+                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-50">
                                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                              </div>
                            </div>
@@ -469,6 +454,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             </div>
           )}
 
+          {/* ... Outras views (produtos, categorias etc) sem alterações de lógica ... */}
           {activeView === 'produtos' && (
             <div className="space-y-10 animate-fade-in">
               <div ref={productFormRef} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
