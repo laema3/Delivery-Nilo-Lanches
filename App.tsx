@@ -141,7 +141,6 @@ const App: React.FC = () => {
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }, [selectedCategory, categories, subCategories]);
 
-  // CALCULO DO FRETE AUTOMÁTICO
   const currentDeliveryFee = useMemo(() => {
     if (!currentUser?.zipCode || zipRanges.length === 0) return 0;
     const cleanZip = parseInt(currentUser.zipCode.replace(/\D/g, ''));
@@ -174,43 +173,29 @@ const App: React.FC = () => {
 
   const handleCheckout = async (paymentMethod: string, fee: number, discount: number, couponCode: string, deliveryType: DeliveryType, changeFor?: number) => {
     if (!currentUser) return setIsAuthModalOpen(true);
-
-    if (currentUser.isBlocked) {
-      setToast({ show: true, msg: 'Sua conta está temporariamente bloqueada. Contate o suporte.', type: 'error' });
-      return;
-    }
     
     try {
         const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
         const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const total = subtotal + fee - discount;
 
-        // Limpa os itens para garantir que não existam campos undefined
-        const cleanItems = cart.map(item => ({
-            ...item,
-            subCategory: item.subCategory || "",
-            calories: item.calories || 0,
-            complements: item.complements || [],
-            selectedComplements: item.selectedComplements || []
-        }));
-
         const newOrder: Order = {
-          id: orderId, 
-          customerId: currentUser.email, 
-          customerName: currentUser.name || "Cliente sem nome", 
-          customerPhone: currentUser.phone || "",
-          customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA NO BALCÃO' : `${currentUser.address} - ${currentUser.neighborhood}`,
-          items: cleanItems, 
-          total: total, 
-          deliveryFee: fee, 
-          deliveryType, 
-          status: 'NOVO',
-          paymentMethod, 
-          changeFor: changeFor ?? 0,
-          discountValue: discount ?? 0,
-          couponCode: couponCode || "",
-          pointsEarned: Math.floor(total), 
-          createdAt: new Date().toISOString()
+        id: orderId, 
+        customerId: currentUser.email, 
+        customerName: currentUser.name, 
+        customerPhone: currentUser.phone,
+        customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA NO BALCÃO' : `${currentUser.address} - ${currentUser.neighborhood}`,
+        items: [...cart], 
+        total: total, 
+        deliveryFee: fee, 
+        deliveryType, 
+        status: 'NOVO',
+        paymentMethod, 
+        changeFor, 
+        discountValue: discount,
+        couponCode, 
+        pointsEarned: Math.floor(total), 
+        createdAt: new Date().toISOString()
         };
 
         await dbService.save('orders', orderId, newOrder);
@@ -220,11 +205,7 @@ const App: React.FC = () => {
         setIsCartOpen(false);
     } catch (e: any) {
         console.error("Erro no checkout:", e);
-        if (e.message.includes('permission')) {
-            setToast({ show: true, msg: 'Erro: Permissão negada no Banco de Dados. Verifique as Regras do Firestore.', type: 'error' });
-        } else {
-            setToast({ show: true, msg: `Erro ao enviar pedido: ${e.message}`, type: 'error' });
-        }
+        setToast({ show: true, msg: 'Erro ao enviar pedido.', type: 'error' });
     }
   };
 
@@ -273,9 +254,31 @@ const App: React.FC = () => {
             onAddProduct={async (p) => { try { const id = `prod_${Date.now()}`; await dbService.save('products', id, {...p, id} as Product); } catch(e) { setToast({show:true, msg:'Erro ao salvar produto', type:'error'}); } }} 
             onDeleteProduct={async (id) => { await dbService.remove('products', id); }}
             onUpdateProduct={async (p) => { await dbService.save('products', p.id, p); }} 
-            onUpdateOrderStatus={async (id, s) => { const o = orders.find(x => x.id === id); if(o) await dbService.save('orders', id, {...o, status: s}); }}
+            
+            // ATUALIZAÇÃO OTIMISTA DE STATUS
+            onUpdateOrderStatus={async (id, s) => { 
+                // 1. Atualiza visualmente agora (Optimistic UI)
+                setOrders(prev => prev.map(o => o.id === id ? { ...o, status: s } : o));
+                
+                // 2. Salva no banco
+                const o = orders.find(x => x.id === id); 
+                if(o) await dbService.save('orders', id, {...o, status: s}); 
+            }}
+            
+            // ATUALIZAÇÃO OTIMISTA DE EXCLUSÃO
+            onDeleteOrder={async (id) => {
+                if(window.confirm('Tem certeza que deseja excluir este pedido do histórico?')) {
+                    // 1. Remove da tela agora (Optimistic UI)
+                    setOrders(prev => prev.filter(o => o.id !== id));
+                    
+                    // 2. Remove do banco
+                    await dbService.remove('orders', id);
+                    
+                    setToast({show: true, msg: 'Pedido excluído.', type: 'success'});
+                }
+            }}
+
             onUpdateCustomer={async (id, u) => { const c = customers.find(x => x.id === id); if(c) await dbService.save('customers', id, {...c, ...u}); }}
-            onDeleteCustomer={async (id) => { await dbService.remove('customers', id); }}
             onAddCategory={async (n) => { const id = `cat_${Date.now()}`; await dbService.save('categories', id, {id, name: n}); }}
             onRemoveCategory={async (id) => { await dbService.remove('categories', id); }}
             onAddSubCategory={async (catId, n) => { const id = `sub_${Date.now()}`; await dbService.save('sub_categories', id, {id, categoryId: catId, name: n}); }}
@@ -310,7 +313,7 @@ const App: React.FC = () => {
                </div>
             </section>
             
-            {/* MENU: Sticky Category Bar - Sincronizado com a Navbar para ficar fixo no topo com Z-INDEX maior */}
+            {/* MENU: Sticky Category Bar */}
             <div id="menu-anchor" className="sticky top-20 sm:top-28 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b w-full flex flex-col items-center py-4 gap-3 transition-all duration-300">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
                  <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg transform scale-105' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Todos</button>
@@ -367,7 +370,7 @@ const App: React.FC = () => {
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCustomers(prev => [...prev, u]); setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
-      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} order={lastOrder} onSendWhatsApp={handleSendWhatsApp} />
+      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} orderId={lastOrder?.id || ''} onSendWhatsApp={handleSendWhatsApp} />
       {!isAdmin && <ChatBot products={products} />}
     </div>
   );

@@ -5,7 +5,6 @@ import { compressImage } from '../services/imageService.ts';
 import { dbService } from '../services/dbService.ts';
 import { generateProductImage } from '../services/geminiService.ts';
 import { firebaseConfig } from '../firebaseConfig.ts';
-import { PrintableCoupon } from './PrintableCoupon.tsx';
 
 interface AdminPanelProps {
   products: Product[];
@@ -24,8 +23,8 @@ interface AdminPanelProps {
   onDeleteProduct: (id: string) => void;
   onUpdateProduct: (p: Product) => void;
   onUpdateOrderStatus: (id: string, status: OrderStatus) => void;
+  onDeleteOrder: (id: string) => void;
   onUpdateCustomer: (id: string, updates: Partial<Customer>) => void;
-  onDeleteCustomer: (id: string) => void;
   onAddCategory: (name: string) => void;
   onRemoveCategory: (id: string) => void;
   onAddSubCategory: (catId: string, name: string) => void;
@@ -52,7 +51,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const { 
     products, orders, customers, zipRanges, categories, subCategories, complements, coupons,
     isStoreOpen, onToggleStore, logoUrl, onUpdateLogo, onAddProduct, onDeleteProduct, 
-    onUpdateProduct, onUpdateOrderStatus, onUpdateCustomer, onDeleteCustomer, onAddCategory, onRemoveCategory, onAddSubCategory, onRemoveSubCategory,
+    onUpdateProduct, onUpdateOrderStatus, onDeleteOrder, onUpdateCustomer, onAddCategory, onRemoveCategory, onAddSubCategory, onRemoveSubCategory,
     onAddComplement, onToggleComplement, onRemoveComplement, onAddZipRange, onRemoveZipRange,
     onAddCoupon, onRemoveCoupon, onUpdatePaymentSettings,
     onLogout, onBackToSite,
@@ -61,15 +60,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [activeOrderTab, setActiveOrderTab] = useState<OrderStatus | 'TODOS'>('NOVO');
-  
-  // Products State
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 });
   
-  // Customers State
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const customerFormRef = useRef<HTMLDivElement>(null);
-
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
@@ -78,7 +71,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   
   // Imprimir Cupom State
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
-  const [printTrigger, setPrintTrigger] = useState(0);
 
   // States para Formulários
   const [catName, setCatName] = useState('');
@@ -120,8 +112,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const handlePrint = (order: Order) => {
     setPrintingOrder(order);
-    setPrintTrigger(Date.now()); // Força o useEffect do cupom a rodar novamente
+    // Timeout maior para garantir que o navegador renderize o cupom invisível antes de abrir a janela de impressão
+    setTimeout(() => {
+      window.print();
+    }, 1000);
   };
+
+  // Garante que o estado de impressão seja limpo após imprimir
+  useEffect(() => {
+    window.onafterprint = () => {
+      setPrintingOrder(null);
+    };
+  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'product' | 'logo') => {
     const file = e.target.files?.[0];
@@ -220,26 +222,99 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const handleNavClick = (view: AdminView) => {
     setActiveView(view);
     setEditingProduct(null);
-    setEditingCustomer(null);
     if (window.innerWidth < 768) {
       document.getElementById('admin-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
-  const handleSaveCustomer = () => {
-    if (editingCustomer) {
-      onUpdateCustomer(editingCustomer.id, editingCustomer);
-      setEditingCustomer(null);
+  const ALL_STATUSES: OrderStatus[] = ['NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'];
+  
+  const getStatusColor = (s: string) => {
+    switch(s) {
+        case 'NOVO': return 'text-blue-600 border-blue-200 bg-blue-50';
+        case 'PREPARANDO': return 'text-amber-600 border-amber-200 bg-amber-50';
+        case 'PRONTO PARA RETIRADA': return 'text-purple-600 border-purple-200 bg-purple-50';
+        case 'SAIU PARA ENTREGA': return 'text-indigo-600 border-indigo-200 bg-indigo-50';
+        case 'FINALIZADO': return 'text-emerald-600 border-emerald-200 bg-emerald-50';
+        case 'CANCELADO': return 'text-red-600 border-red-200 bg-red-50';
+        default: return 'text-slate-600 border-slate-200';
     }
   };
-
-  const ALL_STATUSES: OrderStatus[] = ['NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'];
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 w-full overflow-hidden text-left" onClick={() => !audioEnabled && setAudioEnabled(true)}>
       
-      {/* CUPOM DE IMPRESSÃO - USANDO COMPONENTE DEDICADO COM TRIGGER */}
-      <PrintableCoupon order={printingOrder} timestamp={printTrigger} />
+      {/* CONTAINER DE IMPRESSÃO */}
+      <div id="printable-coupon-container" style={{ position: 'fixed', top: 0, left: 0, zIndex: -1, opacity: 0, pointerEvents: 'none', width: '100%', height: 0, overflow: 'hidden' }}>
+        {printingOrder && (
+          <div style={{ backgroundColor: 'white', color: 'black', padding: '15px', width: '80mm', fontFamily: 'monospace', margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+              <h1 style={{ fontSize: '18pt', margin: '0', fontWeight: 'bold' }}>NILO LANCHES</h1>
+              <p style={{ fontSize: '9pt', margin: '5px 0' }}>Av. Lucas Borges, 317 - Uberaba MG</p>
+              <div style={{ borderTop: '1px dashed black', borderBottom: '1px dashed black', padding: '5px 0', margin: '10px 0' }}>
+                <p style={{ fontSize: '12pt', margin: '0', fontWeight: 'bold' }}>PEDIDO: #{printingOrder.id}</p>
+                <p style={{ fontSize: '8pt', margin: '0' }}>{new Date(printingOrder.createdAt).toLocaleString('pt-BR')}</p>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '10pt', marginBottom: '10px' }}>
+              <p style={{ margin: '2px 0' }}><strong>CLIENTE:</strong> {printingOrder.customerName}</p>
+              <p style={{ margin: '2px 0' }}><strong>FONE:</strong> {printingOrder.customerPhone}</p>
+              <p style={{ margin: '2px 0' }}><strong>END:</strong> {printingOrder.customerAddress}</p>
+              <p style={{ margin: '2px 0' }}><strong>TIPO:</strong> {printingOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : 'DELIVERY'}</p>
+            </div>
+
+            <div style={{ borderTop: '1px solid black', paddingTop: '5px' }}>
+              <p style={{ fontWeight: 'bold', fontSize: '9pt', marginBottom: '5px' }}>ITENS DO PEDIDO:</p>
+              {printingOrder.items.map((item, i) => (
+                <div key={i} style={{ marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10pt' }}>
+                    <span style={{ fontWeight: 'bold' }}>{item.quantity}x {item.name}</span>
+                    <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                  {item.selectedComplements && item.selectedComplements.length > 0 && (
+                    <div style={{ fontSize: '8pt', paddingLeft: '10px', color: '#444' }}>
+                      {item.selectedComplements.map((c, j) => (
+                        <div key={j}>+ {c.name}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ borderTop: '1px dashed black', marginTop: '10px', paddingTop: '5px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9pt' }}>
+                <span>Subtotal:</span>
+                <span>R$ {(printingOrder.total - printingOrder.deliveryFee + (printingOrder.discountValue || 0)).toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9pt' }}>
+                <span>Taxa Entrega:</span>
+                <span>R$ {printingOrder.deliveryFee.toFixed(2)}</span>
+              </div>
+              {printingOrder.discountValue && printingOrder.discountValue > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9pt', color: 'red' }}>
+                  <span>Desconto:</span>
+                  <span>- R$ {printingOrder.discountValue.toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14pt', fontWeight: 'bold', marginTop: '5px' }}>
+                <span>TOTAL:</span>
+                <span>R$ {printingOrder.total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '15px', borderTop: '1px solid black', paddingTop: '10px', textAlign: 'center' }}>
+              <p style={{ fontSize: '10pt', fontWeight: 'bold' }}>PAGAMENTO: {printingOrder.paymentMethod.toUpperCase()}</p>
+              {printingOrder.changeFor && (
+                <p style={{ fontSize: '9pt' }}>Troco para: R$ {printingOrder.changeFor.toFixed(2)}</p>
+              )}
+              <p style={{ marginTop: '15px', fontSize: '8pt' }}>www.nilolanches.com.br</p>
+              <p style={{ fontSize: '8pt' }}>Obrigado pela preferência!</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* SIDEBAR */}
       <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shrink-0 md:h-full h-auto max-h-[300px] md:max-h-full overflow-y-auto no-scrollbar border-r border-white/5 shadow-2xl z-20">
@@ -330,7 +405,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         </div>
                         <button 
                           onClick={() => handlePrint(order)}
-                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-black transition-colors shadow-lg active:scale-95"
+                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-black transition-colors"
                         >
                           🖨️ Imprimir Cupom
                         </button>
@@ -358,21 +433,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Total do Pedido</p>
                           <p className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</p>
                         </div>
+                        
+                        {/* ALTERAÇÃO DE STATUS COM MENU (SELECT) */}
                         <div className="relative">
-                          <select
-                            value={order.status}
-                            onChange={(e) => onUpdateOrderStatus(order.id, e.target.value as OrderStatus)}
-                            className={`w-full appearance-none px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none border-2 cursor-pointer transition-all ${
-                               order.status === 'NOVO' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                               order.status === 'FINALIZADO' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                               order.status === 'CANCELADO' ? 'bg-red-50 text-red-600 border-red-100' :
-                               'bg-slate-50 text-slate-600 border-slate-200'
-                            }`}
-                          >
-                            {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▼</div>
+                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Alterar Status</p>
+                           <div className={`relative rounded-xl border-2 ${getStatusColor(order.status)}`}>
+                             <select 
+                               value={order.status}
+                               onChange={(e) => onUpdateOrderStatus(order.id, e.target.value as OrderStatus)}
+                               className="w-full appearance-none bg-transparent py-3 px-4 pr-8 rounded-xl leading-tight focus:outline-none font-black text-[10px] uppercase tracking-widest cursor-pointer"
+                             >
+                               {ALL_STATUSES.map(status => (
+                                 <option key={status} value={status} className="text-slate-700 font-bold bg-white">{status}</option>
+                               ))}
+                             </select>
+                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current">
+                               <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                             </div>
+                           </div>
                         </div>
+
+                        {order.status === 'CANCELADO' && (
+                          <button 
+                            type="button"
+                            onClick={() => onDeleteOrder(order.id)}
+                            className="w-full py-3 bg-red-100 hover:bg-red-200 text-red-600 border border-red-200 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
+                          >
+                            🗑️ Excluir Definitivamente
+                          </button>
+                        )}
                     </div>
                   </div>
                 ))}
@@ -568,95 +657,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           
           {activeView === 'clientes' && (
             <div className="space-y-6 animate-fade-in">
-              {/* Formulário de Edição de Cliente */}
-              {editingCustomer && (
-                <div ref={customerFormRef} className="bg-white p-8 rounded-[32px] border border-emerald-100 shadow-md space-y-4 mb-6">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-black uppercase text-slate-400">✏️ Editar Cliente</h3>
-                    <button onClick={() => setEditingCustomer(null)} className="text-slate-400 hover:text-slate-600">✕</button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Nome</label>
-                      <input value={editingCustomer.name} onChange={e => setEditingCustomer({...editingCustomer, name: e.target.value})} className="w-full p-3 bg-slate-50 rounded-xl font-bold border outline-none focus:border-emerald-500" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Telefone</label>
-                      <input value={editingCustomer.phone} onChange={e => setEditingCustomer({...editingCustomer, phone: e.target.value})} className="w-full p-3 bg-slate-50 rounded-xl font-bold border outline-none focus:border-emerald-500" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Email (ID)</label>
-                      <input value={editingCustomer.email} disabled className="w-full p-3 bg-slate-100 rounded-xl font-bold border outline-none text-slate-400 cursor-not-allowed" />
-                    </div>
-                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400 ml-1">CEP</label>
-                      <input value={editingCustomer.zipCode} onChange={e => setEditingCustomer({...editingCustomer, zipCode: e.target.value})} className="w-full p-3 bg-slate-50 rounded-xl font-bold border outline-none focus:border-emerald-500" />
-                    </div>
-                    <div className="col-span-2 space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Endereço Completo</label>
-                      <input value={editingCustomer.address} onChange={e => setEditingCustomer({...editingCustomer, address: e.target.value})} className="w-full p-3 bg-slate-50 rounded-xl font-bold border outline-none focus:border-emerald-500" />
-                    </div>
-                  </div>
-                  <button onClick={handleSaveCustomer} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-700">Salvar Alterações</button>
-                </div>
-              )}
-
               <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Cliente</th>
+                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Nome</th>
                       <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Contato</th>
-                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Status</th>
-                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">Ações</th>
+                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Endereço</th>
+                      <th className="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">Pedidos</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {customers.map(cust => (
                       <tr key={cust.id} className="group hover:bg-slate-50 transition-colors">
-                        <td className="py-4 pr-4 align-top">
+                        <td className="py-4 pr-4">
                           <span className="block font-bold text-slate-800 text-sm">{cust.name}</span>
                           <span className="text-[10px] text-slate-400">{cust.email}</span>
-                          <span className="block text-[10px] text-slate-500 mt-1 max-w-[200px] truncate">{cust.address}</span>
                         </td>
-                        <td className="py-4 pr-4 align-top font-bold text-slate-600 text-xs">{cust.phone}</td>
-                        <td className="py-4 pr-4 align-top">
-                           {cust.isBlocked ? (
-                             <span className="px-2 py-1 bg-red-100 text-red-600 rounded-md text-[9px] font-black uppercase tracking-wide">Bloqueado</span>
-                           ) : (
-                             <span className="px-2 py-1 bg-emerald-100 text-emerald-600 rounded-md text-[9px] font-black uppercase tracking-wide">Ativo</span>
-                           )}
-                           <div className="mt-2 text-[9px] font-bold text-slate-400">{cust.totalOrders || 0} Pedidos</div>
-                        </td>
-                        <td className="py-4 align-top text-right">
-                          <div className="flex items-center justify-end gap-2">
-                             <button 
-                               onClick={() => {
-                                 setEditingCustomer(cust);
-                                 customerFormRef.current?.scrollIntoView({ behavior: 'smooth' });
-                               }}
-                               className="px-3 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 text-[9px] font-black uppercase transition-colors"
-                             >
-                               Editar
-                             </button>
-                             <button 
-                               onClick={() => onUpdateCustomer(cust.id, { isBlocked: !cust.isBlocked })}
-                               className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-colors ${cust.isBlocked ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}
-                             >
-                               {cust.isBlocked ? 'Desbloquear' : 'Bloquear'}
-                             </button>
-                             <button 
-                               onClick={() => {
-                                 if (confirm(`Tem certeza que deseja excluir o cliente ${cust.name}? Isso não pode ser desfeito.`)) {
-                                   onDeleteCustomer(cust.id);
-                                 }
-                               }}
-                               className="px-3 py-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 text-[9px] font-black uppercase transition-colors"
-                             >
-                               Excluir
-                             </button>
-                          </div>
-                        </td>
+                        <td className="py-4 pr-4 font-bold text-slate-600 text-xs">{cust.phone}</td>
+                        <td className="py-4 pr-4 text-xs text-slate-500 max-w-[200px] truncate">{cust.address}</td>
+                        <td className="py-4 text-right font-black text-emerald-600">{cust.totalOrders || 0}</td>
                       </tr>
                     ))}
                   </tbody>

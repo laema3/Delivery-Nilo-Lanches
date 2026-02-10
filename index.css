@@ -30,40 +30,38 @@ html, body {
   min-height: 100vh;
 }
 
-/* Utilitário para elementos que só devem aparecer na impressão */
-.print-only {
-  display: none !important;
-}
-
+/* ESTILOS DE IMPRESSÃO - CORREÇÃO DEFINITIVA */
 @media print {
-  /* Esconde toda a interface do aplicativo */
-  #root, #initial-loader, .Toastify, nav, footer, aside, .debug-panel {
+  body {
+    background: white;
+  }
+  
+  /* Esconde tudo que não está dentro do container de impressão */
+  body > *:not(#printable-coupon-container) {
     display: none !important;
   }
 
-  /* Exibe e posiciona o container do cupom */
-  .print-only {
+  /* Garante que o container de impressão apareça */
+  #printable-coupon-container {
     display: block !important;
     position: absolute !important;
-    top: 0 !important;
     left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
+    height: auto !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
-    color: black !important;
-    z-index: 9999 !important;
+  }
+  
+  #printable-coupon-container * {
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
-  /* Reseta estilos do body para impressão limpa */
-  body {
-    background-color: white !important;
-    color: black !important;
-    overflow: visible !important;
-    height: auto !important;
-  }
-
-  /* Remove margens padrão de impressão */
   @page {
     margin: 0;
     size: auto;
