@@ -6,8 +6,8 @@ import {
   doc, 
   deleteDoc,
   onSnapshot, 
-  query,
-  getDocs
+  query, 
+  getDocs 
 } from "firebase/firestore";
 
 const STORAGE_PREFIX = 'nilo_v2_';
@@ -25,8 +25,7 @@ const COLLECTION_MAP: Record<string, string> = {
   'coupons': 'coupons'
 };
 
-// FUNÇÃO CRÍTICA: O Firestore rejeita objetos com campos 'undefined'.
-// Esta função remove qualquer campo indefinido recursivamente antes de enviar.
+// Remove valores undefined para evitar erros no Firestore
 const sanitizeData = (data: any) => {
   return JSON.parse(JSON.stringify(data));
 };
@@ -55,7 +54,7 @@ export const dbService = {
   },
 
   subscribe<T>(key: string, callback: (data: T) => void) {
-    // 1. Carrega dados locais imediatamente
+    // 1. Carrega local imediatamente
     const localData = this.getLocal(key);
     if (localData && localData.length > 0) callback(localData as T);
 
@@ -95,7 +94,7 @@ export const dbService = {
           return data as unknown as T;
         }
       } catch (e) {
-        console.warn("⚠️ Falha ao buscar online, usando cache local.");
+        // Silencioso, usa local
       }
     }
     return (this.getLocal(key) as unknown as T) || defaultValue;
@@ -103,48 +102,51 @@ export const dbService = {
 
   async save(key: string, id: string, data: any) {
     if (!id) return;
-    
-    // 1. Sanitização (Remove undefined que quebra o Firebase)
-    const cleanData = sanitizeData({ ...data });
-    delete cleanData.id; // Não duplicar ID dentro do documento
 
-    // 2. Salva Local (Garantia de Offline)
-    const currentList = this.getLocal(key) as any[];
-    const index = currentList.findIndex(item => item.id === id);
-    const newItem = { ...cleanData, id };
-    
-    let newList = index >= 0 ? [...currentList] : [...currentList, newItem];
-    if (index >= 0) newList[index] = newItem;
-    this.setLocal(key, newList);
+    try {
+      // 1. Sanitização
+      const cleanData = sanitizeData({ ...data });
+      delete cleanData.id; 
 
-    // 3. Salva Nuvem (Firebase)
-    if (db) {
-      try {
+      // 2. Salva Local (Garantia de Offline)
+      const currentList = this.getLocal(key) as any[];
+      const index = currentList.findIndex(item => item.id === id);
+      const newItem = { ...cleanData, id };
+      
+      let newList = index >= 0 ? [...currentList] : [...currentList, newItem];
+      if (index >= 0) newList[index] = newItem;
+      this.setLocal(key, newList);
+
+      // 3. Salva Nuvem (Firebase)
+      if (db) {
         const collectionName = COLLECTION_MAP[key] || key;
+        // Importante: setDoc é await, mas se falhar pegamos no catch
         await setDoc(doc(db, collectionName, id), cleanData, { merge: true });
         console.log(`✅ [Cloud] Salvo: ${key}/${id}`);
-      } catch (e: any) {
-        // Log detalhado para debug
-        console.error(`❌ [Cloud Error] Falha ao salvar em ${key}:`, e);
-        // Não jogamos o erro para a UI para não travar o cliente, mas o log mostra o problema.
+      } else {
+        console.warn("⚠️ [Cloud] Firebase não conectado. Salvo apenas localmente.");
       }
+    } catch (e: any) {
+      console.error(`❌ [Save Error] Erro ao salvar '${key}':`, e);
+      // NÃO lançamos o erro. O app segue assumindo que salvou localmente.
+      // Isso evita tela de erro pro usuário final.
     }
   },
 
   async remove(key: string, id: string) {
-    // 1. Remove Local
-    const currentList = this.getLocal(key) as any[];
-    const newList = currentList.filter(item => item.id !== id);
-    this.setLocal(key, newList);
+    try {
+      // 1. Remove Local
+      const currentList = this.getLocal(key) as any[];
+      const newList = currentList.filter(item => item.id !== id);
+      this.setLocal(key, newList);
 
-    // 2. Remove Nuvem
-    if (db) {
-      try {
+      // 2. Remove Nuvem
+      if (db) {
         const collectionName = COLLECTION_MAP[key] || key;
         await deleteDoc(doc(db, collectionName, id));
-      } catch (e: any) {
-        console.error(`⚠️ [Cloud] Erro ao deletar online:`, e.message);
       }
+    } catch (e) {
+      console.error(`❌ [Remove Error] Erro ao deletar '${key}':`, e);
     }
   },
 

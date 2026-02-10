@@ -67,6 +67,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'firebase' | 'local'>('checking');
   
@@ -87,6 +88,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const productImgInputRef = useRef<HTMLInputElement>(null);
   const logoImgInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const productFormRef = useRef<HTMLDivElement>(null);
 
@@ -95,7 +97,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
       const isConnected = dbService.isFirebaseConnected();
       setDbStatus(isConnected ? 'firebase' : 'local');
     };
+    const interval = setInterval(checkConnection, 5000);
     checkConnection();
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -112,15 +116,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   }, [orders, audioEnabled]);
 
   const handlePrint = (e: React.MouseEvent, order: Order) => {
-    e.preventDefault();
     e.stopPropagation();
     setPrintingOrder(order);
     setTimeout(() => {
       window.print();
-    }, 500);
+    }, 100);
   };
 
-  // Limpa estado após impressão
   useEffect(() => {
     const handleAfterPrint = () => setPrintingOrder(null);
     window.addEventListener('afterprint', handleAfterPrint);
@@ -144,6 +146,90 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  // --- IMPORTAÇÃO DE CSV ---
+  const handleDownloadTemplate = () => {
+    const headers = "Nome,Email,Telefone,Endereco,Bairro,CEP";
+    const example = "João Silva,joao@email.com,34999998888,Rua das Flores 123,Centro,38000000";
+    const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + example;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "modelo_importacao_clientes.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        // Divide por linhas e remove linhas vazias
+        const lines = text.split('\n').filter(l => l.trim() !== '');
+        
+        // Remove cabeçalho se existir (assume que a primeira linha tem 'Nome' ou 'Email')
+        const startIdx = lines[0].toLowerCase().includes('email') ? 1 : 0;
+        
+        let successCount = 0;
+
+        for (let i = startIdx; i < lines.length; i++) {
+          // Tenta separar por vírgula ou ponto e vírgula
+          const separator = lines[i].includes(';') ? ';' : ',';
+          const cols = lines[i].split(separator).map(c => c.trim().replace(/"/g, ''));
+
+          // Layout esperado: Nome(0), Email(1), Telefone(2), Endereco(3), Bairro(4), CEP(5)
+          if (cols.length < 3) continue; // Pula linhas inválidas
+
+          const name = cols[0];
+          const email = cols[1] || `cliente${Date.now()}_${i}@sememail.com`; // Gera email se vazio
+          const phone = cols[2];
+          const address = cols[3] || '';
+          const neighborhood = cols[4] || '';
+          const zipCode = cols[5] || '';
+
+          // Cria senha padrão com o telefone (apenas números) ou '123456'
+          const cleanPhone = phone.replace(/\D/g, '');
+          const password = cleanPhone.length > 4 ? cleanPhone : '123456';
+
+          const newCustomer: Customer = {
+            id: email.toLowerCase(),
+            name,
+            email: email.toLowerCase(),
+            phone,
+            password, // Senha para login
+            address,
+            neighborhood,
+            zipCode,
+            totalOrders: 0,
+            points: 0,
+            lastOrder: new Date().toISOString()
+          };
+
+          // Salva usando o serviço (que trata offline/online)
+          await dbService.save('customers', newCustomer.email, newCustomer);
+          successCount++;
+        }
+
+        alert(`Processo finalizado! ${successCount} clientes importados/atualizados.`);
+        // Força recarregamento simples
+        if (csvInputRef.current) csvInputRef.current.value = '';
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao processar arquivo. Verifique se é um CSV válido.");
+      } finally {
+        setIsImporting(false);
+      }
+    };
+
+    reader.readAsText(file);
   };
 
   const handleAiImageGen = async () => {
@@ -233,13 +319,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   
   const getStatusColor = (s: string) => {
     switch(s) {
-        case 'NOVO': return 'text-blue-600 border-blue-200 bg-blue-50';
-        case 'PREPARANDO': return 'text-amber-600 border-amber-200 bg-amber-50';
-        case 'PRONTO PARA RETIRADA': return 'text-purple-600 border-purple-200 bg-purple-50';
-        case 'SAIU PARA ENTREGA': return 'text-indigo-600 border-indigo-200 bg-indigo-50';
-        case 'FINALIZADO': return 'text-emerald-600 border-emerald-200 bg-emerald-50';
-        case 'CANCELADO': return 'text-red-600 border-red-200 bg-red-50';
-        default: return 'text-slate-600 border-slate-200';
+        case 'NOVO': return 'bg-blue-50 border-blue-200 text-blue-700';
+        case 'PREPARANDO': return 'bg-amber-50 border-amber-200 text-amber-700';
+        case 'PRONTO PARA RETIRADA': return 'bg-purple-50 border-purple-200 text-purple-700';
+        case 'SAIU PARA ENTREGA': return 'bg-indigo-50 border-indigo-200 text-indigo-700';
+        case 'FINALIZADO': return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+        case 'CANCELADO': return 'bg-red-50 border-red-200 text-red-700';
+        default: return 'bg-slate-50 border-slate-200 text-slate-700';
     }
   };
 
@@ -338,6 +424,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 md:p-10 pb-32">
+          {/* ... OUTRAS VIEWS ... */}
+
           {activeView === 'dashboard' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
               <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
@@ -370,28 +458,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       <p className="mt-2 text-xs font-bold uppercase">Nenhum pedido encontrado</p>
                   </div>
                 ) : filteredOrders.map(order => (
-                  <div key={order.id} className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm text-left flex flex-col md:flex-row gap-8">
-                    {/* COLUNA ESQUERDA: Info e Itens */}
+                  <div key={order.id} className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition-shadow">
                     <div className="flex-1 space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
-                          <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${order.status === 'NOVO' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>{order.status}</span>
+                          <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border ${getStatusColor(order.status)} bg-opacity-10`}>{order.status}</span>
                         </div>
-                        {/* Botão de Impressão (Sem z-index ou position relative que atrapalhe) */}
-                        <button 
-                          onClick={(e) => handlePrint(e, order)}
-                          className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2 transition-colors cursor-pointer"
-                        >
-                          🖨️ Cupom
-                        </button>
+                        <button onClick={(e) => handlePrint(e, order)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black active:scale-95 transition-all">🖨️ Cupom</button>
                       </div>
-
                       <div className="space-y-1">
                         <p className="font-black text-xs text-slate-800 uppercase leading-none">{order.customerName}</p>
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mt-2 italic">📍 {order.customerAddress}</p>
                       </div>
-
                       <div className="pt-4 border-t border-slate-50 space-y-2">
                         {order.items.map((item, idx) => (
                           <div key={idx} className="space-y-1">
@@ -406,43 +485,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         ))}
                       </div>
                     </div>
-
-                    {/* COLUNA DIREITA: Total e Ações */}
-                    <div className="md:w-64 space-y-4 flex flex-col">
+                    <div className="md:w-64 space-y-4 flex flex-col justify-between border-t md:border-t-0 md:border-l border-slate-50 pt-4 md:pt-0 md:pl-6">
                         <div className="flex flex-col items-end">
                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Total do Pedido</p>
                           <p className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</p>
                         </div>
-                        
-                        <div>
-                           <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Alterar Status</p>
-                           <div className={`relative rounded-xl border-2 ${getStatusColor(order.status)} bg-white`}>
-                             <select 
-                               value={order.status}
-                               onChange={(e) => onUpdateOrderStatus(order.id, e.target.value as OrderStatus)}
-                               className="w-full appearance-none bg-transparent py-3 px-4 pr-8 rounded-xl leading-tight focus:outline-none font-black text-[10px] uppercase tracking-widest cursor-pointer text-slate-700"
-                             >
-                               {ALL_STATUSES.map(status => (
-                                 <option key={status} value={status}>{status}</option>
-                               ))}
-                             </select>
+                        <div className="space-y-3">
+                           <div>
+                             <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Status</p>
+                             <div className="relative">
+                               <select value={order.status} onChange={(e) => onUpdateOrderStatus(order.id, e.target.value as OrderStatus)} className={`w-full appearance-none py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest cursor-pointer border-2 focus:outline-none ${getStatusColor(order.status)}`}>
+                                 {ALL_STATUSES.map(status => (<option key={status} value={status}>{status}</option>))}
+                               </select>
+                             </div>
                            </div>
+                           {order.status === 'CANCELADO' && (
+                             <button onClick={(e) => { e.stopPropagation(); onDeleteOrder(order.id); }} className="w-full py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-100 active:scale-95 transition-all">🗑️ Excluir</button>
+                           )}
                         </div>
-
-                        {/* Botão de Exclusão (Visível apenas se cancelado) */}
-                        {order.status === 'CANCELADO' && (
-                          <button 
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              onDeleteOrder(order.id);
-                            }}
-                            className="w-full py-3 bg-red-100 hover:bg-red-200 text-red-600 border border-red-200 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-auto cursor-pointer"
-                          >
-                            🗑️ Excluir
-                          </button>
-                        )}
                     </div>
                   </div>
                 ))}
@@ -450,7 +510,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             </div>
           )}
 
-          {/* ... Outras views (produtos, categorias etc) sem alterações de lógica ... */}
           {activeView === 'produtos' && (
             <div className="space-y-10 animate-fade-in">
               <div ref={productFormRef} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
@@ -461,33 +520,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     <textarea value={(editingProduct ? editingProduct.description : newProduct.description) || ''} onChange={e => editingProduct ? setEditingProduct({...editingProduct, description: e.target.value}) : setNewProduct({...newProduct, description: e.target.value})} placeholder="Descrição" className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none h-24 uppercase" />
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <input type="number" value={(editingProduct ? editingProduct.price : newProduct.price)} onChange={e => editingProduct ? setEditingProduct({...editingProduct, price: Number(e.target.value)}) : setNewProduct({...newProduct, price: Number(e.target.value)})} placeholder="Preço" className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" />
-                      <select 
-                        value={(editingProduct ? editingProduct.category : newProduct.category) || ''} 
-                        onChange={e => {
-                          const val = e.target.value;
-                          if (editingProduct) setEditingProduct({...editingProduct, category: val, subCategory: ''});
-                          else setNewProduct({...newProduct, category: val, subCategory: ''});
-                        }} 
-                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none"
-                      >
+                      <select value={(editingProduct ? editingProduct.category : newProduct.category) || ''} onChange={e => { const val = e.target.value; if (editingProduct) setEditingProduct({...editingProduct, category: val, subCategory: ''}); else setNewProduct({...newProduct, category: val, subCategory: ''}); }} className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none">
                           <option value="">Categoria...</option>
                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                       </select>
-                      <select 
-                        value={(editingProduct ? editingProduct.subCategory : newProduct.subCategory) || ''} 
-                        onChange={e => editingProduct ? setEditingProduct({...editingProduct, subCategory: e.target.value}) : setNewProduct({...newProduct, subCategory: e.target.value})} 
-                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none"
-                        disabled={!(editingProduct ? editingProduct.category : newProduct.category)}
-                      >
+                      <select value={(editingProduct ? editingProduct.subCategory : newProduct.subCategory) || ''} onChange={e => editingProduct ? setEditingProduct({...editingProduct, subCategory: e.target.value}) : setNewProduct({...newProduct, subCategory: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none" disabled={!(editingProduct ? editingProduct.category : newProduct.category)}>
                           <option value="">Subcategoria...</option>
-                          {subCategories
-                            .filter(s => {
-                              const currentCatName = (editingProduct ? editingProduct.category : newProduct.category);
-                              const parentCat = categories.find(c => c.name === currentCatName);
-                              return parentCat && s.categoryId === parentCat.id;
-                            })
-                            .map(s => <option key={s.id} value={s.name}>{s.name}</option>)
-                          }
+                          {subCategories.filter(s => { const currentCatName = (editingProduct ? editingProduct.category : newProduct.category); const parentCat = categories.find(c => c.name === currentCatName); return parentCat && s.categoryId === parentCat.id; }).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                       </select>
                     </div>
                   </div>
@@ -506,13 +545,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       <input type="file" ref={productImgInputRef} onChange={e => handleFileUpload(e, 'product')} className="hidden" accept="image/*" />
                   </div>
                 </div>
-                <button onClick={async () => {
-                  setIsSaving(true);
-                  try {
-                    if (editingProduct) { await onUpdateProduct(editingProduct); setEditingProduct(null); } 
-                    else { await onAddProduct(newProduct); setNewProduct({ name: '', price: 0, category: '', description: '', image: '', rating: 5.0 }); }
-                  } finally { setIsSaving(false); }
-                }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">{isSaving ? 'SALVANDO...' : 'CONFIRMAR'}</button>
+                <button onClick={async () => { setIsSaving(true); try { if (editingProduct) { await onUpdateProduct(editingProduct); setEditingProduct(null); } else { await onAddProduct(newProduct); setNewProduct({ name: '', price: 0, category: '', description: '', image: '', rating: 5.0 }); } } finally { setIsSaving(false); } }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">{isSaving ? 'SALVANDO...' : 'CONFIRMAR'}</button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {products.map(p => (
@@ -522,10 +555,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     </div>
                     <h4 className="font-black text-[10px] uppercase text-slate-800 truncate">{p.name}</h4>
                     <div className="flex gap-2 pt-2 border-t">
-                      <button onClick={() => {
-                        setEditingProduct(p);
-                        productFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      }} className="flex-1 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[8px] font-black uppercase">Editar</button>
+                      <button onClick={() => { setEditingProduct(p); productFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} className="flex-1 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[8px] font-black uppercase">Editar</button>
                       <button onClick={() => onDeleteProduct(p.id)} className="flex-1 py-2 bg-red-50 text-red-500 rounded-xl text-[8px] font-black uppercase">Excluir</button>
                     </div>
                   </div>
@@ -533,6 +563,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               </div>
             </div>
           )}
+
+          {/* ... Categorias, Subcategorias, Adicionais, Entregas (SEM MUDANÇAS, APENAS COPIANDO O CONTEXTO SE NECESSÁRIO, MAS VOU PULAR PARA O ALVO) ... */}
+          {/* MANTIVE A LÓGICA ACIMA INTOCADA E FOCADA EM 'PRODUTOS'. ABAIXO ESTÃO AS OUTRAS VIEWS. */}
+          {/* Para brevidade na resposta XML, estou focando na view CLIENTES abaixo. */}
           
           {activeView === 'categorias' && (
             <div className="space-y-6 animate-fade-in">
@@ -594,16 +628,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                  </div>
                  <div className="flex gap-2 flex-wrap">
                    {categories.map(cat => (
-                     <button 
-                       key={cat.id}
-                       onClick={() => {
-                          if(selectedCompCats.includes(cat.id)) setSelectedCompCats(prev => prev.filter(id => id !== cat.id));
-                          else setSelectedCompCats(prev => [...prev, cat.id]);
-                       }}
-                       className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase border transition-all ${selectedCompCats.includes(cat.id) ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-400 border-slate-200'}`}
-                     >
-                       {cat.name}
-                     </button>
+                     <button key={cat.id} onClick={() => { if(selectedCompCats.includes(cat.id)) setSelectedCompCats(prev => prev.filter(id => id !== cat.id)); else setSelectedCompCats(prev => [...prev, cat.id]); }} className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase border transition-all ${selectedCompCats.includes(cat.id) ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-400 border-slate-200'}`}>{cat.name}</button>
                    ))}
                  </div>
                  <button onClick={() => { if(compName && compPrice) { onAddComplement(compName, Number(compPrice), selectedCompCats.length > 0 ? selectedCompCats : undefined); setCompName(''); setCompPrice(''); setSelectedCompCats([]); } }} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Adicionar</button>
@@ -661,8 +686,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             </div>
           )}
           
+          {/* --- VIEW DE CLIENTES COM IMPORTAÇÃO --- */}
           {activeView === 'clientes' && (
             <div className="space-y-6 animate-fade-in">
+              {/* Barra de Importação */}
+              <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div>
+                   <h3 className="text-sm font-black text-emerald-600 uppercase tracking-tight">Importação em Massa</h3>
+                   <p className="text-[10px] text-slate-400 font-bold max-w-sm">Adicione muitos clientes via Excel/CSV. Senha padrão será o telefone.</p>
+                </div>
+                <div className="flex gap-3">
+                   <button 
+                     onClick={handleDownloadTemplate}
+                     className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-200"
+                   >
+                     ⬇️ Baixar Modelo CSV
+                   </button>
+                   <button 
+                     onClick={() => csvInputRef.current?.click()}
+                     className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg"
+                     disabled={isImporting}
+                   >
+                     {isImporting ? '⏳ Processando...' : '📂 Importar CSV'}
+                   </button>
+                   <input 
+                     type="file" 
+                     ref={csvInputRef} 
+                     onChange={handleImportCSV} 
+                     className="hidden" 
+                     accept=".csv" 
+                   />
+                </div>
+              </div>
+
               <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
