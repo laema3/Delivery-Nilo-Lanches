@@ -4,28 +4,52 @@ import { Product } from "../types.ts";
 
 // Configuração segura da API Key
 const getApiKey = () => {
+  let key = "";
+  
   try {
+    // 1. Tenta via import.meta.env (Padrão Vite)
     // @ts-ignore
-    const env = import.meta.env;
-    let key = env.VITE_API_KEY || env.API_KEY || "";
-    
-    // Sanitização para evitar erros se o usuário colou texto extra no .env
-    key = key.trim();
-    if (key.includes('\n')) key = key.split('\n')[0];
-    if (key.includes(' ')) key = key.split(' ')[0];
-    // Remove emojis ou avisos colados acidentalmente
-    key = key.replace(/[^\w\-\_]/g, '');
-
-    return key;
+    if (typeof import.meta !== "undefined" && import.meta.env) {
+      // @ts-ignore
+      key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || "";
+    }
   } catch (e) {
-    console.error("Erro ao ler API Key:", e);
-    return "";
+    console.warn("GeminiService: Erro ao ler import.meta.env", e);
   }
+
+  // 2. Tenta via process.env (Compatibilidade)
+  if (!key) {
+    try {
+      // @ts-ignore
+      if (typeof process !== "undefined" && process.env) {
+        // @ts-ignore
+        key = process.env.VITE_API_KEY || process.env.API_KEY || "";
+      }
+    } catch (e) {}
+  }
+
+  // 3. Fallback de Segurança (Baseado no .env fornecido)
+  // Útil se o servidor de desenvolvimento não recarregou as variáveis de ambiente ainda
+  if (!key) {
+    key = "AIzaSyBpWUIlqFnUV6lWNUdLSUACYm21SuNKNYs";
+  }
+
+  // Limpeza final
+  if (key) {
+    key = key.trim();
+    // Remove aspas simples ou duplas que podem ter vindo do .env
+    key = key.replace(/^["']|["']$/g, "");
+  }
+
+  return key;
 };
 
 const getAIClient = () => {
   const apiKey = getApiKey();
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.error("GeminiService: API Key não encontrada!");
+    return null;
+  }
   return new GoogleGenAI({ apiKey });
 };
 
@@ -58,7 +82,7 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
   
   if (!ai) {
     return { 
-      text: "⚠️ Configuração necessária: Adicione sua VITE_API_KEY no arquivo .env para ativar meu cérebro!", 
+      text: "⚠️ Configuração necessária: A chave de API não foi detectada. Verifique o console para mais detalhes.", 
       functionCalls: null 
     };
   }
@@ -116,7 +140,7 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
   } catch (error) {
     console.error("Erro no Chat Gemini:", error);
     return { 
-      text: "Ops! Tive um problema de comunicação com a cozinha. Pode repetir?", 
+      text: "Ops! Tive um problema de comunicação com a cozinha (Erro na API). Tente novamente em alguns instantes.", 
       functionCalls: null 
     };
   }
