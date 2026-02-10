@@ -5,13 +5,13 @@
   "description": "O melhor lanche de Uberaba na palma da sua mão.",
   "icons": [
     {
-      "src": "https://images.unsplash.com/photo-1571091718767-18b5b1457add?q=80&w=192&h=192&fit=crop",
+      "src": "https://cdn-icons-png.flaticon.com/512/3075/3075977.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "https://images.unsplash.com/photo-1571091718767-18b5b1457add?q=80&w=512&h=512&fit=crop",
+      "src": "https://cdn-icons-png.flaticon.com/512/3075/3075977.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"

@@ -60,6 +60,24 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
+  // ATUALIZAÇÃO DO ÍCONE DO SITE (FAVICON) COM O LOGO
+  useEffect(() => {
+    if (logoUrl) {
+      // Atualiza Favicon da aba
+      const link = document.getElementById('favicon') as HTMLLinkElement;
+      if (link) {
+        link.href = logoUrl;
+        link.type = "image/png"; // Assume PNG/JPEG do upload
+      }
+
+      // Atualiza ícone Apple (iOS)
+      const appleLink = document.getElementById('apple-icon') as HTMLLinkElement;
+      if (appleLink) {
+        appleLink.href = logoUrl;
+      }
+    }
+  }, [logoUrl]);
+
   // INITIALIZATION & SYNC
   useEffect(() => {
     const initApp = async () => {
