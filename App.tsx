@@ -413,8 +413,8 @@ const App: React.FC = () => {
                </div>
             </section>
             
-            {/* MENU: Sticky Category Bar */}
-            <div id="menu-anchor" className="sticky top-20 sm:top-28 z-30 bg-white/95 backdrop-blur-md shadow-sm border-b w-full flex flex-col items-center py-4 gap-3 transition-all duration-300">
+            {/* MENU: Sticky Category Bar - FIXO AO ROLAR */}
+            <div id="menu-anchor" className="sticky top-20 sm:top-28 z-30 bg-white/95 backdrop-blur-md shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
                  <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg transform scale-105' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Todos</button>
                  {sortedCategories.map(cat => (

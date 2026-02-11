@@ -10,11 +10,12 @@ interface FoodCardProps {
 
 export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) => {
   return (
-    <div className="group bg-white rounded-[20px] sm:rounded-[32px] overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-row sm:flex-col h-full w-full relative items-center sm:items-stretch">
+    <div className="group bg-white rounded-[20px] sm:rounded-[32px] overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-row sm:flex-col h-full w-full relative">
       
       {/* 1. CONTAINER DA IMAGEM */}
-      {/* Mobile: Ordem 2 (Direita), largura fixa. Desktop: Ordem Padrão (Topo), largura total */}
-      <div className="order-2 sm:order-none w-[110px] sm:w-full shrink-0 p-3 sm:p-3 flex flex-col justify-center sm:block">
+      {/* Mobile: Ordem 2 (Direita), Largura Fixa. 
+          Desktop: Ordem Natural (Topo), Largura Total. */}
+      <div className="order-2 sm:order-none w-[110px] sm:w-full shrink-0 p-2 sm:p-3 flex flex-col justify-center sm:block">
         <div 
           className="relative w-full aspect-square sm:aspect-auto sm:h-56 bg-slate-50 cursor-pointer overflow-hidden rounded-[16px] sm:rounded-[26px] flex items-center justify-center p-2"
           onClick={() => onClick(product)}
@@ -39,13 +40,13 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
         </div>
       </div>
 
-      {/* 2. CONTAINER DE TEXTO & AÇÃO */}
-      {/* Mobile: Ordem 1 (Esquerda). Desktop: Ordem Padrão (Baixo). */}
-      {/* sm:contents remove este div wrapper no desktop, fazendo os filhos obedecerem ao flex-col do pai principal */}
-      <div className="order-1 sm:order-none flex-1 flex flex-col sm:contents py-3 pl-4 sm:p-0 justify-between h-full">
+      {/* 2. CONTAINER DE TEXTO */}
+      {/* Mobile: Ordem 1 (Esquerda), Flexível.
+          Desktop: Ordem Natural (Baixo), Flexível. */}
+      <div className="order-1 sm:order-none flex-1 flex flex-col justify-between py-3 pl-4 pr-1 sm:p-6 sm:pt-2">
         
         {/* ÁREA DE TEXTO */}
-        <div className="sm:flex-1 sm:px-6 sm:pt-2 sm:pb-4 cursor-pointer text-left sm:text-center" onClick={() => onClick(product)}>
+        <div className="cursor-pointer text-left sm:text-center mb-2" onClick={() => onClick(product)}>
           <span className="text-[8px] sm:text-[9px] font-black uppercase text-emerald-600 tracking-widest block mb-1 truncate opacity-80">
             {product.category}
           </span>
@@ -53,27 +54,25 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
             {product.name}
           </h3>
           <p className="text-red-600 text-[10px] sm:text-[11px] font-bold leading-snug line-clamp-2 uppercase">
-            {product.description || 'Lanche artesanal preparado com dedicação pela equipe Nilo Lanches.'}
+            {product.description || 'Lanche artesanal preparado com dedicação.'}
           </p>
         </div>
         
         {/* ÁREA DE PREÇO & BOTÃO */}
-        <div className="mt-2 sm:mt-auto sm:px-6 sm:pb-6 flex flex-col">
-          <div className="flex items-center justify-between sm:pt-4 sm:border-t border-slate-50">
-            <div className="flex flex-col">
-              <span className="hidden sm:block text-[8px] font-black text-slate-400 uppercase tracking-widest">A partir de</span>
-              <span className="text-sm sm:text-xl font-black text-slate-900 leading-none">R$ {product.price.toFixed(2)}</span>
-            </div>
-            
-            <button 
-              onClick={(e) => { e.stopPropagation(); onAdd(product, 1); }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all shadow-lg shadow-emerald-100 active:scale-90"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
+        <div className="flex items-center justify-between sm:pt-4 sm:border-t border-slate-50 mt-auto">
+          <div className="flex flex-col">
+            <span className="hidden sm:block text-[8px] font-black text-slate-400 uppercase tracking-widest">A partir de</span>
+            <span className="text-sm sm:text-xl font-black text-slate-900 leading-none">R$ {product.price.toFixed(2)}</span>
           </div>
+          
+          <button 
+            onClick={(e) => { e.stopPropagation(); onAdd(product, 1); }}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all shadow-lg shadow-emerald-100 active:scale-90"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
         </div>
 
       </div>
