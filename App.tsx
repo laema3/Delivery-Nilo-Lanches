@@ -344,7 +344,7 @@ const App: React.FC = () => {
 
       {!isStoreOpen && !isAdmin && (
         <div className="w-full bg-red-600 text-white py-3 px-6 text-center animate-pulse flex items-center justify-center gap-3 shadow-lg z-[100] relative">
-          <span className="font-black uppercase text-[10px] tracking-widest text-white">Loja Fechada Temporariamente</span>
+          <span className="font-black uppercase text-[10px] tracking-widest text-white">Fechado no momento. Horário de atendimento das 18:30h às 23:00h</span>
         </div>
       )}
 
