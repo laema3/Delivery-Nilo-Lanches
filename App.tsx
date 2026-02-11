@@ -147,6 +147,18 @@ const App: React.FC = () => {
     setSelectedProduct(null);
   };
 
+  const handleUpdateQuantity = (id: string, delta: number) => {
+    setCart(prev => {
+      return prev.map(item => {
+        if (item.id === id) {
+          const newQty = item.quantity + delta;
+          return { ...item, quantity: Math.max(0, newQty) };
+        }
+        return item;
+      }).filter(item => item.quantity > 0);
+    });
+  };
+
   const handleCheckout = async (paymentMethod: string, fee: number, discount: number, couponCode: string, deliveryType: DeliveryType, changeFor?: number) => {
     if (!currentUser) return setIsAuthModalOpen(true);
     try {
@@ -200,10 +212,6 @@ const App: React.FC = () => {
             logoUrl={logoUrl} onUpdateLogo={async (url) => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen, logoUrl: url }); }}
             onAddProduct={async (p) => { const id = `prod_${Date.now()}`; await dbService.save('products', id, {...p, id} as Product); }} 
             onDeleteProduct={async (id) => { await dbService.remove('products', id); }}
-            onUpdateProduct={async (p) => { await dbService.save('products', p.id, p); }} 
-            onUpdateOrderStatus={async (id, s) => { const o = orders.find(x => x.id === id); if(o) await dbService.save('orders', id, {...o, status: s}); }}
-            onDeleteOrder={async (id) => { await dbService.remove('orders', id); }}
-            onUpdateCustomer={async (id, u) => { const c = customers.find(x => x.id === id); if(c) await dbService.save('customers', id, {...c, ...u}); }}
             onAddCategory={async (n) => { const id = `cat_${Date.now()}`; await dbService.save('categories', id, {id, name: n}); }}
             onRemoveCategory={async (id) => { await dbService.remove('categories', id); }}
             onAddSubCategory={async (catId, n) => { const id = `sub_${Date.now()}`; await dbService.save('sub_categories', id, {id, categoryId: catId, name: n}); }}
@@ -223,6 +231,10 @@ const App: React.FC = () => {
             onUpdatePaymentSettings={async (id, u) => { const p = paymentMethods.find(x => x.id === id); if(p) await dbService.save('payment_methods', id, {...p, ...u}); }}
             onLogout={() => { setIsAdmin(false); setIsAdminAuthenticated(false); sessionStorage.removeItem('nl_admin_auth'); }} 
             onBackToSite={() => setIsAdmin(false)}
+            onUpdateProduct={async (p) => { await dbService.save('products', p.id, p); }}
+            onUpdateOrderStatus={async (id, s) => { const o = orders.find(x => x.id === id); if(o) await dbService.save('orders', id, {...o, status: s}); }}
+            onDeleteOrder={async (id) => { await dbService.remove('orders', id); }}
+            onUpdateCustomer={async (id, u) => { const c = customers.find(x => x.id === id); if(c) await dbService.save('customers', id, {...c, ...u}); }}
           />
         ) : activeView === 'my-orders' ? (
           <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} />
@@ -265,7 +277,21 @@ const App: React.FC = () => {
       </main>
 
       <Footer logoUrl={logoUrl} onAdminClick={() => setIsAdminLoginOpen(true)} />
-      <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, d) => setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + d) } : i))} onRemove={id => setCart(prev => prev.filter(i => i.id !== id))} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} deliveryFee={currentDeliveryFee} availableCoupons={[]} isStoreOpen={isStoreOpen} />
+      <CartSidebar 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+        items={cart} 
+        coupons={coupons} 
+        onUpdateQuantity={handleUpdateQuantity} 
+        onRemove={(id) => setCart(prev => prev.filter(i => i.id !== id))} 
+        onCheckout={handleCheckout} 
+        onAuthClick={() => setIsAuthModalOpen(true)} 
+        paymentSettings={paymentMethods} 
+        currentUser={currentUser} 
+        deliveryFee={currentDeliveryFee} 
+        availableCoupons={[]} 
+        isStoreOpen={isStoreOpen} 
+      />
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
