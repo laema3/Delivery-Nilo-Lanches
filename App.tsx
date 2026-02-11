@@ -166,36 +166,57 @@ const App: React.FC = () => {
     return () => unsubs.forEach(u => u && u());
   }, []);
 
-  // --- FECHAMENTO AUTOMÁTICO (Auto-Close) ---
+  // --- AGENDAMENTO AUTOMÁTICO (Abrir 18:30 / Fechar 00:00) ---
   useEffect(() => {
-    const checkAutoClose = async () => {
+    const checkSchedule = async () => {
       const now = new Date();
       const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
 
-      // REGRA: Se for entre 00:00 e 06:00 da manhã e a loja estiver ABERTA
+      // 1. FECHAMENTO AUTOMÁTICO (Segurança da Madrugada)
+      // REGRA: Entre 00:00 e 06:00, se a loja estiver "Aberta", força o fechamento.
+      // Isso garante que se você esquecer aberta, o sistema fecha.
       if (currentHour >= 0 && currentHour < 6 && isStoreOpen) {
-        console.log("🌙 Fechamento Automático: Passou da meia-noite (00:00).");
+        console.log("🌙 Fechamento Automático: Horário limite atingido (00:00).");
         
-        // 1. Fecha visualmente na hora
         setIsStoreOpen(false);
         setToast({ show: true, msg: 'Loja fechada automaticamente (Horário limite atingido)', type: 'error' });
 
-        // 2. Salva no banco de dados para garantir que feche para todos
         try {
           await dbService.save('settings', 'general', { 
             id: 'general', 
             isStoreOpen: false, 
-            logoUrl: logoUrl || DEFAULT_LOGO // Garante que não salva vazio
+            logoUrl: logoUrl || DEFAULT_LOGO 
           });
         } catch (error) {
           console.error("Erro ao fechar loja automaticamente:", error);
         }
       }
+
+      // 2. ABERTURA AUTOMÁTICA (18:30)
+      // REGRA: Se for exatamente 18h e 30min e a loja estiver "Fechada", força a abertura.
+      // Usamos o minuto exato para permitir que você feche manualmente depois (ex: as 19:00) sem que o sistema reabra sozinho.
+      if (currentHour === 18 && currentMinute === 30 && !isStoreOpen) {
+        console.log("☀️ Abertura Automática: Horário de início atingido (18:30).");
+        
+        setIsStoreOpen(true);
+        setToast({ show: true, msg: 'Loja aberta automaticamente (18:30)', type: 'success' });
+
+        try {
+          await dbService.save('settings', 'general', { 
+            id: 'general', 
+            isStoreOpen: true, 
+            logoUrl: logoUrl || DEFAULT_LOGO 
+          });
+        } catch (error) {
+          console.error("Erro ao abrir loja automaticamente:", error);
+        }
+      }
     };
 
-    // Verifica agora e configura intervalo de 1 minuto
-    checkAutoClose();
-    const interval = setInterval(checkAutoClose, 60000); // 60s
+    // Verifica agora e a cada 30 segundos para não perder o minuto exato de abertura
+    checkSchedule();
+    const interval = setInterval(checkSchedule, 30000); // 30s
 
     return () => clearInterval(interval);
   }, [isStoreOpen, logoUrl]);
