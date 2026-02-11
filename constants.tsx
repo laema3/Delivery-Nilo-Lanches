@@ -10,6 +10,14 @@ export const DEMO_CATEGORIES: CategoryItem[] = [
   { id: 'cat_4', name: 'Sobremesas' }
 ];
 
+export const DEMO_SUB_CATEGORIES: SubCategoryItem[] = [
+  { id: 'sub_1', categoryId: 'cat_3', name: 'Refrigerantes' },
+  { id: 'sub_2', categoryId: 'cat_3', name: 'Sucos Naturais' },
+  { id: 'sub_3', categoryId: 'cat_3', name: 'Cervejas' },
+  { id: 'sub_4', categoryId: 'cat_1', name: 'Artesanais' },
+  { id: 'sub_5', categoryId: 'cat_1', name: 'Smashes' }
+];
+
 export const DEMO_PRODUCTS: Product[] = [
   { 
     id: 'prod_1', 
@@ -17,6 +25,7 @@ export const DEMO_PRODUCTS: Product[] = [
     description: 'Pão brioche selado na manteiga, burger 180g de costela, muito bacon crocante, queijo cheddar derretido e maionese da casa.', 
     price: 32.90, 
     category: 'Hambúrgueres', 
+    subCategory: 'Artesanais',
     image: 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=600', 
     rating: 4.9 
   },
@@ -26,6 +35,7 @@ export const DEMO_PRODUCTS: Product[] = [
     description: 'Dois burgers de 90g prensados na chapa, queijo prato, alface americana, tomate fresco e cebola roxa.', 
     price: 28.50, 
     category: 'Hambúrgueres', 
+    subCategory: 'Smashes',
     image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600', 
     rating: 4.7 
   },
@@ -44,8 +54,19 @@ export const DEMO_PRODUCTS: Product[] = [
     description: '350ml, estupidamente gelada.', 
     price: 6.00, 
     category: 'Bebidas', 
+    subCategory: 'Refrigerantes',
     image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600', 
     rating: 5.0 
+  },
+  { 
+    id: 'prod_4b', 
+    name: 'Suco de Laranja', 
+    description: '500ml, fruta pura, sem conservantes.', 
+    price: 12.00, 
+    category: 'Bebidas', 
+    subCategory: 'Sucos Naturais',
+    image: 'https://images.unsplash.com/photo-1600266175161-cfaa218bbd4b?w=600', 
+    rating: 4.9 
   },
   { 
     id: 'prod_5', 
