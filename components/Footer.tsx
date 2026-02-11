@@ -63,12 +63,8 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick }) => {
             <h3 className="text-white font-black text-sm uppercase tracking-widest">Horários</h3>
             <div className="space-y-2">
               <div className="flex justify-between text-sm py-2 border-b border-emerald-900/50">
-                <span className="font-bold">Seg, Qua - Dom</span>
-                <span className="text-white font-black">18:30 - 23:00</span>
-              </div>
-              <div className="flex justify-between text-sm py-2 border-b border-emerald-900/50 text-red-300">
-                <span className="font-bold">Terça-feira</span>
-                <span className="font-black uppercase tracking-widest text-[10px]">Fechado</span>
+                <span className="font-bold">Todos os dias</span>
+                <span className="text-white font-black">18:30 - 23:50</span>
               </div>
             </div>
             <div className="mt-6 flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">

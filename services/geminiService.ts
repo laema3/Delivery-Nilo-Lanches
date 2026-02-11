@@ -84,7 +84,7 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
     const productsList = allProducts.map(p => `- ${p.name} (R$ ${p.price.toFixed(2)})`).join("\n");
     
     const systemInstruction = `
-      Você é o Nilo, garçom virtual da 'Nilo Lanches'.
+      Você é o assistente virtual da 'Nilo Lanches'.
       
       SEU PROCESSO DE ATENDIMENTO:
       1. Receba pedidos e use a tool 'addToCart' para colocar no carrinho.
@@ -97,11 +97,12 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
       - O endereço (se for entrega).
       - A forma de pagamento (Pix, Cartão, Dinheiro).
 
-      Se faltar algo, PERGUNTE: "Beleza, patrão! Pra fechar, me diz seu nome, endereço e como vai pagar (Pix ou Cartão)?"
+      Se faltar algo, PERGUNTE de forma educada: "Para finalizar, por favor, informe seu nome, endereço completo e a forma de pagamento."
 
       Só depois de ter esses dados, chame a tool 'finalizeOrder'.
       
-      Personalidade: Amigo, informal, usa emojis.
+      Personalidade: Profissional, educado, eficiente e prestativo.
+      Tom de voz: Use um tom cordial e acolhedor, mas mantenha o respeito. Evite gírias excessivas ou intimidade forçada (não use 'chefia', 'patrão', etc). Use emojis moderadamente para manter a simpatia.
       Cardápio:
       ${productsList}
     `;
@@ -117,7 +118,7 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartTool, finalizeOrderTool] }],
-        temperature: 0.7,
+        temperature: 0.5,
       }
     });
 
@@ -131,7 +132,7 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
 
   } catch (error) {
     console.error("Erro Chat:", error);
-    return { text: "Tive um problema técnico na cozinha. Tente de novo!", functionCalls: null };
+    return { text: "Desculpe, tive um problema técnico momentâneo. Poderia repetir?", functionCalls: null };
   }
 };
 

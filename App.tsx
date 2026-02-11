@@ -166,6 +166,40 @@ const App: React.FC = () => {
     return () => unsubs.forEach(u => u && u());
   }, []);
 
+  // --- FECHAMENTO AUTOMÁTICO (Auto-Close) ---
+  useEffect(() => {
+    const checkAutoClose = async () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+
+      // REGRA: Se for entre 00:00 e 06:00 da manhã e a loja estiver ABERTA
+      if (currentHour >= 0 && currentHour < 6 && isStoreOpen) {
+        console.log("🌙 Fechamento Automático: Passou da meia-noite (00:00).");
+        
+        // 1. Fecha visualmente na hora
+        setIsStoreOpen(false);
+        setToast({ show: true, msg: 'Loja fechada automaticamente (Horário limite atingido)', type: 'error' });
+
+        // 2. Salva no banco de dados para garantir que feche para todos
+        try {
+          await dbService.save('settings', 'general', { 
+            id: 'general', 
+            isStoreOpen: false, 
+            logoUrl 
+          });
+        } catch (error) {
+          console.error("Erro ao fechar loja automaticamente:", error);
+        }
+      }
+    };
+
+    // Verifica agora e configura intervalo de 1 minuto
+    checkAutoClose();
+    const interval = setInterval(checkAutoClose, 60000); // 60s
+
+    return () => clearInterval(interval);
+  }, [isStoreOpen, logoUrl]);
+
   // ORDENAÇÃO ALFABÉTICA DOS PRODUTOS
   const groupedMenu = useMemo(() => {
     if (!products || products.length === 0) return [];

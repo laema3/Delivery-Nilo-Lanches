@@ -20,7 +20,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, o
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'Fala chefia! Sou o Nilo. O que vai ser hoje? A chapa tá quente! 🍔🔥' }
+    { role: 'model', text: 'Olá! Bem-vindo ao Nilo Lanches. Como posso ajudar você a escolher seu pedido hoje? 🍔' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,9 +65,9 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, o
             onAddToCart(foundProduct, qty);
             setMessages(prev => [...prev, { 
               role: 'model', 
-              text: `✅ Adicionei ${qty}x *${foundProduct.name}*! (Total parcial: R$ ${((foundProduct.price * qty) + cart.reduce((acc, i) => acc + (i.price * i.quantity), 0)).toFixed(2)})` 
+              text: `✅ Adicionei ${qty}x *${foundProduct.name}* ao seu pedido. (Subtotal: R$ ${((foundProduct.price * qty) + cart.reduce((acc, i) => acc + (i.price * i.quantity), 0)).toFixed(2)})` 
             }]);
-            if (!finalText) finalText = "Pronto! Vai querer mais alguma coisa ou fechamos?";
+            if (!finalText) finalText = "Deseja adicionar mais alguma coisa ou podemos finalizar?";
           }
         }
 
@@ -96,10 +96,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, o
           // Mensagem visual no chat
           setMessages(prev => [...prev, { 
             role: 'model', 
-            text: `📝 *PEDIDO FECHADO!*\n\nCliente: ${args.customerName}\nTotal: R$ ${total.toFixed(2)}\n\nEstou abrindo o WhatsApp pra você enviar...` 
+            text: `📝 *PEDIDO CONFIRMADO!*\n\nCliente: ${args.customerName}\nTotal: R$ ${total.toFixed(2)}\n\nEstou abrindo o WhatsApp para o envio...` 
           }]);
 
-          if (!finalText) finalText = "Obrigado pela preferência, meu patrão! Tmj! 👊";
+          if (!finalText) finalText = "Muito obrigado pela preferência! Seu pedido está sendo processado. 🍔";
           
           // Abre o WhatsApp e limpa carrinho
           setTimeout(() => {
@@ -130,7 +130,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, o
               <div>
                 <h3 className="text-white font-black text-sm uppercase tracking-widest">Nilo Assistente</h3>
                 <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 opacity-90">
-                   <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse shadow-[0_0_5px_#fff]"></span> Online e com Fome
+                   <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse shadow-[0_0_5px_#fff]"></span> Online
                 </p>
               </div>
             </div>
@@ -171,7 +171,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, o
             <input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ex: Quero pedir, fechar conta..." 
+              placeholder="Digite sua mensagem..." 
               className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all placeholder:text-slate-400"
             />
             <button disabled={isLoading || !input.trim()} className="bg-emerald-600 disabled:bg-slate-300 text-white w-14 h-14 flex items-center justify-center rounded-xl hover:bg-emerald-700 transition-all shadow-lg active:scale-90 shrink-0">
