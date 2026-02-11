@@ -149,13 +149,14 @@ const App: React.FC = () => {
 
   const handleUpdateQuantity = (id: string, delta: number) => {
     setCart(prev => {
-      return prev.map(item => {
+      const newList = prev.map(item => {
         if (item.id === id) {
           const newQty = item.quantity + delta;
-          return { ...item, quantity: Math.max(0, newQty) };
+          return { ...item, quantity: newQty };
         }
         return item;
       }).filter(item => item.quantity > 0);
+      return newList;
     });
   };
 

@@ -24,7 +24,6 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   const [selectedPayment, setSelectedPayment] = useState('');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('DELIVERY');
   const [changeValue, setChangeValue] = useState<string>('');
-  const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   
   const subtotal = useMemo(() => items.reduce((acc, item) => acc + (item.price * item.quantity), 0), [items]);
@@ -95,7 +94,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                            <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
                               <button 
                                 onClick={() => item.quantity > 1 ? onUpdateQuantity(item.id, -1) : onRemove(item.id)} 
-                                className="text-slate-400 hover:text-emerald-600 font-black transition-colors w-5 h-5 flex items-center justify-center"
+                                className={`font-black transition-colors w-5 h-5 flex items-center justify-center ${item.quantity > 1 ? 'text-slate-400 hover:text-emerald-600' : 'text-red-400 hover:text-red-600'}`}
                               >
                                 {item.quantity > 1 ? '-' : '×'}
                               </button>
