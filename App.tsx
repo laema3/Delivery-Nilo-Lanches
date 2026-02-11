@@ -52,6 +52,7 @@ const App: React.FC = () => {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
+  const [isOrderProcessing, setIsOrderProcessing] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
     try {
@@ -161,20 +162,58 @@ const App: React.FC = () => {
 
   const handleCheckout = async (paymentMethod: string, fee: number, discount: number, couponCode: string, deliveryType: DeliveryType, changeFor?: number) => {
     if (!currentUser) return setIsAuthModalOpen(true);
+    
+    setIsOrderProcessing(true);
     try {
         const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
         const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const total = subtotal + fee - discount;
+        
+        // Sanitização de dados para o Firebase (evita undefined)
         const newOrder: Order = {
-          id: orderId, customerId: currentUser.email, customerName: currentUser.name, customerPhone: currentUser.phone,
+          id: orderId, 
+          customerId: currentUser.email, 
+          customerName: currentUser.name, 
+          customerPhone: currentUser.phone,
           customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : `${currentUser.address}`,
-          items: [...cart], total, deliveryFee: fee, deliveryType, status: 'NOVO', paymentMethod, changeFor, createdAt: new Date().toISOString(), pointsEarned: Math.floor(total)
+          items: [...cart], 
+          total, 
+          deliveryFee: fee, 
+          deliveryType, 
+          status: 'NOVO', 
+          paymentMethod, 
+          createdAt: new Date().toISOString(), 
+          pointsEarned: Math.floor(total),
+          changeFor: changeFor || 0, // Garante que não vá undefined
+          discountValue: discount || 0,
+          couponCode: couponCode || ''
         };
+
+        // Salva pedido (Local + Cloud se disponível)
         await dbService.save('orders', orderId, newOrder);
+        
+        // Atualiza usuário com último pedido
+        if (currentUser) {
+          const updatedUser = { 
+             ...currentUser, 
+             lastOrder: new Date().toISOString(),
+             totalOrders: (currentUser.totalOrders || 0) + 1,
+             points: (currentUser.points || 0) + Math.floor(total)
+          };
+          setCurrentUser(updatedUser);
+          await dbService.save('customers', currentUser.email, updatedUser);
+        }
+
         setLastOrder(newOrder);
         setIsSuccessModalOpen(true);
         setCart([]);
-    } catch (e) { setToast({ show: true, msg: 'Erro ao enviar pedido.', type: 'error' }); }
+        
+    } catch (e) { 
+      console.error(e);
+      setToast({ show: true, msg: 'Erro ao processar. Tente novamente.', type: 'error' }); 
+    } finally {
+      setIsOrderProcessing(false);
+    }
   };
 
   return (
@@ -293,6 +332,7 @@ const App: React.FC = () => {
         deliveryFee={currentDeliveryFee} 
         availableCoupons={[]} 
         isStoreOpen={isStoreOpen} 
+        isProcessing={isOrderProcessing}
       />
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />

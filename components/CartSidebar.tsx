@@ -16,10 +16,11 @@ interface CartSidebarProps {
   deliveryFee: number;
   availableCoupons: any[];
   isStoreOpen?: boolean;
+  isProcessing?: boolean; // Novo prop para indicar carregamento
 }
 
 export const CartSidebar: React.FC<CartSidebarProps> = ({ 
-  isOpen, onClose, items, coupons, onUpdateQuantity, onRemove, onCheckout, onAuthClick, paymentSettings, currentUser, deliveryFee, isStoreOpen = true
+  isOpen, onClose, items, coupons, onUpdateQuantity, onRemove, onCheckout, onAuthClick, paymentSettings, currentUser, deliveryFee, isStoreOpen = true, isProcessing = false
 }) => {
   const [selectedPayment, setSelectedPayment] = useState('');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('DELIVERY');
@@ -138,11 +139,11 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 <div className="flex justify-between text-white text-xl pt-2 font-black"><span>Total</span><span className="text-emerald-400">R$ {total.toFixed(2)}</span></div>
               </div>
               <button 
-                disabled={!selectedPayment || !isStoreOpen} 
-                onClick={() => onCheckout(selectedPayment, activeDeliveryFee, discountAmount, appliedCoupon?.code || '', deliveryType, Number(changeValue) || undefined)} 
-                className={`w-full py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${(!selectedPayment || !isStoreOpen) ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'bg-emerald-600 text-white border-b-4 border-emerald-800 active:scale-95'}`}
+                disabled={!selectedPayment || !isStoreOpen || isProcessing} 
+                onClick={() => onCheckout(selectedPayment, activeDeliveryFee, discountAmount, appliedCoupon?.code || '', deliveryType, changeValue ? Number(changeValue) : undefined)} 
+                className={`w-full py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${(!selectedPayment || !isStoreOpen || isProcessing) ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'bg-emerald-600 text-white border-b-4 border-emerald-800 active:scale-95'}`}
               >
-                {isStoreOpen ? 'Confirmar Pedido' : 'Loja Fechada'}
+                {isProcessing ? 'Enviando...' : (isStoreOpen ? 'Confirmar Pedido' : 'Loja Fechada')}
               </button>
             </div>
           )}
