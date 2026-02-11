@@ -17,7 +17,7 @@ import { ProductLoader } from './components/ProductLoader.tsx';
 import { dbService } from './services/dbService.ts';
 import { db } from './firebaseConfig.ts';
 import { Product, CartItem, Order, Customer, ZipRange, PaymentSettings, CategoryItem, SubCategoryItem, Complement, OrderStatus, DeliveryType, Coupon } from './types.ts';
-import { DEMO_CATEGORIES, DEMO_PRODUCTS, DEMO_COMPLEMENTS, DEMO_SETTINGS } from './constants.tsx';
+import { DEMO_CATEGORIES, DEMO_PRODUCTS, DEMO_COMPLEMENTS, DEMO_SETTINGS, DEFAULT_LOGO } from './constants.tsx';
 
 const safeNormalize = (val: any): string => {
   if (!val) return "";
@@ -36,7 +36,7 @@ const App: React.FC = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   
   const [isStoreOpen, setIsStoreOpen] = useState(true);
-  const [logoUrl, setLogoUrl] = useState('');
+  const [logoUrl, setLogoUrl] = useState(DEFAULT_LOGO);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -62,58 +62,57 @@ const App: React.FC = () => {
 
   // ATUALIZAÇÃO DO ÍCONE DO SITE (FAVICON) E DO PWA (MANIFEST) COM O LOGO
   useEffect(() => {
-    if (logoUrl) {
-      // 1. Atualiza Favicon da aba
-      const link = document.getElementById('favicon') as HTMLLinkElement;
-      if (link) {
-        link.href = logoUrl;
-        // Tenta detectar o tipo se for data URI, senão assume png
-        link.type = logoUrl.startsWith('data:') ? logoUrl.split(';')[0].split(':')[1] : "image/png";
-      }
+    const safeLogo = logoUrl || DEFAULT_LOGO;
+    
+    // 1. Atualiza Favicon da aba
+    const link = document.getElementById('favicon') as HTMLLinkElement;
+    if (link) {
+      link.href = safeLogo;
+      link.type = safeLogo.startsWith('data:') ? safeLogo.split(';')[0].split(':')[1] : "image/png";
+    }
 
-      // 2. Atualiza ícone Apple (iOS)
-      const appleLink = document.getElementById('apple-icon') as HTMLLinkElement;
-      if (appleLink) {
-        appleLink.href = logoUrl;
-      }
+    // 2. Atualiza ícone Apple (iOS)
+    const appleLink = document.getElementById('apple-icon') as HTMLLinkElement;
+    if (appleLink) {
+      appleLink.href = safeLogo;
+    }
 
-      // 3. Atualiza MANIFEST Dinamicamente para o PWA (Instalação)
-      const mimeType = logoUrl.startsWith('data:') ? logoUrl.split(';')[0].split(':')[1] : 'image/png';
-      
-      const dynamicManifest = {
-        short_name: "Nilo Lanches",
-        name: "Nilo Lanches Delivery",
-        description: "O melhor lanche de Uberaba na palma da sua mão.",
-        icons: [
-          {
-            src: logoUrl,
-            type: mimeType,
-            sizes: "192x192",
-            purpose: "any maskable"
-          },
-          {
-            src: logoUrl,
-            type: mimeType,
-            sizes: "512x512",
-            purpose: "any maskable"
-          }
-        ],
-        start_url: "/",
-        scope: "/",
-        display: "standalone",
-        orientation: "portrait",
-        theme_color: "#008000",
-        background_color: "#ffffff"
-      };
+    // 3. Atualiza MANIFEST Dinamicamente para o PWA (Instalação)
+    const mimeType = safeLogo.startsWith('data:') ? safeLogo.split(';')[0].split(':')[1] : 'image/png';
+    
+    const dynamicManifest = {
+      short_name: "Nilo Lanches",
+      name: "Nilo Lanches Delivery",
+      description: "O melhor lanche de Uberaba na palma da sua mão.",
+      icons: [
+        {
+          src: safeLogo,
+          type: mimeType,
+          sizes: "192x192",
+          purpose: "any maskable"
+        },
+        {
+          src: safeLogo,
+          type: mimeType,
+          sizes: "512x512",
+          purpose: "any maskable"
+        }
+      ],
+      start_url: "/",
+      scope: "/",
+      display: "standalone",
+      orientation: "portrait",
+      theme_color: "#008000",
+      background_color: "#ffffff"
+    };
 
-      const stringManifest = JSON.stringify(dynamicManifest);
-      const blob = new Blob([stringManifest], { type: 'application/json' });
-      const manifestURL = URL.createObjectURL(blob);
-      
-      const manifestLink = document.querySelector('link[rel="manifest"]');
-      if (manifestLink) {
-        manifestLink.setAttribute('href', manifestURL);
-      }
+    const stringManifest = JSON.stringify(dynamicManifest);
+    const blob = new Blob([stringManifest], { type: 'application/json' });
+    const manifestURL = URL.createObjectURL(blob);
+    
+    const manifestLink = document.querySelector('link[rel="manifest"]');
+    if (manifestLink) {
+      manifestLink.setAttribute('href', manifestURL);
     }
   }, [logoUrl]);
 
@@ -158,7 +157,8 @@ const App: React.FC = () => {
         if (data && data.length > 0) {
           const settings = data.find(d => d.id === 'general') || data[0];
           setIsStoreOpen(settings.isStoreOpen !== false);
-          setLogoUrl(settings.logoUrl || '');
+          // Se vier vazio do banco, usa o padrão, senão usa o que está no banco
+          setLogoUrl(settings.logoUrl || DEFAULT_LOGO);
         }
       })
     ];
@@ -185,7 +185,7 @@ const App: React.FC = () => {
           await dbService.save('settings', 'general', { 
             id: 'general', 
             isStoreOpen: false, 
-            logoUrl 
+            logoUrl: logoUrl || DEFAULT_LOGO // Garante que não salva vazio
           });
         } catch (error) {
           console.error("Erro ao fechar loja automaticamente:", error);
@@ -332,15 +332,15 @@ const App: React.FC = () => {
         isAdmin={isAdmin} onToggleAdmin={() => isAdmin ? setIsAdmin(false) : (isAdminAuthenticated ? setIsAdmin(true) : setIsAdminLoginOpen(true))} 
         searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} 
         onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); localStorage.removeItem('nl_current_user'); }} 
-        isStoreOpen={isStoreOpen} logoUrl={logoUrl} onMyOrdersClick={() => setActiveView('my-orders')} 
+        isStoreOpen={isStoreOpen} logoUrl={logoUrl || DEFAULT_LOGO} onMyOrdersClick={() => setActiveView('my-orders')} 
       />
 
       <main className="flex-1 w-full relative">
         {isAdmin ? (
           <AdminPanel 
             products={products} orders={orders} customers={customers} zipRanges={zipRanges} categories={categories} subCategories={subCategories} complements={complements} coupons={coupons} isStoreOpen={isStoreOpen} 
-            onToggleStore={async () => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen: !isStoreOpen, logoUrl }); }} 
-            logoUrl={logoUrl} 
+            onToggleStore={async () => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen: !isStoreOpen, logoUrl: logoUrl || DEFAULT_LOGO }); }} 
+            logoUrl={logoUrl || DEFAULT_LOGO} 
             onUpdateLogo={async (url) => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen, logoUrl: url }); }}
             onAddProduct={async (p) => { try { const id = `prod_${Date.now()}`; await dbService.save('products', id, {...p, id} as Product); } catch(e) { setToast({show:true, msg:'Erro ao salvar produto', type:'error'}); } }} 
             onDeleteProduct={async (id) => { await dbService.remove('products', id); }}
@@ -428,7 +428,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <Footer logoUrl={logoUrl} onAdminClick={() => setIsAdminLoginOpen(true)} />
+      <Footer logoUrl={logoUrl || DEFAULT_LOGO} onAdminClick={() => setIsAdminLoginOpen(true)} />
       
       <CartSidebar 
         isOpen={isCartOpen} 

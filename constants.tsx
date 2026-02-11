@@ -1,6 +1,8 @@
 
 import { Product, CategoryItem, SubCategoryItem, Complement } from './types.ts';
 
+export const DEFAULT_LOGO = 'https://cdn-icons-png.flaticon.com/512/3075/3075977.png';
+
 export const DEMO_CATEGORIES: CategoryItem[] = [
   { id: 'cat_1', name: 'Hambúrgueres' },
   { id: 'cat_2', name: 'Combos' },
@@ -63,7 +65,7 @@ export const DEMO_COMPLEMENTS: Complement[] = [
 ];
 
 export const DEMO_SETTINGS = [
-  { id: 'general', isStoreOpen: true, logoUrl: '' }
+  { id: 'general', isStoreOpen: true, logoUrl: DEFAULT_LOGO }
 ];
 
 export const PRODUCTS: Product[] = [];
