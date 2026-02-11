@@ -311,30 +311,18 @@ const App: React.FC = () => {
             onAddProduct={async (p) => { try { const id = `prod_${Date.now()}`; await dbService.save('products', id, {...p, id} as Product); } catch(e) { setToast({show:true, msg:'Erro ao salvar produto', type:'error'}); } }} 
             onDeleteProduct={async (id) => { await dbService.remove('products', id); }}
             onUpdateProduct={async (p) => { await dbService.save('products', p.id, p); }} 
-            
-            // ATUALIZAÇÃO OTIMISTA DE STATUS
             onUpdateOrderStatus={async (id, s) => { 
-                // 1. Atualiza visualmente agora (Optimistic UI)
                 setOrders(prev => prev.map(o => o.id === id ? { ...o, status: s } : o));
-                
-                // 2. Salva no banco
                 const o = orders.find(x => x.id === id); 
                 if(o) await dbService.save('orders', id, {...o, status: s}); 
             }}
-            
-            // ATUALIZAÇÃO OTIMISTA DE EXCLUSÃO
             onDeleteOrder={async (id) => {
                 if(window.confirm('Tem certeza que deseja excluir este pedido do histórico?')) {
-                    // 1. Remove da tela agora (Optimistic UI)
                     setOrders(prev => prev.filter(o => o.id !== id));
-                    
-                    // 2. Remove do banco
                     await dbService.remove('orders', id);
-                    
                     setToast({show: true, msg: 'Pedido excluído.', type: 'success'});
                 }
             }}
-
             onUpdateCustomer={async (id, u) => { const c = customers.find(x => x.id === id); if(c) await dbService.save('customers', id, {...c, ...u}); }}
             onAddCategory={async (n) => { const id = `cat_${Date.now()}`; await dbService.save('categories', id, {id, name: n}); }}
             onRemoveCategory={async (id) => { await dbService.remove('categories', id); }}
@@ -428,7 +416,17 @@ const App: React.FC = () => {
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCustomers(prev => [...prev, u]); setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
       <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} orderId={lastOrder?.id || ''} onSendWhatsApp={handleSendWhatsApp} />
-      {!isAdmin && <ChatBot products={products} onAddToCart={handleAddToCart} />}
+      
+      {/* CHATBOT REATIVADO E COM PODERES DE FINALIZAÇÃO */}
+      {!isAdmin && (
+        <ChatBot 
+          products={products} 
+          cart={cart}
+          deliveryFee={currentDeliveryFee}
+          onAddToCart={handleAddToCart} 
+          onClearCart={() => setCart([])}
+        />
+      )}
     </div>
   );
 };

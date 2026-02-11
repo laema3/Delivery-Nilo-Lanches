@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { chatWithAssistant } from '../services/geminiService.ts';
-import { Product } from '../types.ts';
+import { Product, CartItem } from '../types.ts';
 
 interface Message {
   role: 'user' | 'model';
@@ -10,10 +10,13 @@ interface Message {
 
 interface ChatBotProps {
   products: Product[];
+  cart: CartItem[];         // Novo: Acesso ao carrinho real
+  deliveryFee: number;      // Novo: Taxa de entrega atual
   onAddToCart?: (product: Product, quantity: number) => void;
+  onClearCart?: () => void; // Novo: Para limpar após envio
 }
 
-export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
+export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, onAddToCart, onClearCart }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
@@ -29,16 +32,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
     }
   }, [messages, isLoading, isOpen]);
 
-  // Bloqueio de scroll no mobile
-  useEffect(() => {
-    if (isOpen && window.innerWidth < 640) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-    return () => { document.body.style.overflow = 'auto'; };
-  }, [isOpen]);
-
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -48,28 +41,21 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
 
-    // Prepara histórico
-    const history = messages.map(m => ({
-      role: m.role,
-      parts: [{ text: m.text }]
-    }));
-
-    // Chama a IA
+    const history = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
     const response = await chatWithAssistant(userMsg, history, products);
     
     let finalText = response.text;
+    let autoWhatsAppUrl = '';
 
-    // --- PROCESSAMENTO DE FERRAMENTAS (CARRINHO) ---
-    if (response.functionCalls && onAddToCart) {
+    if (response.functionCalls) {
       for (const call of response.functionCalls) {
-        if (call.name === 'addToCart') {
-          console.log("🛠️ Tool Call Detectada:", call);
-          
+        
+        // --- 1. ADICIONAR AO CARRINHO ---
+        if (call.name === 'addToCart' && onAddToCart) {
           const args = call.args as any;
           const searchName = (args.productName || '').toLowerCase();
           const qty = Number(args.quantity) || 1;
 
-          // Busca Inteligente no Cardápio Local
           const foundProduct = products.find(p => 
             p.name.toLowerCase().includes(searchName) || 
             searchName.includes(p.name.toLowerCase())
@@ -77,17 +63,49 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
 
           if (foundProduct) {
             onAddToCart(foundProduct, qty);
-            
-            // Mensagem de sistema simulando a ação
             setMessages(prev => [...prev, { 
               role: 'model', 
-              text: `✅ *ADICIONADO:* ${qty}x ${foundProduct.name}\n🛒 *Valor:* R$ ${(foundProduct.price * qty).toFixed(2)}` 
+              text: `✅ Adicionei ${qty}x *${foundProduct.name}*! (Total parcial: R$ ${((foundProduct.price * qty) + cart.reduce((acc, i) => acc + (i.price * i.quantity), 0)).toFixed(2)})` 
             }]);
-            
-            if (!finalText) finalText = "Prontinho patrão, já tá na mão! Mais alguma coisa?";
-          } else {
-            finalText += `\n(Tentei adicionar "${args.productName}", mas não achei exatamente esse item. Confere o nome pra mim?)`;
+            if (!finalText) finalText = "Pronto! Vai querer mais alguma coisa ou fechamos?";
           }
+        }
+
+        // --- 2. FINALIZAR PEDIDO (WHATSAPP) ---
+        if (call.name === 'finalizeOrder') {
+          const args = call.args as any;
+          
+          // Cálculo real usando o estado do React (mais seguro que a memória da IA)
+          const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+          // Se o bot detectou que é entrega, usa a taxa do App, senão 0
+          const finalDeliveryFee = args.isDelivery ? deliveryFee : 0; 
+          const total = subtotal + finalDeliveryFee;
+
+          // Montagem da mensagem do WhatsApp
+          let itemsList = cart.map(item => `▪️ ${item.quantity}x *${item.name}* (R$ ${(item.price * item.quantity).toFixed(2)})`).join('\n');
+          
+          // Caso o carrinho esteja vazio (usuário pediu direto sem adicionar antes)
+          if (itemsList.length === 0) {
+            itemsList = "(Cliente pediu diretamente pelo chat)";
+          }
+
+          const whatsappText = `*NOVO PEDIDO VIA CHAT* 🤖\n--------------------------------\n👤 *Cliente:* ${args.customerName}\n📍 *Endereço:* ${args.address || 'Retirada no Balcão'}\n💳 *Pagamento:* ${args.paymentMethod}\n--------------------------------\n${itemsList}\n--------------------------------\n🛵 *Taxa Entrega:* R$ ${finalDeliveryFee.toFixed(2)}\n💰 *TOTAL FINAL: R$ ${total.toFixed(2)}*`;
+          
+          autoWhatsAppUrl = `https://wa.me/5534991183728?text=${encodeURIComponent(whatsappText)}`;
+          
+          // Mensagem visual no chat
+          setMessages(prev => [...prev, { 
+            role: 'model', 
+            text: `📝 *PEDIDO FECHADO!*\n\nCliente: ${args.customerName}\nTotal: R$ ${total.toFixed(2)}\n\nEstou abrindo o WhatsApp pra você enviar...` 
+          }]);
+
+          if (!finalText) finalText = "Obrigado pela preferência, meu patrão! Tmj! 👊";
+          
+          // Abre o WhatsApp e limpa carrinho
+          setTimeout(() => {
+            window.open(autoWhatsAppUrl, '_blank');
+            if (onClearCart) onClearCart();
+          }, 1500);
         }
       }
     }
@@ -103,7 +121,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
     <div className={`fixed z-[100] flex flex-col items-end ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-6 right-6'}`}>
       {isOpen && (
         <div className="w-full h-full sm:w-[400px] sm:h-[550px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-          {/* Header */}
           <div className="bg-emerald-600 p-5 flex items-center justify-between shrink-0 shadow-md z-10">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-2xl border-2 border-emerald-500 shadow-sm relative overflow-hidden">
@@ -120,7 +137,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
             <button onClick={() => setIsOpen(false)} className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded-full transition-colors font-bold">✕</button>
           </div>
 
-          {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50 no-scrollbar overscroll-contain">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -129,12 +145,9 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
                   ? 'bg-emerald-600 text-white rounded-tr-none' 
                   : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'
                 }`}>
-                  {/* Markdown simplificado */}
                   {m.text.split('\n').map((line, lIdx) => (
                     <p key={lIdx} className={lIdx > 0 ? "mt-1" : ""}>
-                      {line.split('*').map((part, idx) => 
-                        idx % 2 === 1 ? <strong key={idx} className="font-black">{part}</strong> : part
-                      )}
+                      {line.split('*').map((part, idx) => idx % 2 === 1 ? <strong key={idx} className="font-black">{part}</strong> : part)}
                     </p>
                   ))}
                 </div>
@@ -154,12 +167,11 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
             )}
           </div>
 
-          {/* Input */}
           <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2 sm:mb-0 pb-8 sm:pb-4 safe-area-bottom shadow-[0_-5px_15px_rgba(0,0,0,0.02)] z-10">
             <input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ex: Me vê um X-Bacon..." 
+              placeholder="Ex: Quero pedir, fechar conta..." 
               className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all placeholder:text-slate-400"
             />
             <button disabled={isLoading || !input.trim()} className="bg-emerald-600 disabled:bg-slate-300 text-white w-14 h-14 flex items-center justify-center rounded-xl hover:bg-emerald-700 transition-all shadow-lg active:scale-90 shrink-0">
@@ -171,7 +183,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
         </div>
       )}
 
-      {/* Toggle Button */}
       {!isOpen && (
         <button 
           onClick={() => setIsOpen(true)}
@@ -179,7 +190,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, onAddToCart }) => {
         >
           <span className="text-3xl group-hover:hidden">💬</span>
           <span className="text-3xl hidden group-hover:block">🍔</span>
-          <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-bounce"></span>
+          {cart.length > 0 && <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-bounce"></span>}
         </button>
       )}
     </div>

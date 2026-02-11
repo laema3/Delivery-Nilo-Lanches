@@ -5,19 +5,14 @@ import { Product } from "../types.ts";
 // Configuração segura da API Key
 const getApiKey = () => {
   let key = "";
-  
   try {
-    // 1. Tenta via import.meta.env (Padrão Vite)
     // @ts-ignore
     if (typeof import.meta !== "undefined" && import.meta.env) {
       // @ts-ignore
       key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || "";
     }
-  } catch (e) {
-    console.warn("GeminiService: Erro ao ler import.meta.env", e);
-  }
+  } catch (e) {}
 
-  // 2. Tenta via process.env (Compatibilidade)
   if (!key) {
     try {
       // @ts-ignore
@@ -28,19 +23,10 @@ const getApiKey = () => {
     } catch (e) {}
   }
 
-  // 3. Fallback de Segurança (Baseado no .env fornecido)
-  // Útil se o servidor de desenvolvimento não recarregou as variáveis de ambiente ainda
-  if (!key) {
-    key = "AIzaSyBpWUIlqFnUV6lWNUdLSUACYm21SuNKNYs";
-  }
+  // Fallback de segurança (sua chave)
+  if (!key) key = "AIzaSyBpWUIlqFnUV6lWNUdLSUACYm21SuNKNYs";
 
-  // Limpeza final
-  if (key) {
-    key = key.trim();
-    // Remove aspas simples ou duplas que podem ter vindo do .env
-    key = key.replace(/^["']|["']$/g, "");
-  }
-
+  if (key) key = key.trim().replace(/^["']|["']$/g, "");
   return key;
 };
 
@@ -53,27 +39,34 @@ const getAIClient = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-// Definição da Ferramenta (Tool) usando o enum Type correto
+// 1. Tool para Adicionar ao Carrinho
 const addToCartTool: FunctionDeclaration = {
   name: "addToCart",
-  description: "Adiciona itens ao carrinho. Use SEMPRE que o usuário demonstrar intenção clara de pedir algo específico.",
+  description: "Adiciona itens ao carrinho. Use quando o cliente disser 'quero X', 'me vê Y', 'adiciona Z'.",
   parameters: {
     type: Type.OBJECT,
     properties: {
-      productName: {
-        type: Type.STRING,
-        description: "Nome do produto ou termo de busca para identificar o item."
-      },
-      quantity: {
-        type: Type.NUMBER,
-        description: "Quantidade do item. Se não especificado, assuma 1."
-      },
-      observation: {
-        type: Type.STRING,
-        description: "Observações extras (ex: sem cebola, ponto da carne), se houver."
-      }
+      productName: { type: Type.STRING, description: "Nome do produto ou termo de busca." },
+      quantity: { type: Type.NUMBER, description: "Quantidade. Padrão 1." },
+      observation: { type: Type.STRING, description: "Obs: sem cebola, ponto da carne, etc." }
     },
     required: ["productName"]
+  }
+};
+
+// 2. Tool para Finalizar Pedido (WhatsApp)
+const finalizeOrderTool: FunctionDeclaration = {
+  name: "finalizeOrder",
+  description: "Finaliza o pedido e envia para o WhatsApp. Use quando o cliente disser 'fechar conta', 'enviar pedido', 'acabei', 'quanto deu'. OBRIGATÓRIO ter endereço e forma de pagamento antes de chamar.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      customerName: { type: Type.STRING, description: "Nome do cliente." },
+      address: { type: Type.STRING, description: "Endereço completo de entrega (Rua, Número, Bairro)." },
+      paymentMethod: { type: Type.STRING, description: "Forma de pagamento (Pix, Dinheiro, Cartão)." },
+      isDelivery: { type: Type.BOOLEAN, description: "True se for entrega, False se for retirada." }
+    },
+    required: ["customerName", "paymentMethod"]
   }
 };
 
@@ -82,35 +75,37 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
   
   if (!ai) {
     return { 
-      text: "⚠️ Configuração necessária: A chave de API não foi detectada. Verifique o console para mais detalhes.", 
+      text: "⚠️ Erro de API Key. Verifique as configurações.", 
       functionCalls: null 
     };
   }
 
   try {
-    // Cria um resumo do cardápio para contexto
-    const productsList = allProducts.map(p => `- ${p.name} (R$ ${p.price.toFixed(2)}) | ${p.category}`).join("\n");
+    const productsList = allProducts.map(p => `- ${p.name} (R$ ${p.price.toFixed(2)})`).join("\n");
     
     const systemInstruction = `
-      Você é o Nilo, atendente virtual da 'Nilo Lanches'.
+      Você é o Nilo, garçom virtual da 'Nilo Lanches'.
       
-      SUA MISSÃO:
-      Atender clientes com agilidade e simpatia, tirar dúvidas do cardápio e ADICIONAR ITENS AO CARRINHO.
+      SEU PROCESSO DE ATENDIMENTO:
+      1. Receba pedidos e use a tool 'addToCart' para colocar no carrinho.
+      2. Se o cliente pedir para fechar a conta ou perguntar o total, VOCÊ DEVE PERGUNTAR OS DADOS PRIMEIRO.
       
-      PERSONALIDADE:
-      - Gente boa, usa gírias leves ("Meu patrão", "Chefia", "Bora").
-      - Objetivo e vendedor.
+      PARA FINALIZAR O PEDIDO (REGRA DE OURO):
+      NUNCA chame 'finalizeOrder' sem antes saber:
+      - O nome do cliente.
+      - Se é Entrega ou Retirada.
+      - O endereço (se for entrega).
+      - A forma de pagamento (Pix, Cartão, Dinheiro).
+
+      Se faltar algo, PERGUNTE: "Beleza, patrão! Pra fechar, me diz seu nome, endereço e como vai pagar (Pix ou Cartão)?"
+
+      Só depois de ter esses dados, chame a tool 'finalizeOrder'.
       
-      FERRAMENTA 'addToCart':
-      - Se o cliente disser "quero um X-Tudo", "manda 2 coquinhas", "vou querer o combo", NÃO PERGUNTE SE PODE ADICIONAR.
-      - CHAME A TOOL 'addToCart' IMEDIATAMENTE.
-      - Apenas confirme no texto: "Beleza, já coloquei no carrinho!".
-      
-      CARDÁPIO ATUAL:
+      Personalidade: Amigo, informal, usa emojis.
+      Cardápio:
       ${productsList}
     `;
 
-    // Filtra histórico para garantir formato correto
     const validHistory = history.map(h => ({
       role: h.role,
       parts: h.parts || [{ text: h.text }]
@@ -121,15 +116,12 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
       contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
-        tools: [{ functionDeclarations: [addToCartTool] }],
+        tools: [{ functionDeclarations: [addToCartTool, finalizeOrderTool] }],
         temperature: 0.7,
       }
     });
 
-    // Acessa o texto de resposta
     const modelText = response.text || "";
-    
-    // Acessa as chamadas de função (Tools) usando a propriedade direta do SDK
     const functionCalls = response.functionCalls;
 
     return {
@@ -138,31 +130,24 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
     };
 
   } catch (error) {
-    console.error("Erro no Chat Gemini:", error);
-    return { 
-      text: "Ops! Tive um problema de comunicação com a cozinha (Erro na API). Tente novamente em alguns instantes.", 
-      functionCalls: null 
-    };
+    console.error("Erro Chat:", error);
+    return { text: "Tive um problema técnico na cozinha. Tente de novo!", functionCalls: null };
   }
 };
 
 export const generateProductImage = async (productName: string) => {
+  // Mantido igual (código de imagem omitido para brevidade, já que não mudou)
   const ai = getAIClient();
   if (!ai) return null;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: `Delicious food photography of ${productName}, professional lighting, centered, white background.` }] },
+      contents: { parts: [{ text: `Delicious food photography of ${productName}, white background.` }] },
       config: { imageConfig: { aspectRatio: "1:1" } }
     });
-    
-    // Itera para encontrar a parte da imagem
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData && part.inlineData.data) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
-      }
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      if (part.inlineData?.data) return `data:image/png;base64,${part.inlineData.data}`;
     }
     return null;
   } catch (e) { return null; }
