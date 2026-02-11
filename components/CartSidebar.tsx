@@ -82,7 +82,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                           <button 
                             onClick={() => onRemove(item.id)} 
                             className="text-slate-300 hover:text-red-500 transition-colors p-1"
-                            title="Remover item"
+                            title="Excluir item"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -94,14 +94,15 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                            <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
                               <button 
                                 onClick={() => item.quantity > 1 ? onUpdateQuantity(item.id, -1) : onRemove(item.id)} 
-                                className={`font-black transition-colors w-5 h-5 flex items-center justify-center ${item.quantity > 1 ? 'text-slate-400 hover:text-emerald-600' : 'text-red-400 hover:text-red-600'}`}
+                                className={`font-black transition-colors w-6 h-6 flex items-center justify-center rounded-lg ${item.quantity > 1 ? 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50' : 'text-red-400 hover:text-red-600 hover:bg-red-50'}`}
+                                title={item.quantity > 1 ? "Diminuir" : "Remover"}
                               >
                                 {item.quantity > 1 ? '-' : '×'}
                               </button>
                               <span className="text-[11px] font-black w-4 text-center">{item.quantity}</span>
                               <button 
                                 onClick={() => onUpdateQuantity(item.id, 1)} 
-                                className="text-slate-400 hover:text-emerald-600 font-black transition-colors w-5 h-5 flex items-center justify-center"
+                                className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 font-black transition-colors w-6 h-6 flex items-center justify-center rounded-lg"
                               >
                                 +
                               </button>
