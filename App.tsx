@@ -40,7 +40,7 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isInitialLoading, setIsInitialLoading] = useState(true); // Controle de carregamento inicial
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
@@ -60,19 +60,10 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
-  // Fecha o loader inicial após 2 segundos
   useEffect(() => {
     const timer = setTimeout(() => setIsInitialLoading(false), 2000);
     return () => clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    const safeLogo = logoUrl || DEFAULT_LOGO;
-    const link = document.getElementById('favicon') as HTMLLinkElement;
-    if (link) { link.href = safeLogo; }
-    const appleLink = document.getElementById('apple-icon') as HTMLLinkElement;
-    if (appleLink) { appleLink.href = safeLogo; }
-  }, [logoUrl]);
 
   useEffect(() => {
     const initApp = async () => {
@@ -92,8 +83,14 @@ const App: React.FC = () => {
     const unsubs = [
       dbService.subscribe<Product[]>('products', setProducts),
       dbService.subscribe<Order[]>('orders', setOrders),
-      dbService.subscribe<CategoryItem[]>('categories', setCategories),
-      dbService.subscribe<SubCategoryItem[]>('sub_categories', setSubCategories),
+      dbService.subscribe<CategoryItem[]>('categories', (data) => {
+        const sorted = [...data].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+        setCategories(sorted);
+      }),
+      dbService.subscribe<SubCategoryItem[]>('sub_categories', (data) => {
+        const sorted = [...data].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+        setSubCategories(sorted);
+      }),
       dbService.subscribe<Complement[]>('complements', setComplements),
       dbService.subscribe<ZipRange[]>('zip_ranges', setZipRanges),
       dbService.subscribe<PaymentSettings[]>('payment_methods', setPaymentMethods),
@@ -273,7 +270,7 @@ const App: React.FC = () => {
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
       <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} orderId={lastOrder?.id || ''} onSendWhatsApp={() => {}} />
-      {!isAdmin && <ChatBot products={products} cart={cart} deliveryFee={currentDeliveryFee} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
+      {!isAdmin && <ChatBot products={products} cart={cart} deliveryFee={currentDeliveryFee} isStoreOpen={isStoreOpen} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
     </div>
   );
 };

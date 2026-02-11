@@ -23,7 +23,7 @@ const getApiKey = () => {
     } catch (e) {}
   }
 
-  // Fallback de segurança (sua chave)
+  // Fallback de segurança
   if (!key) key = "AIzaSyBpWUIlqFnUV6lWNUdLSUACYm21SuNKNYs";
 
   if (key) key = key.trim().replace(/^["']|["']$/g, "");
@@ -32,79 +32,71 @@ const getApiKey = () => {
 
 const getAIClient = () => {
   const apiKey = getApiKey();
-  if (!apiKey) {
-    console.error("GeminiService: API Key não encontrada!");
-    return null;
-  }
+  if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
 };
 
-// 1. Tool para Adicionar ao Carrinho
+// Tool para Adicionar ao Carrinho
 const addToCartTool: FunctionDeclaration = {
   name: "addToCart",
-  description: "Adiciona itens ao carrinho. Use quando o cliente disser 'quero X', 'me vê Y', 'adiciona Z'.",
+  description: "Adiciona itens ao carrinho. Use quando o cliente disser que quer algo do cardápio.",
   parameters: {
     type: Type.OBJECT,
     properties: {
-      productName: { type: Type.STRING, description: "Nome do produto ou termo de busca." },
-      quantity: { type: Type.NUMBER, description: "Quantidade. Padrão 1." },
-      observation: { type: Type.STRING, description: "Obs: sem cebola, ponto da carne, etc." }
+      productName: { type: Type.STRING, description: "Nome exato do produto conforme o cardápio." },
+      quantity: { type: Type.NUMBER, description: "Quantidade (padrão 1)." },
+      observation: { type: Type.STRING, description: "Observações (ex: sem cebola)." }
     },
     required: ["productName"]
   }
 };
 
-// 2. Tool para Finalizar Pedido (WhatsApp)
+// Tool para Finalizar Pedido
 const finalizeOrderTool: FunctionDeclaration = {
   name: "finalizeOrder",
-  description: "Finaliza o pedido e envia para o WhatsApp. Use quando o cliente disser 'fechar conta', 'enviar pedido', 'acabei', 'quanto deu'. OBRIGATÓRIO ter endereço e forma de pagamento antes de chamar.",
+  description: "Finaliza o pedido. Use apenas quando tiver nome, endereço (se entrega) e forma de pagamento.",
   parameters: {
     type: Type.OBJECT,
     properties: {
       customerName: { type: Type.STRING, description: "Nome do cliente." },
-      address: { type: Type.STRING, description: "Endereço completo de entrega (Rua, Número, Bairro)." },
-      paymentMethod: { type: Type.STRING, description: "Forma de pagamento (Pix, Dinheiro, Cartão)." },
-      isDelivery: { type: Type.BOOLEAN, description: "True se for entrega, False se for retirada." }
+      address: { type: Type.STRING, description: "Endereço completo (Rua, Nº, Bairro)." },
+      paymentMethod: { type: Type.STRING, description: "Forma de pagamento escolhida." },
+      isDelivery: { type: Type.BOOLEAN, description: "Verdadeiro para entrega, falso para retirada." }
     },
-    required: ["customerName", "paymentMethod"]
+    required: ["customerName", "paymentMethod", "isDelivery"]
   }
 };
 
-export const chatWithAssistant = async (message: string, history: any[], allProducts: Product[]) => {
+export const chatWithAssistant = async (
+  message: string, 
+  history: any[], 
+  allProducts: Product[], 
+  isStoreOpen: boolean,
+  currentDeliveryFee: number
+) => {
   const ai = getAIClient();
-  
-  if (!ai) {
-    return { 
-      text: "⚠️ Erro de API Key. Verifique as configurações.", 
-      functionCalls: null 
-    };
-  }
+  if (!ai) return { text: "⚠️ Erro de conexão com a IA.", functionCalls: null };
 
   try {
-    const productsList = allProducts.map(p => `- ${p.name} (R$ ${p.price.toFixed(2)})`).join("\n");
+    const productsList = allProducts.map(p => `- ${p.name}: R$ ${p.price.toFixed(2)} (${p.description})`).join("\n");
     
     const systemInstruction = `
-      Você é o assistente virtual da 'Nilo Lanches'.
+      Você é o 'Nilo', assistente virtual da Nilo Lanches. 
       
-      SEU PROCESSO DE ATENDIMENTO:
-      1. Receba pedidos e use a tool 'addToCart' para colocar no carrinho.
-      2. Se o cliente pedir para fechar a conta ou perguntar o total, VOCÊ DEVE PERGUNTAR OS DADOS PRIMEIRO.
+      HORÁRIO DE FUNCIONAMENTO: 18:30 às 23:50 todos os dias.
+      STATUS ATUAL DA LOJA: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
+      TAXA DE ENTREGA PARA ESTE CLIENTE: R$ ${currentDeliveryFee.toFixed(2)}.
       
-      PARA FINALIZAR O PEDIDO (REGRA DE OURO):
-      NUNCA chame 'finalizeOrder' sem antes saber:
-      - O nome do cliente.
-      - Se é Entrega ou Retirada.
-      - O endereço (se for entrega).
-      - A forma de pagamento (Pix, Cartão, Dinheiro).
-
-      Se faltar algo, PERGUNTE de forma educada: "Para finalizar, por favor, informe seu nome, endereço completo e a forma de pagamento."
-
-      Só depois de ter esses dados, chame a tool 'finalizeOrder'.
-      
-      Personalidade: Profissional, educado, eficiente e prestativo.
-      Tom de voz: Use um tom cordial e acolhedor, mas mantenha o respeito. Evite gírias excessivas ou intimidade forçada (não use 'chefia', 'patrão', etc). Use emojis moderadamente para manter a simpatia.
-      Cardápio:
+      REGRAS DE OURO:
+      1. Se a loja estiver FECHADA: Você DEVE aceitar o pedido normalmente, mas AVISE que a produção e entrega só começarão às 18:30. Use frases como: "Vou agendar seu pedido aqui, assim que abrirmos às 18:30 ele será o primeiro a ser preparado!".
+      2. Cardápio Oficial: Utilize APENAS os itens da lista abaixo. Se o cliente pedir algo fora disso, informe que não temos hoje.
       ${productsList}
+      3. Cálculos de Valor:
+         - Sempre some o valor unitário dos lanches pela quantidade.
+         - Se for entrega, some explicitamente a taxa de R$ ${currentDeliveryFee.toFixed(2)}.
+         - Informe o total parcial a cada item adicionado.
+      4. Finalização: Ao usar 'finalizeOrder', o sistema gerará um link de WhatsApp. Informe ao cliente que o pedido será confirmado por lá.
+      5. Seja muito prestativo, use gírias leves de lanchonete e emojis! 🍔🔥🥤
     `;
 
     const validHistory = history.map(h => ({
@@ -118,32 +110,28 @@ export const chatWithAssistant = async (message: string, history: any[], allProd
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartTool, finalizeOrderTool] }],
-        temperature: 0.5,
+        temperature: 0.7,
       }
     });
 
-    const modelText = response.text || "";
-    const functionCalls = response.functionCalls;
-
     return {
-      text: modelText,
-      functionCalls: functionCalls && functionCalls.length > 0 ? functionCalls : null
+      text: response.text || "",
+      functionCalls: response.functionCalls && response.functionCalls.length > 0 ? response.functionCalls : null
     };
 
   } catch (error) {
-    console.error("Erro Chat:", error);
-    return { text: "Desculpe, tive um problema técnico momentâneo. Poderia repetir?", functionCalls: null };
+    console.error("Erro Chat IA:", error);
+    return { text: "Tive um pequeno soluço técnico. Pode repetir o que deseja?", functionCalls: null };
   }
 };
 
 export const generateProductImage = async (productName: string) => {
-  // Mantido igual (código de imagem omitido para brevidade, já que não mudou)
   const ai = getAIClient();
   if (!ai) return null;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: `Delicious food photography of ${productName}, white background.` }] },
+      contents: { parts: [{ text: `High quality food photo of ${productName}, studio lighting, appetizing.` }] },
       config: { imageConfig: { aspectRatio: "1:1" } }
     });
     const parts = response.candidates?.[0]?.content?.parts || [];
