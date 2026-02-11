@@ -184,8 +184,10 @@ const App: React.FC = () => {
       <InstallBanner logoUrl={logoUrl} />
       
       {!isStoreOpen && !isAdmin && (
-        <div className="w-full bg-red-600 text-white py-2 text-center text-[10px] font-black uppercase tracking-widest z-[60] relative">
-          Loja Fechada - Atendimento das 18:30 às 23:50
+        <div className="w-full bg-red-600 text-white py-2.5 text-center text-[10px] font-black uppercase tracking-[0.2em] z-[60] relative animate-pulse flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(220,38,38,0.3)]">
+          <span className="text-sm">⚠️</span>
+          LOJA FECHADA - ATENDIMENTO DAS 18:30 ÀS 23:50
+          <span className="text-sm">⚠️</span>
         </div>
       )}
 
