@@ -42,7 +42,6 @@ const App: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   
-  // PERSISTÊNCIA DO CARRINHO - LEITURA SEGURA
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const savedCart = localStorage.getItem('nl_cart_v1');
@@ -72,18 +71,15 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
-  // ATUALIZA O ÍCONE DO NAVEGADOR
   useEffect(() => {
     if (logoUrl) {
       const favicon = document.getElementById('app-favicon') as HTMLLinkElement;
       const appleIcon = document.getElementById('app-apple-touch-icon') as HTMLLinkElement;
-      
       if (favicon) favicon.href = logoUrl;
       if (appleIcon) appleIcon.href = logoUrl;
     }
   }, [logoUrl]);
 
-  // PERSISTÊNCIA DO CARRINHO - SALVAMENTO SEGURO
   useEffect(() => {
     if (Array.isArray(cart)) {
       try {
@@ -199,10 +195,9 @@ const App: React.FC = () => {
   };
 
   const handleReorder = (order: Order) => {
-    // Adiciona os itens do pedido anterior ao carrinho atual
     const itemsToAdd = order.items.map(item => ({...item}));
     setCart(prev => [...prev, ...itemsToAdd]);
-    setToast({ show: true, msg: 'Itens adicionados ao carrinho!', type: 'success' });
+    setToast({ show: true, msg: 'Itens do pedido anterior adicionados!', type: 'success' });
     setActiveView('home');
     setIsCartOpen(true);
   };

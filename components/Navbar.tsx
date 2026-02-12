@@ -33,7 +33,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isLive, setIsLive] = useState(true);
 
-  // Simula detecção de conexão para o cliente
   useEffect(() => {
     const handleOnline = () => setIsLive(true);
     const handleOffline = () => setIsLive(false);
@@ -50,7 +49,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between items-center h-20 sm:h-28 gap-3">
           
-          {/* Logo Section */}
           <div className="flex items-center gap-3 flex-shrink-0 cursor-pointer group" onClick={() => !isAdmin && window.scrollTo({top: 0, behavior: 'smooth'})}>
             <div className="relative">
               <div className="w-12 h-12 sm:w-20 sm:h-20 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden border-2 border-white transition-transform group-hover:scale-105">
@@ -60,7 +58,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="text-white text-xl sm:text-3xl">🍔</span>
                 )}
               </div>
-              {/* Indicador de Conexão Real-time */}
               <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${isLive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-red-50 animate-pulse'}`}></div>
             </div>
             
@@ -77,7 +74,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Search Box */}
           {!isAdmin && (
             <div className="flex-1 max-w-md mx-2">
               <div className="relative group">
@@ -93,10 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
-            
-            {/* Display User Name & Status */}
             {!isAdmin && currentUser && (
               <div className="flex flex-col items-end mr-1">
                 <div className="flex items-center gap-1">
@@ -109,7 +102,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {/* Botão de Administração (Escudo) - Apenas Desktop */}
             {!isAdmin && (
               <button 
                 onClick={onToggleAdmin}
@@ -122,7 +114,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Meus Pedidos (Destaque Azul e Ícone de Cartinha) */}
             {!isAdmin && currentUser && (
               <button 
                 onClick={onMyOrdersClick} 
@@ -135,12 +126,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Logout (Highlight Vermelho) ou Entrar */}
             {!isAdmin && (
               currentUser ? (
                 <button 
                   onClick={onLogout} 
-                  className="p-3 text-red-500 hover:bg-red-100 bg-red-50 border border-red-100 rounded-2xl transition-colors shadow-sm"
+                  className="p-3 text-white hover:bg-red-700 bg-red-600 border border-red-500 rounded-2xl transition-colors shadow-lg"
                   title="Sair da Conta"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -154,7 +144,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               )
             )}
             
-            {/* Carrinho */}
             {!isAdmin && (
               <button onClick={onCartClick} className="relative p-3 text-white bg-emerald-600 rounded-2xl shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

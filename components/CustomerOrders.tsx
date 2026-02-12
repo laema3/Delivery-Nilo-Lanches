@@ -22,7 +22,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in">
+    <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in text-left">
       <div className="flex items-center gap-4 mb-10">
         <button onClick={onBack} className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -31,7 +31,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
         </button>
         <div>
           <h2 className="text-3xl font-black text-emerald-600 tracking-tight uppercase">Meus Pedidos</h2>
-          <p className="text-slate-500 font-bold text-sm">Acompanhe suas delícias em tempo real</p>
+          <p className="text-slate-500 font-bold text-sm">Histórico de suas delícias</p>
         </div>
       </div>
 
@@ -49,7 +49,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
                 <div className="space-y-4 flex-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
+                      <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id.substring(0,6)}</span>
                       <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-wider ${getStatusStyle(order.status)}`}>
                         {order.status}
                       </span>
@@ -70,12 +70,12 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
 
                   <div className="pt-4 border-t border-slate-50 flex justify-between items-center">
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Pago</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total do Pedido</p>
                       <p className="text-xl font-black text-slate-900">R$ {order.total.toFixed(2)}</p>
                     </div>
                     <button 
                       onClick={() => onReorder(order)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-100"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-100"
                     >
                       <span>🔄</span> Repetir Pedido
                     </button>
@@ -84,7 +84,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
 
                 <div className="md:w-64 space-y-4">
                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-tighter">Endereço de Entrega</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-tighter">Endereço</p>
                     <p className="text-xs font-bold text-slate-600 leading-tight">{order.customerAddress}</p>
                   </div>
                   <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
