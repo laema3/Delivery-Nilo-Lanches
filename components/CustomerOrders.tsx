@@ -1,12 +1,14 @@
+
 import React from 'react';
 import { Order, OrderStatus } from '../types.ts';
 
 interface CustomerOrdersProps {
   orders: Order[];
   onBack: () => void;
+  onReorder: (order: Order) => void;
 }
 
-export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack }) => {
+export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, onReorder }) => {
   const getStatusStyle = (status: OrderStatus) => {
     switch (status) {
       case 'NOVO': return 'bg-blue-100 text-blue-600';
@@ -41,21 +43,24 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack }
         </div>
       ) : (
         <div className="space-y-6">
-          {orders.map(order => (
+          {orders.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(order => (
             <div key={order.id} className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col md:flex-row justify-between gap-6">
                 <div className="space-y-4 flex-1">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
-                    <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-wider ${getStatusStyle(order.status)}`}>
-                      {order.status}
-                    </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black bg-slate-900 text-white px-3 py-1 rounded-lg">#{order.id}</span>
+                      <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-wider ${getStatusStyle(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400">{new Date(order.createdAt).toLocaleDateString()}</span>
                   </div>
                   
                   <div className="space-y-2">
                     {order.items.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between">
-                        <p className="text-sm font-bold text-emerald-600">
+                        <p className="text-sm font-bold text-slate-700">
                           <span className="text-emerald-600 font-black">{item.quantity}x</span> {item.name}
                         </p>
                         <p className="text-xs font-bold text-slate-400">R$ {(item.price * item.quantity).toFixed(2)}</p>
@@ -64,8 +69,16 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack }
                   </div>
 
                   <div className="pt-4 border-t border-slate-50 flex justify-between items-center">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Pago</p>
-                    <p className="text-xl font-black text-slate-900">R$ {order.total.toFixed(2)}</p>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Pago</p>
+                      <p className="text-xl font-black text-slate-900">R$ {order.total.toFixed(2)}</p>
+                    </div>
+                    <button 
+                      onClick={() => onReorder(order)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-100"
+                    >
+                      <span>🔄</span> Repetir Pedido
+                    </button>
                   </div>
                 </div>
 

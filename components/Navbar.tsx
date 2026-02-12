@@ -122,11 +122,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Meus Pedidos (Highlight Azul) */}
+            {/* Meus Pedidos (Destaque Azul solicitado) */}
             {!isAdmin && currentUser && (
               <button 
                 onClick={onMyOrdersClick} 
-                className="p-3 text-blue-600 hover:bg-blue-100 transition-all bg-blue-50 rounded-2xl border border-blue-100 shadow-sm" 
+                className="p-3 text-white hover:bg-blue-700 transition-all bg-blue-600 rounded-2xl shadow-lg border border-blue-500" 
                 title="Meus Pedidos"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

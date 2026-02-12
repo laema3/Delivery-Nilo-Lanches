@@ -83,21 +83,17 @@ const App: React.FC = () => {
     }
   }, [logoUrl]);
 
-  // PERSISTÊNCIA DO CARRINHO - SALVAMENTO SEGURO COM TRATAMENTO DE ERRO (QUOTA EXCEEDED)
+  // PERSISTÊNCIA DO CARRINHO - SALVAMENTO SEGURO
   useEffect(() => {
     if (Array.isArray(cart)) {
       try {
         localStorage.setItem('nl_cart_v1', JSON.stringify(cart));
       } catch (error: any) {
-        // Se o localStorage estiver cheio (comum com imagens base64), tentamos salvar uma versão leve sem imagens
         if (error.name === 'QuotaExceededError' || error.code === 22) {
-          console.warn("LocalStorage cheio! Salvando versão simplificada do carrinho...");
           try {
             const lightCart = cart.map(item => ({ ...item, image: '' }));
             localStorage.setItem('nl_cart_v1', JSON.stringify(lightCart));
-          } catch (e2) {
-            console.error("Falha crítica ao salvar carrinho.", e2);
-          }
+          } catch (e2) {}
         }
       }
     }
@@ -184,11 +180,7 @@ const App: React.FC = () => {
   const handleAddToCart = (product: Product, quantity: number, comps?: Complement[]) => {
     const compsPrice = comps?.reduce((acc, c) => acc + (c.price || 0), 0) || 0;
     const finalPrice = product.price + compsPrice;
-    
-    // Otimização: Se a imagem for muito grande, poderíamos não salvá-la no estado do carrinho se ele for persistido.
-    // Mas aqui mantemos a lógica original e confiamos no try/catch do useEffect.
     setCart(prev => [...prev, { ...product, price: finalPrice, quantity, selectedComplements: comps }]);
-    
     setToast({ show: true, msg: `${quantity}x ${product.name} no carrinho!`, type: 'success' });
     setIsCartOpen(true);
     setSelectedProduct(null);
@@ -206,15 +198,22 @@ const App: React.FC = () => {
     });
   };
 
+  const handleReorder = (order: Order) => {
+    // Adiciona os itens do pedido anterior ao carrinho atual
+    const itemsToAdd = order.items.map(item => ({...item}));
+    setCart(prev => [...prev, ...itemsToAdd]);
+    setToast({ show: true, msg: 'Itens adicionados ao carrinho!', type: 'success' });
+    setActiveView('home');
+    setIsCartOpen(true);
+  };
+
   const handleCheckout = async (paymentMethod: string, fee: number, discount: number, couponCode: string, deliveryType: DeliveryType, changeFor?: number) => {
     if (!currentUser) return setIsAuthModalOpen(true);
-    
     setIsOrderProcessing(true);
     try {
         const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
         const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const total = subtotal + fee - discount;
-        
         const newOrder: Order = {
           id: orderId, 
           customerId: currentUser.email, 
@@ -233,9 +232,7 @@ const App: React.FC = () => {
           discountValue: discount || 0,
           couponCode: couponCode || ''
         };
-
         await dbService.save('orders', orderId, newOrder);
-        
         if (currentUser) {
           const updatedUser = { 
              ...currentUser, 
@@ -246,13 +243,10 @@ const App: React.FC = () => {
           setCurrentUser(updatedUser);
           await dbService.save('customers', currentUser.email, updatedUser);
         }
-
         setLastOrder(newOrder);
         setIsSuccessModalOpen(true);
-        setCart([]); // Isso também limpará o localStorage via useEffect
-        
+        setCart([]);
     } catch (e) { 
-      console.error(e);
       setToast({ show: true, msg: 'Erro ao processar. Tente novamente.', type: 'error' }); 
     } finally {
       setIsOrderProcessing(false);
@@ -324,11 +318,15 @@ const App: React.FC = () => {
             onUpdateCustomer={async (id, u) => { const c = customers.find(x => x.id === id); if(c) await dbService.save('customers', id, {...c, ...u}); }}
           />
         ) : activeView === 'my-orders' ? (
-          <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} />
+          <CustomerOrders 
+            orders={orders.filter(o => o.customerId === currentUser?.email)} 
+            onBack={() => setActiveView('home')} 
+            onReorder={handleReorder}
+          />
         ) : (
           <div className="flex flex-col w-full items-center">
             <section className="relative w-full min-h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden">
-               <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+               <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Banner"/>
                <div className="relative z-10 text-center px-4">
                   <h1 className="font-brand text-6xl sm:text-[100px] text-white uppercase leading-none">
                     <span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span>
