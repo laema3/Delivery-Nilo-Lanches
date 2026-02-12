@@ -37,7 +37,10 @@ const App: React.FC = () => {
   
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [logoUrl, setLogoUrl] = useState(DEFAULT_LOGO);
-  const [isAdmin, setIsAdmin] = useState(false);
+  
+  // CORREÇÃO: Inicializa isAdmin verificando o sessionStorage para persistir após F5
+  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
+  
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
