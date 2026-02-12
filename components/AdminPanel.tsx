@@ -236,22 +236,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const executeRealPrint = () => {
     if (!selectedOrder) return;
-    try {
-      let printRoot = document.getElementById('printable-coupon-root');
-      if (!printRoot) {
-        printRoot = document.createElement('div');
-        printRoot.id = 'printable-coupon-root';
-        document.body.appendChild(printRoot);
-      }
-      const itemsHtml = selectedOrder.items.map(item => `
-        <div class="item-row">
-          <span>${item.quantity}x ${item.name}</span>
-          <span>R$ ${(item.price * item.quantity).toFixed(2)}</span>
-        </div>
-        ${(item.selectedComplements || []).map(c => `<div style="font-size:10px; padding-left:10px; color:#555;">+ ${c.name}</div>`).join('')}
-      `).join('');
 
-      printRoot.innerHTML = `
+    // Constrói o HTML do item
+    const itemsHtml = selectedOrder.items.map(item => `
+      <div class="item-row">
+        <span>${item.quantity}x ${item.name}</span>
+        <span>R$ ${(item.price * item.quantity).toFixed(2)}</span>
+      </div>
+      ${(item.selectedComplements || []).map(c => `<div style="font-size:10px; padding-left:10px; color:#555;">+ ${c.name}</div>`).join('')}
+    `).join('');
+
+    // Conteúdo Completo
+    const printContent = `
+      <html>
+      <head>
+        <title>Cupom #${selectedOrder.id.substring(0, 5)}</title>
+        <style>
+          body { margin: 0; padding: 10px; font-family: 'Courier New', Courier, monospace; background: #fff; color: #000; width: 300px; }
+          .coupon-content { width: 100%; font-size: 12px; line-height: 1.2; }
+          .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+          .header h1 { font-size: 16px; font-weight: bold; margin: 0; }
+          .header h2 { font-size: 14px; margin: 5px 0; }
+          .info { border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+          .items { border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+          .item-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+          .totals { font-size: 12px; }
+          .totals p { margin: 2px 0; display: flex; justify-content: space-between; }
+          .total-final { font-size: 16px; font-weight: bold; margin-top: 10px; border-top: 1px solid #000; padding-top: 5px; display: flex; justify-content: space-between; }
+          .footer { text-align: center; font-size: 10px; margin-top: 20px; }
+          @media print { 
+            @page { margin: 0; } 
+            body { margin: 0; padding: 5px; } 
+          }
+        </style>
+      </head>
+      <body>
         <div class="coupon-content">
           <div class="header">
             <h1>NILO LANCHES</h1>
@@ -267,8 +286,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           </div>
           <div class="items">${itemsHtml}</div>
           <div class="totals">
-            <p>Subtotal: R$ ${(selectedOrder.total - selectedOrder.deliveryFee + (selectedOrder.discountValue || 0)).toFixed(2)}</p>
-            <p>Taxa: R$ ${selectedOrder.deliveryFee.toFixed(2)}</p>
+            <p><span>Subtotal:</span> <span>R$ ${(selectedOrder.total - selectedOrder.deliveryFee + (selectedOrder.discountValue || 0)).toFixed(2)}</span></p>
+            <p><span>Taxa:</span> <span>R$ ${selectedOrder.deliveryFee.toFixed(2)}</span></p>
             <div class="total-final">
               <span>TOTAL:</span>
               <span>R$ ${selectedOrder.total.toFixed(2)}</span>
@@ -279,10 +298,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             <p>www.nilolanches.com.br</p>
           </div>
         </div>
-      `;
-      setTimeout(() => { window.print(); }, 250);
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    // Tentativa com window.open (Pop-up) para evitar sandbox error do iframe
+    try {
+        const printWindow = window.open('', '_blank', 'width=350,height=600,menubar=no,toolbar=no,location=no,status=no,titlebar=no');
+        
+        if (printWindow) {
+            printWindow.document.open();
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+        } else {
+            alert("Bloqueio de Pop-up detectado. Por favor, permita pop-ups para imprimir o cupom.");
+        }
     } catch (e) {
-      alert("Erro ao imprimir. Verifique se o navegador permite popups.");
+        console.error("Erro ao abrir janela de impressão:", e);
+        alert("Erro ao tentar imprimir. Verifique as permissões do navegador.");
     }
   };
 
