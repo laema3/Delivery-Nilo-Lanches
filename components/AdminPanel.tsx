@@ -72,7 +72,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   } = props;
 
   // #REGION: ESTADOS LOCAIS
-  const [activeView, setActiveView] = useState<AdminView>('pedidos');
+  const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState<OrderStatus | 'TODOS'>('NOVO');
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
@@ -259,6 +259,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     return subCategories.filter(s => s.categoryId === cat.id);
   }, [newProduct.category, categories, subCategories]);
 
+  // Cálculos para Dashboard
+  const dashboardStats = useMemo(() => {
+    const validOrders = orders.filter(o => o.status !== 'CANCELADO' && !deletedIds.includes(o.id));
+    const today = new Date().toDateString();
+    
+    const todayOrders = validOrders.filter(o => new Date(o.createdAt).toDateString() === today);
+    
+    const totalRevenue = validOrders.reduce((acc, o) => acc + o.total, 0);
+    const todayRevenue = todayOrders.reduce((acc, o) => acc + o.total, 0);
+    
+    const statusCounts = orders.reduce((acc, o) => {
+      if (!deletedIds.includes(o.id)) {
+        acc[o.status] = (acc[o.status] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    return { totalRevenue, todayRevenue, totalCount: validOrders.length, todayCount: todayOrders.length, statusCounts };
+  }, [orders, deletedIds]);
+
   const executeRealPrint = () => {
     if (!selectedOrder) return;
     let printArea = document.getElementById('printable-coupon-root');
@@ -342,6 +362,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   }, [orders, activeOrderTab, deletedIds]);
 
   const navItems = [
+    { id: 'dashboard', label: 'Visão Geral', icon: '📊' },
     { id: 'pedidos', label: 'Pedidos', icon: '🔔' },
     { id: 'produtos', label: 'Cardápio', icon: '🍔' },
     { id: 'categorias', label: 'Categorias', icon: '📁' },
@@ -415,6 +436,62 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-32">
           
+          {/* VIEW: DASHBOARD */}
+          {activeView === 'dashboard' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col relative overflow-hidden">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 z-10">Vendas Hoje</span>
+                     <span className="text-3xl font-black text-emerald-600 z-10">R$ {dashboardStats.todayRevenue.toFixed(2)}</span>
+                     <div className="absolute right-[-10px] bottom-[-10px] text-9xl opacity-5 text-emerald-600 z-0">💰</div>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col relative overflow-hidden">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 z-10">Pedidos Hoje</span>
+                     <span className="text-3xl font-black text-slate-800 z-10">{dashboardStats.todayCount}</span>
+                      <div className="absolute right-[-10px] bottom-[-10px] text-9xl opacity-5 text-slate-800 z-0">🧾</div>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col relative overflow-hidden">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 z-10">Faturamento Total</span>
+                     <span className="text-3xl font-black text-blue-600 z-10">R$ {dashboardStats.totalRevenue.toFixed(2)}</span>
+                     <div className="absolute right-[-10px] bottom-[-10px] text-9xl opacity-5 text-blue-600 z-0">📈</div>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col relative overflow-hidden">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 z-10">Total Pedidos</span>
+                     <span className="text-3xl font-black text-purple-600 z-10">{dashboardStats.totalCount}</span>
+                     <div className="absolute right-[-10px] bottom-[-10px] text-9xl opacity-5 text-purple-600 z-0">📦</div>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                     <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-6 border-b border-slate-100 pb-4">Status dos Pedidos</h3>
+                     <div className="space-y-4">
+                        {['NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'].map(status => (
+                           <div key={status} className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-500 uppercase">{status}</span>
+                              <div className="flex items-center gap-3 flex-1 mx-4">
+                                 <div className="h-2 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                                    <div 
+                                      className={`h-full rounded-full ${getStatusColor(status as OrderStatus).split(' ')[0]}`} 
+                                      style={{ width: `${(dashboardStats.statusCounts[status] || 0) / (orders.length || 1) * 100}%` }}
+                                    ></div>
+                                 </div>
+                              </div>
+                              <span className="text-xs font-black text-slate-800">{dashboardStats.statusCounts[status] || 0}</span>
+                           </div>
+                        ))}
+                     </div>
+                  </div>
+
+                  <div className="bg-emerald-600 p-6 rounded-2xl shadow-lg text-white flex flex-col justify-center items-center text-center">
+                     <span className="text-6xl mb-4">🚀</span>
+                     <h3 className="text-2xl font-black uppercase mb-2">Painel de Controle</h3>
+                     <p className="text-emerald-100 text-sm font-medium max-w-xs">Use o menu lateral para gerenciar todo o funcionamento da sua loja em tempo real.</p>
+                  </div>
+               </div>
+            </div>
+          )}
+
           {/* VIEW: PEDIDOS */}
           {activeView === 'pedidos' && (
             <div className="flex flex-col h-full">
@@ -1196,7 +1273,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             </div>
           )}
 
-          {(activeView !== 'pedidos' && activeView !== 'produtos' && activeView !== 'categorias' && activeView !== 'subcategorias' && activeView !== 'adicionais' && activeView !== 'entregas' && activeView !== 'clientes' && activeView !== 'pagamentos' && activeView !== 'ajustes') && (
+          {(activeView !== 'pedidos' && activeView !== 'produtos' && activeView !== 'categorias' && activeView !== 'subcategorias' && activeView !== 'adicionais' && activeView !== 'entregas' && activeView !== 'clientes' && activeView !== 'pagamentos' && activeView !== 'ajustes' && activeView !== 'dashboard') && (
             <div className="p-10 text-center text-slate-400 font-bold uppercase text-xs">
               Selecione outra aba no menu. (Funcionalidades mantidas nos bastidores)
             </div>
