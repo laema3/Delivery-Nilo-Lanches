@@ -57,12 +57,12 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               )}
             </div>
             
-            {/* Botão Continuar Comprando (Substitui o X) */}
+            {/* Botão Voltar às compras (Explícito e sem ícone X) */}
             <button 
               onClick={onClose} 
-              className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100 hover:bg-emerald-100 transition-colors flex items-center gap-1 active:scale-95"
+              className="shrink-0 text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors flex items-center gap-2 active:scale-95 shadow-sm"
             >
-              <span>←</span> Continuar Comprando
+              <span>←</span> Voltar às compras
             </button>
           </div>
 
