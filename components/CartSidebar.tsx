@@ -16,19 +16,22 @@ interface CartSidebarProps {
   deliveryFee: number;
   availableCoupons: any[];
   isStoreOpen?: boolean;
-  isProcessing?: boolean; // Novo prop para indicar carregamento
+  isProcessing?: boolean; 
 }
 
 export const CartSidebar: React.FC<CartSidebarProps> = ({ 
-  isOpen, onClose, items, coupons, onUpdateQuantity, onRemove, onCheckout, onAuthClick, paymentSettings, currentUser, deliveryFee, isStoreOpen = true, isProcessing = false
+  isOpen, onClose, items = [], coupons, onUpdateQuantity, onRemove, onCheckout, onAuthClick, paymentSettings, currentUser, deliveryFee = 0, isStoreOpen = true, isProcessing = false
 }) => {
   const [selectedPayment, setSelectedPayment] = useState('');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('DELIVERY');
   const [changeValue, setChangeValue] = useState<string>('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   
-  const subtotal = useMemo(() => items.reduce((acc, item) => acc + (item.price * item.quantity), 0), [items]);
-  const activeDeliveryFee = deliveryType === 'PICKUP' ? 0 : deliveryFee;
+  // Proteção contra items nulo
+  const safeItems = Array.isArray(items) ? items : [];
+
+  const subtotal = useMemo(() => safeItems.reduce((acc, item) => acc + (item.price * item.quantity), 0), [safeItems]);
+  const activeDeliveryFee = deliveryType === 'PICKUP' ? 0 : (deliveryFee || 0);
 
   const discountAmount = useMemo(() => {
     if (!appliedCoupon) return 0;
@@ -46,7 +49,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
       <div className="absolute inset-y-0 right-0 max-w-full flex">
         <div className="w-screen max-w-lg bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
           
-          {/* Header Aprimorado para UX Mobile */}
+          {/* Header Aprimorado */}
           <div className="p-6 sm:p-8 border-b flex justify-between items-center bg-white shadow-sm z-10 relative">
             <div>
               <h2 className="text-xl font-black text-slate-900 tracking-tighter uppercase">Meu Pedido</h2>
@@ -57,7 +60,6 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               )}
             </div>
             
-            {/* Botão Voltar às compras (Explícito e sem ícone X) */}
             <button 
               onClick={onClose} 
               className="shrink-0 text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors flex items-center gap-2 active:scale-95 shadow-sm"
@@ -67,7 +69,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-8 no-scrollbar bg-slate-50/50">
-            {items.length === 0 ? (
+            {safeItems.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                 <span className="text-6xl animate-bounce">🛍️</span>
                 <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Seu carrinho está vazio</p>
@@ -81,10 +83,10 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                  {items.map((item, idx) => (
+                  {safeItems.map((item, idx) => (
                     <div key={`${item.id}-${idx}`} className="flex gap-4 group bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
                       <div className="w-16 h-16 bg-slate-50 rounded-xl overflow-hidden shrink-0 border border-slate-100">
-                        <img src={item.image} className="w-full h-full object-cover" />
+                        {item.image && <img src={item.image} className="w-full h-full object-cover" />}
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <div className="flex justify-between items-start">
@@ -152,7 +154,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             )}
           </div>
 
-          {items.length > 0 && (
+          {safeItems.length > 0 && (
             <div className="p-6 sm:p-8 bg-white border-t border-slate-100 rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
               <div className="space-y-1 text-slate-500 text-[10px] font-black uppercase tracking-widest px-1 mb-4">
                 <div className="flex justify-between"><span>Subtotal</span><span>R$ {subtotal.toFixed(2)}</span></div>

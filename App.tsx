@@ -42,11 +42,12 @@ const App: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   
-  // PERSISTÊNCIA DO CARRINHO - INICIALIZAÇÃO
+  // PERSISTÊNCIA DO CARRINHO - LEITURA SEGURA
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const savedCart = localStorage.getItem('nl_cart_v1');
-      return savedCart ? JSON.parse(savedCart) : [];
+      const parsed = savedCart ? JSON.parse(savedCart) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -71,7 +72,7 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
-  // ATUALIZA O ÍCONE DO NAVEGADOR (FAVICON) E ÍCONE PWA COM A LOGO UPLOADADA
+  // ATUALIZA O ÍCONE DO NAVEGADOR
   useEffect(() => {
     if (logoUrl) {
       const favicon = document.getElementById('app-favicon') as HTMLLinkElement;
@@ -82,9 +83,24 @@ const App: React.FC = () => {
     }
   }, [logoUrl]);
 
-  // PERSISTÊNCIA DO CARRINHO - SALVAMENTO AUTOMÁTICO
+  // PERSISTÊNCIA DO CARRINHO - SALVAMENTO SEGURO COM TRATAMENTO DE ERRO (QUOTA EXCEEDED)
   useEffect(() => {
-    localStorage.setItem('nl_cart_v1', JSON.stringify(cart));
+    if (Array.isArray(cart)) {
+      try {
+        localStorage.setItem('nl_cart_v1', JSON.stringify(cart));
+      } catch (error: any) {
+        // Se o localStorage estiver cheio (comum com imagens base64), tentamos salvar uma versão leve sem imagens
+        if (error.name === 'QuotaExceededError' || error.code === 22) {
+          console.warn("LocalStorage cheio! Salvando versão simplificada do carrinho...");
+          try {
+            const lightCart = cart.map(item => ({ ...item, image: '' }));
+            localStorage.setItem('nl_cart_v1', JSON.stringify(lightCart));
+          } catch (e2) {
+            console.error("Falha crítica ao salvar carrinho.", e2);
+          }
+        }
+      }
+    }
   }, [cart]);
 
   useEffect(() => {
@@ -168,7 +184,11 @@ const App: React.FC = () => {
   const handleAddToCart = (product: Product, quantity: number, comps?: Complement[]) => {
     const compsPrice = comps?.reduce((acc, c) => acc + (c.price || 0), 0) || 0;
     const finalPrice = product.price + compsPrice;
+    
+    // Otimização: Se a imagem for muito grande, poderíamos não salvá-la no estado do carrinho se ele for persistido.
+    // Mas aqui mantemos a lógica original e confiamos no try/catch do useEffect.
     setCart(prev => [...prev, { ...product, price: finalPrice, quantity, selectedComplements: comps }]);
+    
     setToast({ show: true, msg: `${quantity}x ${product.name} no carrinho!`, type: 'success' });
     setIsCartOpen(true);
     setSelectedProduct(null);
@@ -195,7 +215,6 @@ const App: React.FC = () => {
         const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const total = subtotal + fee - discount;
         
-        // Sanitização de dados para o Firebase (evita undefined)
         const newOrder: Order = {
           id: orderId, 
           customerId: currentUser.email, 
@@ -210,15 +229,13 @@ const App: React.FC = () => {
           paymentMethod, 
           createdAt: new Date().toISOString(), 
           pointsEarned: Math.floor(total),
-          changeFor: changeFor || 0, // Garante que não vá undefined
+          changeFor: changeFor || 0,
           discountValue: discount || 0,
           couponCode: couponCode || ''
         };
 
-        // Salva pedido (Local + Cloud se disponível)
         await dbService.save('orders', orderId, newOrder);
         
-        // Atualiza usuário com último pedido
         if (currentUser) {
           const updatedUser = { 
              ...currentUser, 
@@ -257,7 +274,7 @@ const App: React.FC = () => {
       )}
 
       <Navbar 
-        cartCount={cart.reduce((acc, i) => acc + i.quantity, 0)} 
+        cartCount={Array.isArray(cart) ? cart.reduce((acc, i) => acc + i.quantity, 0) : 0} 
         onCartClick={() => setIsCartOpen(true)} 
         isAdmin={isAdmin} 
         onToggleAdmin={() => isAdmin ? setIsAdmin(false) : (isAdminAuthenticated ? setIsAdmin(true) : setIsAdminLoginOpen(true))} 
@@ -350,7 +367,7 @@ const App: React.FC = () => {
       <CartSidebar 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 
-        items={cart} 
+        items={cart || []} 
         coupons={coupons} 
         onUpdateQuantity={handleUpdateQuantity} 
         onRemove={(id) => setCart(prev => prev.filter(i => i.id !== id))} 
@@ -358,7 +375,7 @@ const App: React.FC = () => {
         onAuthClick={() => setIsAuthModalOpen(true)} 
         paymentSettings={paymentMethods} 
         currentUser={currentUser} 
-        deliveryFee={currentDeliveryFee} 
+        deliveryFee={currentDeliveryFee || 0} 
         availableCoupons={[]} 
         isStoreOpen={isStoreOpen} 
         isProcessing={isOrderProcessing}
@@ -367,7 +384,7 @@ const App: React.FC = () => {
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
       <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} orderId={lastOrder?.id || ''} onSendWhatsApp={() => {}} />
-      {!isAdmin && <ChatBot products={products} cart={cart} deliveryFee={currentDeliveryFee} isStoreOpen={isStoreOpen} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
+      {!isAdmin && <ChatBot products={products} cart={Array.isArray(cart) ? cart : []} deliveryFee={currentDeliveryFee} isStoreOpen={isStoreOpen} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
     </div>
   );
 };
