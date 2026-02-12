@@ -94,13 +94,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Actions */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             
-            {/* Display User Name (Novo) */}
+            {/* Display User Name & Status */}
             {!isAdmin && currentUser && (
-              <div className="hidden md:flex flex-col items-end mr-1">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Olá,</span>
-                <span className="text-xs font-black text-emerald-600 uppercase tracking-tight leading-none truncate max-w-[100px]">
+              <div className="flex flex-col items-end mr-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Olá,</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></div>
+                </div>
+                <span className="text-xs font-black text-emerald-600 uppercase tracking-tight leading-none truncate max-w-[80px] sm:max-w-[120px]">
                   {currentUser.name.split(' ')[0]}
                 </span>
               </div>
@@ -119,17 +122,27 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
+            {/* Meus Pedidos (Highlight Azul) */}
             {!isAdmin && currentUser && (
-              <button onClick={onMyOrdersClick} className="p-3 text-slate-500 hover:text-emerald-600 transition-all bg-slate-50 rounded-2xl" title="Meus Pedidos">
+              <button 
+                onClick={onMyOrdersClick} 
+                className="p-3 text-blue-600 hover:bg-blue-100 transition-all bg-blue-50 rounded-2xl border border-blue-100 shadow-sm" 
+                title="Meus Pedidos"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </button>
             )}
 
+            {/* Logout (Highlight Vermelho) ou Entrar */}
             {!isAdmin && (
               currentUser ? (
-                <button onClick={onLogout} className="p-3 text-slate-400 hover:text-red-500 bg-slate-50 rounded-2xl transition-colors">
+                <button 
+                  onClick={onLogout} 
+                  className="p-3 text-red-500 hover:bg-red-100 bg-red-50 border border-red-100 rounded-2xl transition-colors shadow-sm"
+                  title="Sair da Conta"
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7" />
                   </svg>
@@ -141,10 +154,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               )
             )}
             
+            {/* Carrinho */}
             {!isAdmin && (
               <button onClick={onCartClick} className="relative p-3 text-white bg-emerald-600 rounded-2xl shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19,7h-3c0-2.21-1.79-4-4-4S8,4.79,8,7H5C3.89,7,3,7.89,3,9v10c0,1.11,0.89,2,2,2h14c1.11,0,2-0.89,2-2V9 C21,7.89,20.11,7,19,7z M12,5c1.1,0,2,0.9,2,2h-4C10,5.9,10.9,5,12,5z M19,19H5V9h14V19z" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
                 {cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full ring-2 ring-white">
