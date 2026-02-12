@@ -317,7 +317,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         </div>
       </div>
     `;
-    setTimeout(() => { window.print(); }, 300);
+    setTimeout(() => { 
+        try {
+            window.print();
+        } catch (e) {
+            console.warn("Impressão bloqueada pelo navegador/sandbox:", e);
+            alert("A impressão foi bloqueada pelo navegador. Tente abrir em uma nova janela.");
+        }
+    }, 300);
   };
 
   const executeDelete = () => {
