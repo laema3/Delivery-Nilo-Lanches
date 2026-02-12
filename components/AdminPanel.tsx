@@ -1,11 +1,7 @@
 
 /* 
-   🛡️ PAINEL ADMINISTRATIVO BLINDADO - VERSÃO ESTÁVEL 1.0 🛡️
-   ----------------------------------------------------------
-   ATENÇÃO: Este arquivo contém a lógica central do sistema.
-   Novas funcionalidades devem ser adicionadas COM CUIDADO, 
-   respeitando as REGIÕES demarcadas abaixo.
-   NÃO ALTERAR FUNCIONALIDADES EXISTENTES SEM TESTES.
+   🛡️ PAINEL ADMINISTRATIVO - VERSÃO ESTÁVEL 🛡️
+   Foco: Menu Lateral de Pedidos e Controle de Status/Som
 */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -13,9 +9,8 @@ import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, Orde
 import { generateProductImage } from '../services/geminiService.ts';
 import { compressImage } from '../services/imageService.ts';
 
-// Som de notificação
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v1.0 (Stable)";
+const APP_VERSION = "v2.2 (Status Control)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -71,29 +66,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     paymentSettings, onTogglePaymentMethod, onAddPaymentMethod, onRemovePaymentMethod, onUpdatePaymentSettings
   } = props;
 
-  // #REGION: ESTADOS LOCAIS
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState<OrderStatus | 'TODOS'>('NOVO');
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
 
-  // MODAIS INTERNOS
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
   const [showProductDeleteConfirm, setShowProductDeleteConfirm] = useState(false);
   const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
-  const [showCategoryDeleteConfirm, setShowCategoryDeleteConfirm] = useState(false);
-  const [categoryToDeleteId, setCategoryToDeleteId] = useState<string | null>(null);
-  const [showSubCategoryDeleteConfirm, setShowSubCategoryDeleteConfirm] = useState(false);
-  const [subCategoryToDeleteId, setSubCategoryToDeleteId] = useState<string | null>(null);
-  const [showComplementDeleteConfirm, setShowComplementDeleteConfirm] = useState(false);
-  const [complementToDeleteId, setComplementToDeleteId] = useState<string | null>(null);
-  const [showZipDeleteConfirm, setShowZipDeleteConfirm] = useState(false);
-  const [zipToDeleteId, setZipToDeleteId] = useState<string | null>(null);
-  const [showCustomerBlockConfirm, setShowCustomerBlockConfirm] = useState(false);
-  const [customerToBlock, setCustomerToBlock] = useState<Customer | null>(null);
-  const [showPaymentDeleteConfirm, setShowPaymentDeleteConfirm] = useState(false);
-  const [paymentToDeleteId, setPaymentToDeleteId] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
@@ -101,71 +82,73 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 });
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  
   const [catName, setCatName] = useState('');
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
+  
   const [subCatName, setSubCatName] = useState('');
   const [subCatParent, setSubCatParent] = useState('');
   const [editingSubCat, setEditingSubCat] = useState<SubCategoryItem | null>(null);
+  
   const [compName, setCompName] = useState('');
   const [compPrice, setCompPrice] = useState<number>(0);
   const [compCategories, setCompCategories] = useState<string[]>([]);
   const [editingComp, setEditingComp] = useState<Complement | null>(null);
+  
   const [zipStart, setZipStart] = useState('');
   const [zipEnd, setZipEnd] = useState('');
   const [zipFee, setZipFee] = useState<number>(0);
   const [editingZip, setEditingZip] = useState<ZipRange | null>(null);
+  
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custAddress, setCustAddress] = useState('');
   const [custNeighborhood, setCustNeighborhood] = useState('');
   const [custZip, setCustZip] = useState('');
+  
   const [editingPayment, setEditingPayment] = useState<PaymentSettings | null>(null);
   const [payName, setPayName] = useState('');
   const [payType, setPayType] = useState<'ONLINE' | 'DELIVERY'>('DELIVERY');
   const [payEmail, setPayEmail] = useState('');
   const [payToken, setPayToken] = useState('');
-  // #ENDREGION
 
-  // #REGION: EFEITOS (AUDIO)
+  // ------------------------------------------------------------------
+  // CONTROLE DE SOM E NOTIFICAÇÕES
+  // ------------------------------------------------------------------
   useEffect(() => {
     audioRef.current = new Audio(NOTIFICATION_SOUND);
     audioRef.current.loop = true;
   }, []);
 
   useEffect(() => {
+    // Toca o som APENAS se houver pedidos com status 'NOVO' que não foram deletados
     const hasNewOrders = orders.some(o => o.status === 'NOVO' && !deletedIds.includes(o.id));
+    
     if (hasNewOrders) {
-      audioRef.current?.play().catch(() => console.log("Aguardando interação para tocar som"));
+      if (audioRef.current && audioRef.current.paused) {
+        audioRef.current.play().catch(e => console.log("Interação necessária para tocar som:", e));
+      }
     } else {
-      audioRef.current?.pause();
-      if (audioRef.current) audioRef.current.currentTime = 0;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
     }
   }, [orders, deletedIds]);
-  // #ENDREGION
 
-  // #REGION: HANDLERS GERAIS (BACKUP/SYNC)
-  const handleBackup = () => {
-    const backupData = {
-      timestamp: new Date().toISOString(),
-      products, categories, subCategories, complements, orders, customers, zipRanges, paymentSettings, coupons,
-      settings: { isStoreOpen, logoUrl }
-    };
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `backup_ua_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // Função Wrapper para atualizar status imediatamente na UI e parar o som se necessário
+  const handleOrderStatusChange = (status: OrderStatus) => {
+    if (!selectedOrder) return;
+    
+    // 1. Atualiza visualmente o modal agora (sem esperar o banco)
+    setSelectedOrder(prev => prev ? { ...prev, status } : null);
+    
+    // 2. Chama a função do pai para atualizar no banco
+    onUpdateOrderStatus(selectedOrder.id, status);
   };
 
-  const handleForceSync = () => {
-    if (confirm("Isso recarregará a página para forçar a sincronização. Continuar?")) window.location.reload();
-  };
-  // #ENDREGION
-
-  // #REGION: HANDLERS DE PRODUTOS
+  // Handlers Produtos
   const handleSaveProduct = async () => {
     if (!newProduct.name || !newProduct.price || !newProduct.category) return alert("Preencha nome, preço e categoria.");
     if (editingProduct) { onUpdateProduct({ ...editingProduct, ...newProduct } as Product); setEditingProduct(null); } 
@@ -175,29 +158,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const handleEditProductClick = (p: Product) => { setEditingProduct(p); setNewProduct(p); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const handleDeleteProductClick = (id: string) => { setProductToDeleteId(id); setShowProductDeleteConfirm(true); };
   const confirmDeleteProduct = () => { if (productToDeleteId) { onDeleteProduct(productToDeleteId); setProductToDeleteId(null); setShowProductDeleteConfirm(false); }};
-  // #ENDREGION
 
-  // #REGION: HANDLERS DE CATEGORIAS/SUBCATEGORIAS
+  // Handlers Categorias
   const handleSaveCategory = () => {
     if (!catName.trim()) return alert("Digite o nome!");
     if (editingCategory) { onUpdateCategory(editingCategory.id, catName); setEditingCategory(null); } else { onAddCategory(catName); }
     setCatName('');
   };
   const handleEditCategoryClick = (c: CategoryItem) => { setEditingCategory(c); setCatName(c.name); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const handleDeleteCategoryClick = (id: string) => { setCategoryToDeleteId(id); setShowCategoryDeleteConfirm(true); };
-  const confirmDeleteCategory = () => { if (categoryToDeleteId) { onRemoveCategory(categoryToDeleteId); setCategoryToDeleteId(null); setShowCategoryDeleteConfirm(false); }};
 
+  // Handlers SubCategorias
   const handleSaveSubCategory = () => {
     if (!subCatName.trim() || !subCatParent) return alert("Preencha todos os campos!");
     if (editingSubCat) { onUpdateSubCategory(editingSubCat.id, subCatName, subCatParent); setEditingSubCat(null); } else { onAddSubCategory(subCatParent, subCatName); }
     setSubCatName(''); setSubCatParent('');
   };
   const handleEditSubCategoryClick = (s: SubCategoryItem) => { setEditingSubCat(s); setSubCatName(s.name); setSubCatParent(s.categoryId); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const handleDeleteSubCategoryClick = (id: string) => { setSubCategoryToDeleteId(id); setShowSubCategoryDeleteConfirm(true); };
-  const confirmDeleteSubCategory = () => { if (subCategoryToDeleteId) { onRemoveSubCategory(subCategoryToDeleteId); setSubCategoryToDeleteId(null); setShowSubCategoryDeleteConfirm(false); }};
-  // #ENDREGION
 
-  // #REGION: HANDLERS DE ADICIONAIS
+  // Handlers Adicionais
   const handleSaveComplement = () => {
     if (!compName.trim()) return alert("Nome obrigatório!");
     if (editingComp) { onUpdateComplement(editingComp.id, compName, compPrice, compCategories); setEditingComp(null); } else { onAddComplement(compName, compPrice, compCategories); }
@@ -205,11 +183,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   };
   const handleEditComplementClick = (c: Complement) => { setEditingComp(c); setCompName(c.name); setCompPrice(c.price); setCompCategories(c.applicable_categories || []); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const toggleCompCategory = (catId: string) => { setCompCategories(prev => prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]); };
-  const handleDeleteComplementClick = (id: string) => { setComplementToDeleteId(id); setShowComplementDeleteConfirm(true); };
-  const confirmDeleteComplement = () => { if (complementToDeleteId) { onRemoveComplement(complementToDeleteId); setComplementToDeleteId(null); setShowComplementDeleteConfirm(false); }};
-  // #ENDREGION
 
-  // #REGION: HANDLERS DE FRETES
+  // Handlers Frete
   const formatZipInput = (val: string) => {
     let numeric = val.replace(/\D/g, '');
     if (numeric.length > 8) numeric = numeric.substring(0, 8);
@@ -225,33 +200,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     setZipStart(''); setZipEnd(''); setZipFee(0);
   };
   const handleEditZipClick = (z: ZipRange) => { setEditingZip(z); setZipStart(z.start); setZipEnd(z.end); setZipFee(z.fee); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const handleDeleteZipClick = (id: string) => { setZipToDeleteId(id); setShowZipDeleteConfirm(true); };
-  const confirmDeleteZip = () => { if (zipToDeleteId) { onRemoveZipRange(zipToDeleteId); setZipToDeleteId(null); setShowZipDeleteConfirm(false); }};
-  // #ENDREGION
 
-  // #REGION: HANDLERS DE CLIENTES
+  // Handlers Clientes
   const handleEditCustomerClick = (c: Customer) => { setEditingCustomer(c); setCustName(c.name); setCustPhone(c.phone); setCustAddress(c.address); setCustNeighborhood(c.neighborhood); setCustZip(c.zipCode); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const handleSaveCustomer = () => {
     if (!editingCustomer || !custName || !custPhone) return alert("Dados incompletos.");
     onUpdateCustomer(editingCustomer.id, { name: custName, phone: custPhone, address: custAddress, neighborhood: custNeighborhood, zipCode: custZip });
     setEditingCustomer(null); setCustName(''); setCustPhone(''); setCustAddress(''); setCustNeighborhood(''); setCustZip('');
   };
-  const handleBlockCustomerClick = (c: Customer) => { setCustomerToBlock(c); setShowCustomerBlockConfirm(true); };
-  const confirmBlockCustomer = () => { if (customerToBlock) { onUpdateCustomer(customerToBlock.id, { isBlocked: !customerToBlock.isBlocked }); setCustomerToBlock(null); setShowCustomerBlockConfirm(false); }};
-  // #ENDREGION
 
-  // #REGION: HANDLERS DE PAGAMENTOS
+  // Handlers Pagamento
   const handleSavePayment = () => {
     if (!payName.trim()) return alert("Nome obrigatório.");
     if (editingPayment) { onUpdatePaymentSettings(editingPayment.id, { name: payName, type: payType, email: payEmail, token: payToken }); setEditingPayment(null); } else { onAddPaymentMethod(payName, payType, payEmail, payToken); }
     setPayName(''); setPayType('DELIVERY'); setPayEmail(''); setPayToken('');
   };
   const handleEditPaymentClick = (p: PaymentSettings) => { setEditingPayment(p); setPayName(p.name); setPayType(p.type); setPayEmail(p.email || ''); setPayToken(p.token || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const handleDeletePaymentClick = (id: string) => { setPaymentToDeleteId(id); setShowPaymentDeleteConfirm(true); };
-  const confirmDeletePayment = () => { if (paymentToDeleteId) { onRemovePaymentMethod(paymentToDeleteId); setPaymentToDeleteId(null); setShowPaymentDeleteConfirm(false); }};
-  // #ENDREGION
 
-  // #REGION: UTILITÁRIOS (FILTROS, PRINT, IA)
+  // Utilitários
   const filteredSubCategories = useMemo(() => {
     if (!newProduct.category) return [];
     const cat = categories.find(c => c.name === newProduct.category);
@@ -259,69 +225,65 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     return subCategories.filter(s => s.categoryId === cat.id);
   }, [newProduct.category, categories, subCategories]);
 
-  // Cálculos para Dashboard
   const dashboardStats = useMemo(() => {
     const validOrders = orders.filter(o => o.status !== 'CANCELADO' && !deletedIds.includes(o.id));
     const today = new Date().toDateString();
     const todayOrders = validOrders.filter(o => new Date(o.createdAt).toDateString() === today);
     const totalRevenue = validOrders.reduce((acc, o) => acc + o.total, 0);
     const todayRevenue = todayOrders.reduce((acc, o) => acc + o.total, 0);
-    const statusCounts = orders.reduce((acc, o) => {
-      if (!deletedIds.includes(o.id)) {
-        acc[o.status] = (acc[o.status] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
-
-    return { totalRevenue, todayRevenue, totalCount: validOrders.length, todayCount: todayOrders.length, statusCounts };
+    return { totalRevenue, todayRevenue, totalCount: validOrders.length, todayCount: todayOrders.length };
   }, [orders, deletedIds]);
 
   const executeRealPrint = () => {
     if (!selectedOrder) return;
-    let printRoot = document.getElementById('printable-coupon-root');
-    if (!printRoot) {
-      printRoot = document.createElement('div');
-      printRoot.id = 'printable-coupon-root';
-      document.body.appendChild(printRoot);
-    }
-    const itemsHtml = selectedOrder.items.map(item => `
-      <div class="item-row">
-        <span>${item.quantity}x ${item.name}</span>
-        <span>R$ ${(item.price * item.quantity).toFixed(2)}</span>
-      </div>
-      ${(item.selectedComplements || []).map(c => `<div style="font-size:10px; padding-left:10px; color:#555;">+ ${c.name}</div>`).join('')}
-    `).join('');
+    try {
+      let printRoot = document.getElementById('printable-coupon-root');
+      if (!printRoot) {
+        printRoot = document.createElement('div');
+        printRoot.id = 'printable-coupon-root';
+        document.body.appendChild(printRoot);
+      }
+      const itemsHtml = selectedOrder.items.map(item => `
+        <div class="item-row">
+          <span>${item.quantity}x ${item.name}</span>
+          <span>R$ ${(item.price * item.quantity).toFixed(2)}</span>
+        </div>
+        ${(item.selectedComplements || []).map(c => `<div style="font-size:10px; padding-left:10px; color:#555;">+ ${c.name}</div>`).join('')}
+      `).join('');
 
-    printRoot.innerHTML = `
-      <div class="coupon-content">
-        <div class="header">
-          <h1>NILO LANCHES</h1>
-          <h2>Pedido #${selectedOrder.id.substring(0,5)}</h2>
-          <p>${new Date(selectedOrder.createdAt).toLocaleString('pt-BR')}</p>
-        </div>
-        <div class="info">
-          <p><strong>Cli:</strong> ${selectedOrder.customerName}</p>
-          <p><strong>Tel:</strong> ${selectedOrder.customerPhone}</p>
-          <p><strong>End:</strong> ${selectedOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : selectedOrder.customerAddress}</p>
-          <p><strong>Pag:</strong> ${selectedOrder.paymentMethod}</p>
-          ${selectedOrder.changeFor ? `<p><strong>Troco p/:</strong> R$ ${selectedOrder.changeFor.toFixed(2)}</p>` : ''}
-        </div>
-        <div class="items">${itemsHtml}</div>
-        <div class="totals">
-          <p>Subtotal: R$ ${(selectedOrder.total - selectedOrder.deliveryFee + (selectedOrder.discountValue || 0)).toFixed(2)}</p>
-          <p>Taxa: R$ ${selectedOrder.deliveryFee.toFixed(2)}</p>
-          <div class="total-final">
-            <span>TOTAL:</span>
-            <span>R$ ${selectedOrder.total.toFixed(2)}</span>
+      printRoot.innerHTML = `
+        <div class="coupon-content">
+          <div class="header">
+            <h1>NILO LANCHES</h1>
+            <h2>Pedido #${selectedOrder.id.substring(0,5)}</h2>
+            <p>${new Date(selectedOrder.createdAt).toLocaleString('pt-BR')}</p>
+          </div>
+          <div class="info">
+            <p><strong>Cli:</strong> ${selectedOrder.customerName}</p>
+            <p><strong>Tel:</strong> ${selectedOrder.customerPhone}</p>
+            <p><strong>End:</strong> ${selectedOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : selectedOrder.customerAddress}</p>
+            <p><strong>Pag:</strong> ${selectedOrder.paymentMethod}</p>
+            ${selectedOrder.changeFor ? `<p><strong>Troco p/:</strong> R$ ${selectedOrder.changeFor.toFixed(2)}</p>` : ''}
+          </div>
+          <div class="items">${itemsHtml}</div>
+          <div class="totals">
+            <p>Subtotal: R$ ${(selectedOrder.total - selectedOrder.deliveryFee + (selectedOrder.discountValue || 0)).toFixed(2)}</p>
+            <p>Taxa: R$ ${selectedOrder.deliveryFee.toFixed(2)}</p>
+            <div class="total-final">
+              <span>TOTAL:</span>
+              <span>R$ ${selectedOrder.total.toFixed(2)}</span>
+            </div>
+          </div>
+          <div class="footer">
+            <p>Obrigado pela preferência!</p>
+            <p>www.nilolanches.com.br</p>
           </div>
         </div>
-        <div class="footer">
-          <p>Obrigado pela preferência!</p>
-          <p>www.nilolanches.com.br</p>
-        </div>
-      </div>
-    `;
-    setTimeout(() => { window.print(); }, 250);
+      `;
+      setTimeout(() => { window.print(); }, 250);
+    } catch (e) {
+      alert("Erro ao imprimir. Verifique se o navegador permite popups.");
+    }
   };
 
   const executeDelete = () => {
@@ -381,12 +343,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const getStatusColor = (s: OrderStatus) => {
     switch(s) {
       case 'NOVO': return 'bg-blue-600 text-white animate-pulse';
-      case 'PREPARANDO': return 'bg-amber-50 text-white';
-      case 'PRONTO PARA RETIRADA': return 'bg-purple-600 text-white';
-      case 'SAIU PARA ENTREGA': return 'bg-indigo-600 text-white';
-      case 'FINALIZADO': return 'bg-emerald-600 text-white';
-      case 'CANCELADO': return 'bg-red-600 text-white';
-      default: return 'bg-slate-500 text-white';
+      case 'PREPARANDO': return 'bg-amber-50 text-amber-800 border-amber-200';
+      case 'PRONTO PARA RETIRADA': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'SAIU PARA ENTREGA': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'FINALIZADO': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'CANCELADO': return 'bg-red-50 text-red-800 border-red-200';
+      default: return 'bg-slate-100 text-slate-600';
     }
   };
 
@@ -486,6 +448,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         <input value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} placeholder="Nome do lanche" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500 outline-none" />
                         <input type="number" value={newProduct.price || ''} onChange={e => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} placeholder="Preço (R$)" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500 outline-none" />
                       </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <select value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none">
+                           <option value="">Selecione a Categoria</option>
+                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
+                        <select value={newProduct.subCategory || ''} onChange={e => setNewProduct({...newProduct, subCategory: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" disabled={!newProduct.category}>
+                           <option value="">Subcategoria (Opcional)</option>
+                           {filteredSubCategories.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                        </select>
+                      </div>
+                      <textarea value={newProduct.description || ''} onChange={e => setNewProduct({...newProduct, description: e.target.value})} placeholder="Descrição deliciosa..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500 outline-none h-20 resize-none" />
                       <div className="flex gap-3">
                          <button onClick={handleSaveProduct} className="flex-1 bg-emerald-600 text-white font-black py-3 rounded-xl uppercase text-xs"> {editingProduct ? 'Salvar' : 'Cadastrar'} </button>
                          {editingProduct && <button onClick={() => setEditingProduct(null)} className="bg-slate-200 text-slate-500 font-bold py-3 px-6 rounded-xl uppercase text-xs">Cancelar</button>}
@@ -512,76 +485,380 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           )}
 
           {activeView === 'pedidos' && (
-             <div className="grid grid-cols-1 gap-4">
-                {filteredOrders.map(order => (
-                  <div key={order.id} onClick={() => setSelectedOrder(order)} className={`bg-white p-4 rounded-xl border-l-4 ${getStatusColor(order.status)} border-opacity-100 shadow-sm cursor-pointer`}>
-                    <div className="flex justify-between items-center">
-                       <div>
-                          <h4 className="font-black text-sm uppercase">#{order.id.substring(0,5)} - {order.customerName}</h4>
-                          <p className="text-[10px] font-bold uppercase">{order.deliveryType} • {new Date(order.createdAt).toLocaleTimeString()}</p>
+             <div className="space-y-4">
+               <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                  {['NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO', 'TODOS'].map(status => (
+                    <button key={status} onClick={() => setActiveOrderTab(status as any)} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase whitespace-nowrap transition-all ${activeOrderTab === status ? 'bg-emerald-600 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200'}`}>
+                      {status}
+                    </button>
+                  ))}
+               </div>
+               <div className="grid grid-cols-1 gap-4">
+                  {filteredOrders.length === 0 ? (
+                    <div className="text-center py-20 text-slate-400 font-bold uppercase text-xs">Nenhum pedido encontrado.</div>
+                  ) : (
+                    filteredOrders.map(order => (
+                      <div key={order.id} onClick={() => setSelectedOrder(order)} className={`bg-white p-4 rounded-xl border-l-4 ${getStatusColor(order.status).split(' ')[0]} border-opacity-100 shadow-sm cursor-pointer hover:bg-slate-50 hover:scale-[1.01] transition-all`}>
+                        <div className="flex justify-between items-center">
+                           <div>
+                              <h4 className="font-black text-sm uppercase">#{order.id.substring(0,5)} - {order.customerName}</h4>
+                              <p className="text-[10px] font-bold uppercase text-slate-400">{order.deliveryType} • {new Date(order.createdAt).toLocaleTimeString()}</p>
+                           </div>
+                           <div className="text-right">
+                              <p className="font-black text-emerald-600 text-sm">R$ {order.total.toFixed(2)}</p>
+                              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${getStatusColor(order.status)}`}>{order.status}</span>
+                           </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+               </div>
+             </div>
+          )}
+
+          {activeView === 'categorias' && (
+            <div className="space-y-6">
+               <div className="bg-white p-6 rounded-2xl border border-slate-200 flex gap-4">
+                  <input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Nova Categoria (ex: Hambúrgueres)" className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold outline-none" />
+                  <button onClick={handleSaveCategory} className="bg-emerald-600 text-white font-black px-6 rounded-xl uppercase text-xs">{editingCategory ? 'Atualizar' : 'Adicionar'}</button>
+               </div>
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {categories.map(c => (
+                     <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                        <span className="font-bold text-sm">{c.name}</span>
+                        <div className="flex gap-2">
+                           <button onClick={() => handleEditCategoryClick(c)} className="text-blue-500">✏️</button>
+                           <button onClick={() => onRemoveCategory(c.id)} className="text-red-500">🗑️</button>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </div>
+          )}
+
+          {activeView === 'subcategorias' && (
+            <div className="space-y-6">
+               <div className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col md:flex-row gap-4">
+                  <select value={subCatParent} onChange={e => setSubCatParent(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none">
+                     <option value="">Selecione a Categoria Pai</option>
+                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <input value={subCatName} onChange={e => setSubCatName(e.target.value)} placeholder="Nome da Subcategoria" className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                  <button onClick={handleSaveSubCategory} className="bg-emerald-600 text-white font-black px-6 py-3 rounded-xl uppercase text-xs">{editingSubCat ? 'Salvar' : 'Adicionar'}</button>
+               </div>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {subCategories.map(s => {
+                    const parent = categories.find(c => c.id === s.categoryId);
+                    return (
+                       <div key={s.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                          <div>
+                             <span className="text-[9px] font-black uppercase text-slate-400 block">{parent?.name || 'Sem Pai'}</span>
+                             <span className="font-bold text-sm">{s.name}</span>
+                          </div>
+                          <div className="flex gap-2">
+                             <button onClick={() => handleEditSubCategoryClick(s)} className="text-blue-500">✏️</button>
+                             <button onClick={() => onRemoveSubCategory(s.id)} className="text-red-500">🗑️</button>
+                          </div>
                        </div>
-                       <div className="text-right">
-                          <p className="font-black text-emerald-600 text-sm">R$ {order.total.toFixed(2)}</p>
-                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${getStatusColor(order.status)}`}>{order.status}</span>
-                       </div>
-                    </div>
+                    );
+                  })}
+               </div>
+            </div>
+          )}
+
+          {activeView === 'adicionais' && (
+            <div className="space-y-6">
+               <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
+                  <div className="flex flex-col md:flex-row gap-4">
+                     <input value={compName} onChange={e => setCompName(e.target.value)} placeholder="Nome do Adicional (ex: Bacon Extra)" className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                     <input type="number" value={compPrice} onChange={e => setCompPrice(parseFloat(e.target.value))} placeholder="Preço" className="w-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
                   </div>
-                ))}
+                  <div>
+                     <p className="text-xs font-black uppercase text-slate-400 mb-2">Disponível em quais categorias?</p>
+                     <div className="flex flex-wrap gap-2">
+                        {categories.map(cat => (
+                           <button 
+                             key={cat.id} 
+                             onClick={() => toggleCompCategory(cat.id)}
+                             className={`px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${compCategories.includes(cat.id) ? 'bg-emerald-100 border-emerald-500 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                           >
+                             {cat.name}
+                           </button>
+                        ))}
+                     </div>
+                  </div>
+                  <button onClick={handleSaveComplement} className="w-full bg-emerald-600 text-white font-black py-3 rounded-xl uppercase text-xs">{editingComp ? 'Salvar Alterações' : 'Adicionar Extra'}</button>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {complements.map(c => (
+                     <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                        <div>
+                           <span className="font-bold text-sm">{c.name}</span>
+                           <span className="ml-2 text-xs font-black text-emerald-600">+ R$ {c.price.toFixed(2)}</span>
+                           <div className="text-[9px] text-slate-400 mt-1">{c.applicable_categories?.length || 0} categorias vinculadas</div>
+                        </div>
+                        <div className="flex gap-2">
+                           <button onClick={() => onToggleComplement(c.id)} className={`text-[10px] px-2 py-1 rounded ${c.active ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>{c.active ? 'Ativo' : 'Inativo'}</button>
+                           <button onClick={() => handleEditComplementClick(c)} className="text-blue-500">✏️</button>
+                           <button onClick={() => onRemoveComplement(c.id)} className="text-red-500">🗑️</button>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </div>
+          )}
+
+          {activeView === 'entregas' && (
+            <div className="space-y-6">
+               <div className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col md:flex-row gap-4">
+                  <input value={zipStart} onChange={e => handleZipChange(e.target.value, 'start')} placeholder="CEP Inicial (00000-000)" className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" maxLength={9} />
+                  <input value={zipEnd} onChange={e => handleZipChange(e.target.value, 'end')} placeholder="CEP Final (00000-000)" className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" maxLength={9} />
+                  <input type="number" value={zipFee} onChange={e => setZipFee(parseFloat(e.target.value))} placeholder="Taxa (R$)" className="w-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                  <button onClick={handleSaveZipRange} className="bg-emerald-600 text-white font-black px-6 py-3 rounded-xl uppercase text-xs">{editingZip ? 'Salvar' : 'Adicionar'}</button>
+               </div>
+               <div className="space-y-2">
+                  {zipRanges.map(z => (
+                     <div key={z.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                        <span className="font-bold text-xs text-slate-600">De <span className="text-slate-900">{z.start}</span> até <span className="text-slate-900">{z.end}</span></span>
+                        <div className="flex items-center gap-4">
+                           <span className="font-black text-emerald-600">R$ {z.fee.toFixed(2)}</span>
+                           <div className="flex gap-2">
+                              <button onClick={() => handleEditZipClick(z)} className="text-blue-500">✏️</button>
+                              <button onClick={() => onRemoveZipRange(z.id)} className="text-red-500">🗑️</button>
+                           </div>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </div>
+          )}
+
+          {activeView === 'clientes' && (
+             <div className="space-y-6">
+                <input value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} placeholder="Buscar cliente por nome ou telefone..." className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none shadow-sm" />
+                
+                {editingCustomer && (
+                   <div className="bg-white p-6 rounded-2xl border border-emerald-500 shadow-md animate-fade-in mb-4">
+                      <h4 className="font-black text-xs uppercase mb-4 text-emerald-600">Editando: {editingCustomer.name}</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                         <input value={custName} onChange={e => setCustName(e.target.value)} placeholder="Nome" className="input-admin" />
+                         <input value={custPhone} onChange={e => setCustPhone(e.target.value)} placeholder="Telefone" className="input-admin" />
+                         <input value={custAddress} onChange={e => setCustAddress(e.target.value)} placeholder="Endereço" className="input-admin" />
+                         <input value={custNeighborhood} onChange={e => setCustNeighborhood(e.target.value)} placeholder="Bairro" className="input-admin" />
+                      </div>
+                      <div className="flex gap-3">
+                         <button onClick={handleSaveCustomer} className="btn-admin bg-emerald-600 text-white">Salvar Dados</button>
+                         <button onClick={() => setEditingCustomer(null)} className="btn-admin bg-slate-200 text-slate-500">Cancelar</button>
+                      </div>
+                   </div>
+                )}
+
+                <div className="space-y-2">
+                   {customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone.includes(customerSearch)).map(c => (
+                      <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-50">
+                         <div>
+                            <p className="font-bold text-sm text-slate-800">{c.name} {c.isBlocked && <span className="text-red-500 text-[10px] uppercase font-black">(BLOQUEADO)</span>}</p>
+                            <p className="text-xs text-slate-400">{c.phone} • {c.totalOrders || 0} pedidos</p>
+                         </div>
+                         <div className="flex gap-2">
+                            <button onClick={() => onUpdateCustomer(c.id, { isBlocked: !c.isBlocked })} className={`text-[10px] font-black uppercase px-3 py-1 rounded ${c.isBlocked ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                               {c.isBlocked ? 'Desbloquear' : 'Bloquear'}
+                            </button>
+                            <button onClick={() => handleEditCustomerClick(c)} className="bg-blue-50 text-blue-600 p-2 rounded-lg">✏️</button>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+             </div>
+          )}
+
+          {activeView === 'pagamentos' && (
+             <div className="space-y-6">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col md:flex-row gap-4 items-end">
+                   <div className="flex-1 w-full space-y-2">
+                      <input value={payName} onChange={e => setPayName(e.target.value)} placeholder="Nome (ex: Cartão de Crédito)" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none" />
+                      <select value={payType} onChange={e => setPayType(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none">
+                         <option value="DELIVERY">Pagamento na Entrega/Retirada</option>
+                         <option value="ONLINE">Pagamento Online (Pix/Cartão)</option>
+                      </select>
+                   </div>
+                   <button onClick={handleSavePayment} className="bg-emerald-600 text-white font-black px-6 py-3 rounded-xl uppercase text-xs h-10">{editingPayment ? 'Salvar' : 'Adicionar'}</button>
+                </div>
+                <div className="space-y-2">
+                   {paymentSettings.map(p => (
+                      <div key={p.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                         <div>
+                            <span className="font-bold text-sm block">{p.name}</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">{p.type === 'ONLINE' ? 'Online' : 'Presencial'}</span>
+                         </div>
+                         <div className="flex items-center gap-3">
+                            <button onClick={() => onTogglePaymentMethod(p.id)} className={`w-10 h-6 rounded-full p-1 transition-colors ${p.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                               <div className={`w-4 h-4 bg-white rounded-full transition-transform ${p.enabled ? 'translate-x-4' : ''}`}></div>
+                            </button>
+                            <button onClick={() => handleEditPaymentClick(p)} className="text-blue-500">✏️</button>
+                            <button onClick={() => onRemovePaymentMethod(p.id)} className="text-red-500">🗑️</button>
+                         </div>
+                      </div>
+                   ))}
+                </div>
              </div>
           )}
           
-          {/* Outras Views mantidas conforme lógica de abas (Categorias, Clientes, etc) */}
-          {(activeView === 'categorias' || activeView === 'subcategorias' || activeView === 'clientes' || activeView === 'pagamentos' || activeView === 'ajustes') && (
-            <div className="p-10 text-center text-slate-400 font-bold uppercase text-xs">Funcionalidades ativas no menu lateral.</div>
+          {activeView === 'ajustes' && (
+             <div className="space-y-6">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                   <h3 className="font-black text-sm uppercase mb-4 text-slate-700">Logo da Loja</h3>
+                   <div className="flex items-center gap-6">
+                      <div className="w-24 h-24 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden border">
+                         {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" /> : <span className="text-2xl">🍔</span>}
+                      </div>
+                      <label className="bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-700">
+                         Alterar Logo
+                         <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'logo')} />
+                      </label>
+                   </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                   <h3 className="font-black text-sm uppercase mb-4 text-slate-700">Controles de Loja</h3>
+                   <button onClick={onToggleStore} className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${isStoreOpen ? 'bg-emerald-100 text-emerald-600 border border-emerald-200' : 'bg-red-600 text-white shadow-lg'}`}>
+                      {isStoreOpen ? 'Loja Aberta (Clique para Fechar)' : 'Loja Fechada (Clique para Abrir)'}
+                   </button>
+                </div>
+             </div>
           )}
+
         </div>
       </main>
 
+      {/* 
+         MENU LATERAL DE DETALHES DO PEDIDO 
+         Agora com animação de slide-in e botões de status robustos
+      */}
       {selectedOrder && (
-        <aside className="fixed inset-y-0 right-0 w-full md:w-[400px] bg-white shadow-2xl z-[9999] flex flex-col border-l border-slate-200">
-          <div className="p-6 border-b flex justify-between items-center bg-slate-50">
-            <h3 className="text-xl font-black uppercase">Pedido #{selectedOrder.id.substring(0, 5)}</h3>
-            <button onClick={() => setSelectedOrder(null)} className="w-8 h-8 flex items-center justify-center">✕</button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div className="grid grid-cols-2 gap-2">
-               {['NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'].map(s => (
-                 <button key={s} onClick={() => onUpdateOrderStatus(selectedOrder.id, s as OrderStatus)} className={`p-2 rounded-lg text-[8px] font-black uppercase border-2 transition-all ${selectedOrder.status === s ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-100 text-slate-400'}`}>{s}</button>
-               ))}
+        <aside className="fixed inset-y-0 right-0 w-full md:w-[400px] bg-white shadow-2xl z-[9999] flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300">
+          <div className="p-6 border-b flex justify-between items-center bg-slate-900 text-white">
+            <div>
+               <h3 className="text-xl font-black uppercase">Pedido #{selectedOrder.id.substring(0, 5)}</h3>
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(selectedOrder.createdAt).toLocaleString('pt-BR')}</p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl border space-y-2">
-               {selectedOrder.items.map((item, idx) => (
-                 <div key={idx} className="flex justify-between text-xs">
-                    <span className="font-bold">{item.quantity}x {item.name}</span>
-                    <span className="font-black">R$ {(item.price * item.quantity).toFixed(2)}</span>
-                 </div>
-               ))}
-               <div className="pt-2 border-t flex justify-between font-black text-emerald-600">
-                  <span>TOTAL</span>
-                  <span>R$ {selectedOrder.total.toFixed(2)}</span>
+            <button onClick={() => setSelectedOrder(null)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white font-black bg-white/10 rounded-full">✕</button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+               <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 flex items-center gap-2">
+                  <span>⚡ Atualizar Status</span>
+                  <span className="h-px bg-slate-200 flex-1"></span>
+               </p>
+               <div className="grid grid-cols-2 gap-2">
+                  {['NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'].map(s => {
+                    const isActive = selectedOrder.status === s;
+                    return (
+                      <button 
+                        key={s} 
+                        onClick={() => handleOrderStatusChange(s as OrderStatus)} 
+                        className={`
+                          p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all active:scale-95
+                          ${isActive 
+                             ? 'bg-slate-800 border-slate-800 text-white shadow-md transform scale-105' 
+                             : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-400 hover:text-emerald-600'
+                          }
+                        `}
+                      >
+                        {isActive && '✔ '} {s}
+                      </button>
+                    );
+                  })}
+               </div>
+            </div>
+            
+            <div className="space-y-4">
+               <div>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Cliente</p>
+                  <div className="bg-white p-3 rounded-xl border border-slate-100">
+                     <p className="font-bold text-sm text-slate-800">{selectedOrder.customerName}</p>
+                     <p className="text-xs text-slate-500">{selectedOrder.customerPhone}</p>
+                  </div>
+               </div>
+               
+               <div>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Endereço de Entrega</p>
+                  <div className="bg-white p-3 rounded-xl border border-slate-100">
+                     <p className="font-bold text-xs text-slate-700 leading-relaxed">
+                        {selectedOrder.deliveryType === 'PICKUP' ? '🏪 Retirada no Balcão' : selectedOrder.customerAddress}
+                     </p>
+                  </div>
+               </div>
+               
+               <div>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Pagamento</p>
+                  <div className="bg-white p-3 rounded-xl border border-slate-100">
+                     <p className="font-bold text-xs text-slate-700">{selectedOrder.paymentMethod} {selectedOrder.changeFor ? `(Troco p/ ${selectedOrder.changeFor})` : ''}</p>
+                  </div>
+               </div>
+            </div>
+
+            <div className="border-t-2 border-dashed border-slate-200 pt-6">
+               <p className="text-[10px] font-black uppercase text-slate-400 mb-3">Itens do Pedido</p>
+               <div className="space-y-3">
+                  {selectedOrder.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-start text-xs bg-white p-2 rounded-lg border border-slate-50">
+                       <div>
+                          <span className="font-bold text-slate-800 block">{item.quantity}x {item.name}</span>
+                          {item.selectedComplements && item.selectedComplements.length > 0 && (
+                             <span className="text-[10px] text-slate-400 block mt-0.5">+ {item.selectedComplements.map(c => c.name).join(', ')}</span>
+                          )}
+                       </div>
+                       <span className="font-black text-slate-900">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+               </div>
+               
+               <div className="mt-6 bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center shadow-lg">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Final</span>
+                  <span className="font-black text-xl text-emerald-400">R$ {selectedOrder.total.toFixed(2)}</span>
                </div>
             </div>
           </div>
-          <div className="p-6 border-t bg-slate-50 space-y-2">
-            <button onClick={executeRealPrint} className="w-full py-4 bg-slate-800 text-white rounded-xl font-black uppercase text-xs">🖨️ Imprimir</button>
-            <button onClick={() => setShowDeleteConfirm(true)} className="w-full py-4 bg-white text-red-500 border border-red-100 rounded-xl font-black uppercase text-xs">🗑️ Excluir</button>
+          
+          <div className="p-6 border-t bg-slate-50 space-y-3">
+            <button onClick={executeRealPrint} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs flex justify-center gap-2 items-center hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95">
+               <span>🖨️</span> Imprimir Cupom
+            </button>
+            <button onClick={() => setShowDeleteConfirm(true)} className="w-full py-4 bg-white text-red-500 border border-red-100 rounded-xl font-black uppercase text-xs hover:bg-red-50 hover:border-red-200 transition-all">
+               🗑️ Excluir Pedido
+            </button>
           </div>
         </aside>
       )}
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4">
-          <div className="bg-white p-8 rounded-3xl text-center max-w-sm w-full">
-            <h3 className="font-black text-xl mb-4">Confirmar Exclusão?</h3>
+          <div className="bg-white p-8 rounded-3xl text-center max-w-sm w-full animate-in zoom-in-95">
+            <h3 className="font-black text-xl mb-2 text-slate-800">Confirmar Exclusão?</h3>
+            <p className="text-slate-500 text-xs mb-6">Essa ação não pode ser desfeita.</p>
             <div className="flex gap-4">
-              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 bg-slate-100 rounded-xl font-bold">Não</button>
-              <button onClick={executeDelete} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold">Sim</button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 bg-slate-100 rounded-xl font-bold text-slate-600 uppercase text-xs">Cancelar</button>
+              <button onClick={executeDelete} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg shadow-red-200">Confirmar</button>
             </div>
           </div>
         </div>
       )}
       
-      {/* Container de Impressão */}
+      {showProductDeleteConfirm && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-white p-8 rounded-3xl text-center max-w-sm w-full animate-in zoom-in-95">
+             <h3 className="font-black text-xl mb-2">Excluir Produto?</h3>
+             <div className="flex gap-4 mt-6">
+                <button onClick={() => setShowProductDeleteConfirm(false)} className="flex-1 py-3 bg-slate-100 rounded-xl font-bold text-xs uppercase">Não</button>
+                <button onClick={confirmDeleteProduct} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold text-xs uppercase">Sim, Excluir</button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Container Oculto para Impressão */}
       <div id="printable-coupon-root" className="hidden"></div>
     </div>
   );
