@@ -282,86 +282,55 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const executeRealPrint = () => {
     if (!selectedOrder) return;
     
-    // Cria um iframe invisível para impressão para evitar conflitos de estilo e sandbox
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
+    let printRoot = document.getElementById('printable-coupon-root');
+    if (!printRoot) {
+      printRoot = document.createElement('div');
+      printRoot.id = 'printable-coupon-root';
+      document.body.appendChild(printRoot);
+    }
 
     const itemsHtml = selectedOrder.items.map(item => `
-      <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+      <div class="item-row">
         <span>${item.quantity}x ${item.name}</span>
         <span>R$ ${(item.price * item.quantity).toFixed(2)}</span>
       </div>
-      ${(item.selectedComplements || []).map(c => `<div style="font-size:10px; margin-left:10px; color:#555;">+ ${c.name}</div>`).join('')}
+      ${(item.selectedComplements || []).map(c => `<div style="font-size:10px; padding-left:10px; color:#555;">+ ${c.name}</div>`).join('')}
     `).join('');
 
-    doc.open();
-    doc.write(`
-      <html>
-        <head>
-          <title>Cupom Nilo Lanches</title>
-          <style>
-            @page { margin: 0; size: auto; }
-            body { margin: 0; padding: 0; font-family: 'Courier New', monospace; background-color: white; }
-            #coupon { width: 300px; margin: 0 auto; color: black; padding: 10px; }
-            .header { text-align: center; border-bottom: 1px dashed black; padding-bottom: 10px; margin-bottom: 10px; }
-            .info { border-bottom: 1px dashed black; padding-bottom: 10px; margin-bottom: 10px; font-size: 12px; }
-            .items { border-bottom: 1px dashed black; padding-bottom: 10px; margin-bottom: 10px; }
-            .totals { text-align: right; font-size: 12px; }
-          </style>
-        </head>
-        <body>
-          <div id="coupon">
-            <div class="header">
-              <h2 style="margin:0; font-size:16px; font-weight:bold;">NILO LANCHES</h2>
-              <p style="margin:5px 0; font-size:12px;">Pedido #${selectedOrder.id.substring(0,5)}</p>
-              <p style="margin:0; font-size:10px;">${new Date(selectedOrder.createdAt).toLocaleString('pt-BR')}</p>
-            </div>
-            <div class="info">
-              <p style="margin:2px 0;"><strong>Cli:</strong> ${selectedOrder.customerName}</p>
-              <p style="margin:2px 0;"><strong>Tel:</strong> ${selectedOrder.customerPhone}</p>
-              <p style="margin:2px 0;"><strong>End:</strong> ${selectedOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : selectedOrder.customerAddress}</p>
-              <p style="margin:2px 0;"><strong>Pag:</strong> ${selectedOrder.paymentMethod}</p>
-              ${selectedOrder.changeFor ? `<p style="margin:2px 0;"><strong>Troco p/:</strong> R$ ${selectedOrder.changeFor}</p>` : ''}
-            </div>
-            <div class="items">${itemsHtml}</div>
-            <div class="totals">
-              <p style="margin:2px 0;">Subtotal: R$ ${(selectedOrder.total - selectedOrder.deliveryFee + (selectedOrder.discountValue || 0)).toFixed(2)}</p>
-              <p style="margin:2px 0;">Taxa: R$ ${selectedOrder.deliveryFee.toFixed(2)}</p>
-              <p style="margin:5px 0; font-size:16px; font-weight:bold;">TOTAL: R$ ${selectedOrder.total.toFixed(2)}</p>
-            </div>
+    printRoot.innerHTML = `
+      <div class="coupon-content">
+        <div class="header">
+          <h1>NILO LANCHES</h1>
+          <h2>Pedido #${selectedOrder.id.substring(0,5)}</h2>
+          <p>${new Date(selectedOrder.createdAt).toLocaleString('pt-BR')}</p>
+        </div>
+        <div class="info">
+          <p><strong>Cli:</strong> ${selectedOrder.customerName}</p>
+          <p><strong>Tel:</strong> ${selectedOrder.customerPhone}</p>
+          <p><strong>End:</strong> ${selectedOrder.deliveryType === 'PICKUP' ? 'RETIRADA' : selectedOrder.customerAddress}</p>
+          <p><strong>Pag:</strong> ${selectedOrder.paymentMethod}</p>
+          ${selectedOrder.changeFor ? `<p><strong>Troco p/:</strong> R$ ${selectedOrder.changeFor.toFixed(2)}</p>` : ''}
+        </div>
+        <div class="items">${itemsHtml}</div>
+        <div class="totals">
+          <p>Subtotal: R$ ${(selectedOrder.total - selectedOrder.deliveryFee + (selectedOrder.discountValue || 0)).toFixed(2)}</p>
+          <p>Taxa: R$ ${selectedOrder.deliveryFee.toFixed(2)}</p>
+          <div class="total-final">
+            <span>TOTAL:</span>
+            <span>R$ ${selectedOrder.total.toFixed(2)}</span>
           </div>
-        </body>
-      </html>
-    `);
-    doc.close();
+        </div>
+        <div class="footer">
+          <p>Obrigado pela preferência!</p>
+          <p>www.nilolanches.com.br</p>
+        </div>
+      </div>
+    `;
 
+    // Pequeno atraso para garantir que o conteúdo foi processado pelo motor do navegador
     setTimeout(() => {
-        try {
-            if (iframe.contentWindow) {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-            }
-        } catch (e) {
-            console.warn("Impressão bloqueada pelo navegador/sandbox:", e);
-            alert("A impressão foi bloqueada. Se estiver em um ambiente de teste, tente abrir em nova janela.");
-        } finally {
-            // Remove o iframe após um tempo suficiente para o diálogo de impressão abrir
-            setTimeout(() => {
-                if (document.body.contains(iframe)) {
-                    document.body.removeChild(iframe);
-                }
-            }, 5000);
-        }
-    }, 500);
+      window.print();
+    }, 100);
   };
 
   const executeDelete = () => {
@@ -421,7 +390,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const getStatusColor = (s: OrderStatus) => {
     switch(s) {
       case 'NOVO': return 'bg-blue-600 text-white animate-pulse';
-      case 'PREPARANDO': return 'bg-amber-500 text-white';
+      case 'PREPARANDO': return 'bg-amber-50 text-white';
       case 'PRONTO PARA RETIRADA': return 'bg-purple-600 text-white';
       case 'SAIU PARA ENTREGA': return 'bg-indigo-600 text-white';
       case 'FINALIZADO': return 'bg-emerald-600 text-white';
@@ -1558,7 +1527,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               <div className="bg-white p-4 w-[300px] shadow-sm text-xs font-mono text-black border border-slate-200">
                 <div className="text-center border-b border-dashed border-black pb-2 mb-2">
                   <h2 className="text-sm font-bold m-0">NILO LANCHES</h2>
-                  <p className="m-0">Pedido #{selectedOrder.id.substring(0,5)}</p>
+                  <p className="m-0">Pedido #${selectedOrder.id.substring(0,5)}</p>
                   <p className="m-0 text-[10px]">{new Date(selectedOrder.createdAt).toLocaleString('pt-BR')}</p>
                 </div>
                 <div className="border-b border-dashed border-black pb-2 mb-2">

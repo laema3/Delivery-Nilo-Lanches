@@ -77,7 +77,6 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick }) => {
         <div className="mt-16 pt-8 border-t border-emerald-900/50 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
           <p>© 2024 NILO LANCHES - TODOS OS DIREITOS RESERVADOS</p>
           <div className="flex gap-6">
-            <button onClick={onAdminClick} className="opacity-40 hover:opacity-100 transition-opacity">Acesso</button>
             <a href="#" className="hover:text-emerald-400 transition-colors">Privacidade</a>
           </div>
         </div>

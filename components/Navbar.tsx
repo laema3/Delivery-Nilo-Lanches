@@ -21,6 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   cartCount, 
   onCartClick, 
   isAdmin, 
+  onToggleAdmin,
   searchTerm,
   onSearchChange,
   currentUser,
@@ -60,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
               {/* Indicador de Conexão Real-time */}
-              <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${isLive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-red-500 animate-pulse'}`}></div>
+              <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${isLive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-red-50 animate-pulse'}`}></div>
             </div>
             
             <div className="hidden md:flex flex-col">
@@ -105,6 +106,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
+            {/* Botão de Administração (Escudo) - Apenas Desktop */}
+            {!isAdmin && (
+              <button 
+                onClick={onToggleAdmin}
+                className="hidden md:flex p-3 text-slate-400 hover:text-emerald-600 bg-slate-50 rounded-2xl transition-all"
+                title="Acesso Administrativo"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </button>
+            )}
+
             {!isAdmin && currentUser && (
               <button onClick={onMyOrdersClick} className="p-3 text-slate-500 hover:text-emerald-600 transition-all bg-slate-50 rounded-2xl" title="Meus Pedidos">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -129,8 +143,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             
             {!isAdmin && (
               <button onClick={onCartClick} className="relative p-3 text-white bg-emerald-600 rounded-2xl shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19,7h-3c0-2.21-1.79-4-4-4S8,4.79,8,7H5C3.89,7,3,7.89,3,9v10c0,1.11,0.89,2,2,2h14c1.11,0,2-0.89,2-2V9 C21,7.89,20.11,7,19,7z M12,5c1.1,0,2,0.9,2,2h-4C10,5.9,10.9,5,12,5z M19,19H5V9h14V19z" />
                 </svg>
                 {cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full ring-2 ring-white">
