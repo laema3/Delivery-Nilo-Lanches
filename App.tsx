@@ -384,7 +384,7 @@ ${itemsList}
         )}
       </main>
 
-      <Footer logoUrl={logoUrl} onAdminClick={() => setIsAdminLoginOpen(true)} />
+      <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} onAdminClick={() => setIsAdminLoginOpen(true)} />
       <CartSidebar 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 

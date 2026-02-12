@@ -4,9 +4,10 @@ import React from 'react';
 interface FooterProps {
   logoUrl?: string;
   onAdminClick?: () => void;
+  isStoreOpen?: boolean;
 }
 
-export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick }) => {
+export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOpen = true }) => {
   return (
     <footer className="bg-emerald-950 text-emerald-100/60 py-16 border-t border-emerald-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -67,16 +68,25 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick }) => {
                 <span className="text-white font-black">18:30 - 23:50</span>
               </div>
             </div>
-            <div className="mt-6 flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-[10px] font-black text-emerald-400 uppercase">Aberto para Pedidos</span>
-            </div>
+            
+            {isStoreOpen ? (
+              <div className="mt-6 flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Aberto para Pedidos</span>
+              </div>
+            ) : (
+              <div className="mt-6 flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Fechada para Pedidos</span>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="mt-16 pt-8 border-t border-emerald-900/50 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
           <p>© 2024 NILO LANCHES - TODOS OS DIREITOS RESERVADOS</p>
           <div className="flex gap-6">
+            <button onClick={onAdminClick} className="hover:text-emerald-400 transition-colors uppercase">Acesso</button>
             <a href="#" className="hover:text-emerald-400 transition-colors">Privacidade</a>
           </div>
         </div>
