@@ -71,6 +71,17 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
+  // ATUALIZA O ÍCONE DO NAVEGADOR (FAVICON) E ÍCONE PWA COM A LOGO UPLOADADA
+  useEffect(() => {
+    if (logoUrl) {
+      const favicon = document.getElementById('app-favicon') as HTMLLinkElement;
+      const appleIcon = document.getElementById('app-apple-touch-icon') as HTMLLinkElement;
+      
+      if (favicon) favicon.href = logoUrl;
+      if (appleIcon) appleIcon.href = logoUrl;
+    }
+  }, [logoUrl]);
+
   // PERSISTÊNCIA DO CARRINHO - SALVAMENTO AUTOMÁTICO
   useEffect(() => {
     localStorage.setItem('nl_cart_v1', JSON.stringify(cart));
