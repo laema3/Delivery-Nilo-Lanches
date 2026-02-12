@@ -41,7 +41,17 @@ const App: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  
+  // PERSISTÊNCIA DO CARRINHO - INICIALIZAÇÃO
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const savedCart = localStorage.getItem('nl_cart_v1');
+      return savedCart ? JSON.parse(savedCart) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>('Todos');
@@ -60,6 +70,11 @@ const App: React.FC = () => {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
+
+  // PERSISTÊNCIA DO CARRINHO - SALVAMENTO AUTOMÁTICO
+  useEffect(() => {
+    localStorage.setItem('nl_cart_v1', JSON.stringify(cart));
+  }, [cart]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsInitialLoading(false), 2000);
@@ -206,7 +221,7 @@ const App: React.FC = () => {
 
         setLastOrder(newOrder);
         setIsSuccessModalOpen(true);
-        setCart([]);
+        setCart([]); // Isso também limpará o localStorage via useEffect
         
     } catch (e) { 
       console.error(e);
