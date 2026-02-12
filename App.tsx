@@ -255,21 +255,24 @@ const App: React.FC = () => {
             onDeleteProduct={async (id) => { await dbService.remove('products', id); }}
             onAddCategory={async (n) => { const id = `cat_${Date.now()}`; await dbService.save('categories', id, {id, name: n}); }}
             onRemoveCategory={async (id) => { await dbService.remove('categories', id); }}
+            onUpdateCategory={async (id, name) => { await dbService.save('categories', id, {id, name}); setToast({show:true, msg:'Categoria salva!', type:'success'}); }}
             onAddSubCategory={async (catId, n) => { const id = `sub_${Date.now()}`; await dbService.save('sub_categories', id, {id, categoryId: catId, name: n}); }}
             onUpdateSubCategory={async (id, name, catId) => { await dbService.save('sub_categories', id, {id, name, categoryId: catId}); setToast({show:true, msg:'Subcategoria salva!', type:'success'}); }}
             onRemoveSubCategory={async (id) => { await dbService.remove('sub_categories', id); }}
             onAddComplement={async (n, p, c) => { const id = `comp_${Date.now()}`; await dbService.save('complements', id, {id, name: n, price: p, active: true, applicable_categories: c}); }}
             onToggleComplement={async (id) => { const comp = complements.find(x => x.id === id); if(comp) await dbService.save('complements', id, {...comp, active: !comp.active}); }}
+            onUpdateComplement={async (id, name, price, cats) => { const comp = complements.find(x => x.id === id); if(comp) await dbService.save('complements', id, {...comp, name, price, applicable_categories: cats}); setToast({show:true, msg:'Adicional salvo!', type:'success'}); }}
             onRemoveComplement={async (id) => { await dbService.remove('complements', id); }}
             onAddZipRange={async (s, e, f) => { const id = `zip_${Date.now()}`; await dbService.save('zip_ranges', id, {id, start: s, end: e, fee: f}); }}
+            onUpdateZipRange={async (id, s, e, f) => { const zip = zipRanges.find(z => z.id === id); if(zip) await dbService.save('zip_ranges', id, {...zip, start: s, end: e, fee: f}); setToast({show:true, msg:'Faixa de CEP salva!', type:'success'}); }}
             onRemoveZipRange={async (id) => { await dbService.remove('zip_ranges', id); }}
             onAddCoupon={async (c, d, t) => { const id = `cp_${Date.now()}`; await dbService.save('coupons', id, {id, code: c.toUpperCase(), discount: d, type: t, active: true}); }}
             onRemoveCoupon={async (id) => { await dbService.remove('coupons', id); }}
             paymentSettings={paymentMethods} 
             onTogglePaymentMethod={async (id) => { const p = paymentMethods.find(x => x.id === id); if(p) await dbService.save('payment_methods', id, {...p, enabled: !p.enabled}); }}
-            onAddPaymentMethod={async (n, t) => { const id = `pay_${Date.now()}`; await dbService.save('payment_methods', id, {id, name: n, type: t, enabled: true}); }}
+            onAddPaymentMethod={async (n, t, e, tk) => { const id = `pay_${Date.now()}`; await dbService.save('payment_methods', id, {id, name: n, type: t, email: e, token: tk, enabled: true}); }}
             onRemovePaymentMethod={async (id) => { await dbService.remove('payment_methods', id); }}
-            onUpdatePaymentSettings={async (id, u) => { const p = paymentMethods.find(x => x.id === id); if(p) await dbService.save('payment_methods', id, {...p, ...u}); }}
+            onUpdatePaymentSettings={async (id, u) => { const p = paymentMethods.find(x => x.id === id); if(p) await dbService.save('payment_methods', id, {...p, ...u}); setToast({show:true, msg:'Pagamento atualizado!', type:'success'}); }}
             onLogout={() => { setIsAdmin(false); setIsAdminAuthenticated(false); sessionStorage.removeItem('nl_admin_auth'); }} 
             onBackToSite={() => setIsAdmin(false)}
             onUpdateProduct={async (p) => { await dbService.save('products', p.id, p); }}
