@@ -248,6 +248,31 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSendWhatsApp = () => {
+    if (!lastOrder) return;
+
+    const itemsList = lastOrder.items.map(item => 
+      `▪️ ${item.quantity}x *${item.name}*${item.selectedComplements?.length ? `\n   + ${item.selectedComplements.map(c => c.name).join(', ')}` : ''}`
+    ).join('\n');
+
+    const whatsappText = `🍔 *PEDIDO #${lastOrder.id.substring(0,6)}*
+--------------------------------
+👤 *Cliente:* ${lastOrder.customerName}
+📍 *Tipo:* ${lastOrder.deliveryType === 'DELIVERY' ? 'Entrega' : 'Retirada'}
+🏠 *Endereço:* ${lastOrder.customerAddress}
+💳 *Pagamento:* ${lastOrder.paymentMethod} ${lastOrder.changeFor ? `(Troco p/ ${lastOrder.changeFor})` : ''}
+--------------------------------
+*ITENS:*
+${itemsList}
+--------------------------------
+💵 *Total:* R$ ${lastOrder.total.toFixed(2)}
+🛵 *Taxa:* R$ ${lastOrder.deliveryFee.toFixed(2)}
+`;
+    
+    const url = `https://wa.me/5534991183728?text=${encodeURIComponent(whatsappText)}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col w-full overflow-x-hidden">
       {isInitialLoading && <ProductLoader />}
@@ -376,7 +401,7 @@ const App: React.FC = () => {
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
-      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} orderId={lastOrder?.id || ''} onSendWhatsApp={() => {}} />
+      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} order={lastOrder} onSendWhatsApp={handleSendWhatsApp} />
       {!isAdmin && <ChatBot products={products} cart={Array.isArray(cart) ? cart : []} deliveryFee={currentDeliveryFee} isStoreOpen={isStoreOpen} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
     </div>
   );
