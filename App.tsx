@@ -158,7 +158,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col w-full overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 flex flex-col w-full relative">
       {isInitialLoading && <ProductLoader />}
       <Toast isVisible={toast.show} message={toast.msg} type={toast.type} onClose={() => setToast(prev => ({ ...prev, show: false }))} />
       
@@ -191,8 +191,8 @@ const App: React.FC = () => {
               </section>
             )}
             
-            {/* O MENU QUE DEVE FICAR FIXO - ID 'menu-anchor' */}
-            <div id="menu-anchor" className="bg-white shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300 sticky top-20 sm:top-28 z-30">
+            {/* O MENU QUE DEVE FICAR FIXO - Ajustado para valores em pixels (Navbar: 80px mobile / 112px desktop) */}
+            <div id="menu-anchor" className="bg-white shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300 sticky top-[80px] sm:top-[112px] z-[35]">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
                  <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>Todos</button>
                  {categories.map(cat => (
@@ -209,7 +209,7 @@ const App: React.FC = () => {
                )}
             </div>
 
-            <div className="w-full max-w-7xl mx-auto px-6 py-12">
+            <div className="w-full max-w-7xl mx-auto px-6 py-12 scroll-mt-[180px]">
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                   {groupedMenu.map(p => <FoodCard key={p.id} product={p} onAdd={handleAddToCart} onClick={setSelectedProduct} />)}
                </div>
