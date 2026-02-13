@@ -68,8 +68,12 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
             
             const subtotalAtual = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0) + (foundProduct.price * qty);
             
-            let feedback = `✅ Adicionado: *${foundProduct.name}* (${qty}x).\n💰 Total atual do carrinho: R$ ${subtotalAtual.toFixed(2)}`;
+            let feedback = `✅ Adicionado: *${foundProduct.name}* (${qty}x).\n💰 Subtotal: R$ ${subtotalAtual.toFixed(2)}`;
             
+            if (deliveryFee > 0) {
+              feedback += `\n🛵 Taxa de entrega: R$ ${deliveryFee.toFixed(2)}\n💵 Total com entrega: R$ ${(subtotalAtual + deliveryFee).toFixed(2)}`;
+            }
+
             if (!isStoreOpen) {
               feedback += `\n\n🕒 *Agendado:* Produção inicia às 18:30!`;
             }
@@ -80,7 +84,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
           }
         }
 
-        // 2. FINALIZAR PEDIDO (O grande momento!)
+        // 2. FINALIZAR PEDIDO
         if (call.name === 'finalizeOrder') {
           const args = call.args as any;
           
@@ -90,7 +94,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
           }
 
           const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-          // GARANTIA: Se for entrega, usa a taxa que o sistema calculou (deliveryFee)
           const finalFee = args.isDelivery ? (deliveryFee || 0) : 0; 
           const totalFinal = subtotal + finalFee;
 
@@ -118,7 +121,7 @@ _Gerado por Nilo Assistente Virtual_`;
           
           setMessages(prev => [...prev, { 
             role: 'model', 
-            text: `🎯 *Tudo pronto!* \n\nO total ficou em *R$ ${totalFinal.toFixed(2)}* (Lanches: R$ ${subtotal.toFixed(2)} + Entrega: R$ ${finalFee.toFixed(2)}).\n\nEstou te levando agora para o WhatsApp da Nilo Lanches para finalizar! 🚀` 
+            text: `🎯 *Tudo pronto!* \n\nTotal Final: *R$ ${totalFinal.toFixed(2)}*.\n\nEstou te levando para o WhatsApp para confirmar seu pedido! 🚀` 
           }]);
 
           setTimeout(() => {
@@ -191,7 +194,7 @@ _Gerado por Nilo Assistente Virtual_`;
             <input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite aqui sua mensagem..." 
+              placeholder="Digite sua mensagem..." 
               className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all placeholder:text-slate-400"
             />
             <button disabled={isLoading || !input.trim()} className="bg-emerald-600 disabled:bg-slate-300 text-white w-14 h-14 flex items-center justify-center rounded-xl shadow-lg active:scale-90 transition-all">
