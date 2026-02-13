@@ -10,7 +10,7 @@ import { generateProductImage } from '../services/geminiService.ts';
 import { compressImage } from '../services/imageService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v2.3 (Smarter Import)";
+const APP_VERSION = "v2.5 (Progressive SQL Import)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -119,6 +119,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [payEmail, setPayEmail] = useState('');
   const [payToken, setPayToken] = useState('');
 
+  // States para Importação de SQL com Progresso
+  const [selectedSqlFile, setSelectedSqlFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
+
   // Local state for social links in Adjustments
   const [localInstagram, setLocalInstagram] = useState(socialLinks?.instagram || '');
   const [localWhatsapp, setLocalWhatsapp] = useState(socialLinks?.whatsapp || '');
@@ -219,34 +224,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     setEditingCustomer(null); setCustName(''); setCustPhone(''); setCustAddress(''); setCustNeighborhood(''); setCustZip('');
   };
 
-  const handleSqlImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSqlFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) {
+      setSelectedSqlFile(file);
+      setImportProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const handleExecuteSqlImport = async () => {
+    if (!selectedSqlFile) return;
+    setIsImporting(true);
 
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target?.result as string;
       if (!text) return;
 
-      // Regex aprimorada para capturar valores de INSERT de forma mais flexível
-      const matches = text.matchAll(/INSERT INTO .*?VALUES\s*\((.*?)\);/gi);
+      const regex = /INSERT INTO .*?VALUES\s*\((.*?)\);/gi;
+      const allMatches = [...text.matchAll(regex)];
+      const total = allMatches.length;
+      setImportProgress({ current: 0, total });
+
       let count = 0;
 
-      for (const match of matches) {
+      for (const match of allMatches) {
         try {
           const valuesStr = match[1];
-          // Split considerando vírgulas que não estão dentro de aspas
           const parts = valuesStr.split(/,(?=(?:(?:[^']*'){2})*[^']*$)/).map(v => v.trim().replace(/^'|'$/g, ''));
           
           if (parts.length > 2) {
-            // LÓGICA INTELIGENTE: Identifica campos por padrão de conteúdo
             let email = parts.find(p => p.includes('@')) || `import_${Date.now()}_${count}@nilo.com`;
             let phone = parts.find(p => p.replace(/\D/g, '').length >= 8 && !p.includes('@')) || '0000000000';
-            
-            // O nome costuma ser o primeiro campo que não é email nem ID numérico curto
             let name = parts.find(p => isNaN(Number(p)) && !p.includes('@') && p.length > 2) || 'Cliente Importado';
-            
-            // O que sobrar de texto longo costuma ser endereço
             let address = parts.find(p => p.length > 10 && p !== name && !p.includes('@')) || '';
 
             const importedCustomer: Customer = {
@@ -264,15 +274,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             
             await onUpdateCustomer(importedCustomer.id, importedCustomer);
             count++;
+            setImportProgress(prev => ({ ...prev, current: count }));
           }
         } catch (err) {
           console.error("Erro ao processar linha SQL:", err);
         }
       }
-      alert(`${count} clientes identificados e importados com sucesso!`);
-      e.target.value = '';
+      alert(`${count} clientes importados com sucesso!`);
+      setSelectedSqlFile(null);
+      setIsImporting(false);
+      setImportProgress({ current: 0, total: 0 });
     };
-    reader.readAsText(file);
+    reader.readAsText(selectedSqlFile);
   };
 
   // Handlers Pagamento
@@ -749,17 +762,57 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
           {activeView === 'clientes' && (
              <div className="space-y-6">
-                <div className="flex gap-3">
-                  <input value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} placeholder="Buscar cliente por nome ou telefone..." className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none shadow-sm" />
-                  <label className="shrink-0 bg-slate-800 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-700 transition-all flex items-center gap-2 shadow-lg active:scale-95">
-                    📂 Importar SQL
-                    <input type="file" accept=".sql" className="hidden" onChange={handleSqlImport} />
-                  </label>
+                <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex gap-3">
+                    <input value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} placeholder="Buscar cliente por nome ou telefone..." className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none shadow-sm" />
+                    
+                    {!selectedSqlFile ? (
+                      <label className="shrink-0 bg-slate-800 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-700 transition-all flex items-center gap-2 shadow-lg active:scale-95">
+                        📂 Selecionar SQL
+                        <input type="file" accept=".sql" className="hidden" onChange={handleSqlFileSelect} />
+                      </label>
+                    ) : (
+                      <div className="flex gap-2 animate-in fade-in zoom-in-95">
+                        <button onClick={handleExecuteSqlImport} disabled={isImporting} className="bg-emerald-600 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg active:scale-95">
+                          {isImporting ? `⏳ ${importProgress.current}/${importProgress.total}` : '🚀 EXECUTAR IMPORTAÇÃO'}
+                        </button>
+                        <button onClick={() => setSelectedSqlFile(null)} className="bg-red-100 text-red-600 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-200">
+                          ✕ Cancelar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedSqlFile && (
+                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl space-y-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">📄</span>
+                        <div className="flex-1">
+                          <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Arquivo Selecionado:</p>
+                          <p className="text-xs font-bold text-blue-600">{selectedSqlFile.name}</p>
+                        </div>
+                      </div>
+                      
+                      {isImporting && (
+                        <div className="space-y-1.5">
+                          <div className="w-full bg-blue-100 h-2.5 rounded-full overflow-hidden">
+                            <div 
+                              className="bg-blue-600 h-full transition-all duration-300"
+                              style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-[9px] font-black uppercase text-blue-500 text-right">
+                            Processando: {importProgress.current} de {importProgress.total} clientes...
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="bg-slate-100 p-4 rounded-xl border-l-4 border-slate-400">
                   <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Dica de Importação</p>
-                  <p className="text-[10px] text-slate-500 mt-1">O sistema identifica automaticamente <strong>emails (@)</strong>, <strong>nomes</strong> e <strong>telefones</strong>. Não se preocupe se os campos do seu SQL estiverem em ordem diferente!</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Arquivos grandes podem levar alguns segundos. O progresso aparecerá acima assim que você clicar em executar.</p>
                 </div>
 
                 {editingCustomer && (
