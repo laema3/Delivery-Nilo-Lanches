@@ -12,12 +12,13 @@ interface ChatBotProps {
   products: Product[];
   cart: CartItem[];
   deliveryFee: number;
+  whatsappNumber?: string;
   isStoreOpen: boolean;
   onAddToCart?: (product: Product, quantity: number) => void;
   onClearCart?: () => void;
 }
 
-export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, isStoreOpen, onAddToCart, onClearCart }) => {
+export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, whatsappNumber, isStoreOpen, onAddToCart, onClearCart }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
@@ -50,16 +51,16 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
     if (response.functionCalls) {
       for (const call of response.functionCalls) {
         
-        // 1. ADICIONAR AO CARRINHO (Com verificação rigorosa de nome)
+        // 1. ADICIONAR AO CARRINHO
         if (call.name === 'addToCart' && onAddToCart) {
           const args = call.args as any;
           const searchName = (args.productName || '').toLowerCase();
           const qty = Number(args.quantity) || 1;
 
-          // Busca por nome exato ou contenção para evitar erros da IA
           const foundProduct = products.find(p => 
             p.name.toLowerCase() === searchName ||
-            p.name.toLowerCase().includes(searchName)
+            p.name.toLowerCase().includes(searchName) ||
+            searchName.includes(p.name.toLowerCase())
           );
 
           if (foundProduct) {
@@ -67,40 +68,40 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
             
             const subtotalAtual = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0) + (foundProduct.price * qty);
             
-            let feedback = `✅ Adicionado: ${qty}x *${foundProduct.name}*.\n💰 Valor deste item: R$ ${(foundProduct.price * qty).toFixed(2)}\n📊 Total acumulado no carrinho: R$ ${subtotalAtual.toFixed(2)}`;
+            let feedback = `✅ Adicionado: *${foundProduct.name}* (${qty}x).\n💰 Total atual do carrinho: R$ ${subtotalAtual.toFixed(2)}`;
             
             if (!isStoreOpen) {
-              feedback += `\n\n🕒 *Lembrete:* Estamos anotando tudo, mas a produção começa às 18:30!`;
+              feedback += `\n\n🕒 *Agendado:* Produção inicia às 18:30!`;
             }
 
             setMessages(prev => [...prev, { role: 'model', text: feedback }]);
           } else {
-            setMessages(prev => [...prev, { role: 'model', text: `Desculpe, não encontrei exatamente o item "${args.productName}" no nosso cardápio atual. Poderia conferir o nome no menu acima?` }]);
+            setMessages(prev => [...prev, { role: 'model', text: `Não encontrei o item "${args.productName}" no cardápio. Pode confirmar o nome?` }]);
           }
         }
 
-        // 2. FINALIZAR PEDIDO (Encaminhamento para WhatsApp)
+        // 2. FINALIZAR PEDIDO (O grande momento!)
         if (call.name === 'finalizeOrder') {
           const args = call.args as any;
           
           if (cart.length === 0) {
-            setMessages(prev => [...prev, { role: 'model', text: "Seu carrinho está vazio! Escolha uma delícia do cardápio primeiro para podermos fechar o pedido. 🍔" }]);
+            setMessages(prev => [...prev, { role: 'model', text: "Putz! Seu carrinho está vazio. Escolha um lanche primeiro! 🍔" }]);
             continue;
           }
 
           const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-          const finalFee = args.isDelivery ? deliveryFee : 0; 
+          // GARANTIA: Se for entrega, usa a taxa que o sistema calculou (deliveryFee)
+          const finalFee = args.isDelivery ? (deliveryFee || 0) : 0; 
           const totalFinal = subtotal + finalFee;
 
           const itemsList = cart.map(item => `▪️ ${item.quantity}x *${item.name}*`).join('\n');
-          
           const headerStatus = !isStoreOpen ? '📝 *PEDIDO AGENDADO (Abertura 18:30)*' : '🍔 *NOVO PEDIDO NILO LANCHES*';
           
           const whatsappText = `${headerStatus}
 --------------------------------
 👤 *Cliente:* ${args.customerName}
 📍 *Tipo:* ${args.isDelivery ? '🚀 Entrega' : '🏪 Retirada'}
-🏠 *Endereço:* ${args.address || 'N/A'}
+🏠 *Endereço:* ${args.isDelivery ? (args.address || 'N/A') : 'RETIRADA NO BALCÃO'}
 💳 *Pagamento:* ${args.paymentMethod}
 --------------------------------
 *ITENS:*
@@ -110,21 +111,21 @@ ${itemsList}
 🛵 *Taxa de Entrega:* R$ ${finalFee.toFixed(2)}
 💰 *TOTAL: R$ ${totalFinal.toFixed(2)}*
 --------------------------------
-_Pedido gerado via Assistente Virtual Nilo_`;
+_Gerado por Nilo Assistente Virtual_`;
           
-          // O número do WhatsApp deve ser o oficial da lanchonete
-          const url = `https://wa.me/5534991183728?text=${encodeURIComponent(whatsappText)}`;
+          const officialPhone = (whatsappNumber || '5534991183728').replace(/\D/g, '');
+          const url = `https://wa.me/${officialPhone}?text=${encodeURIComponent(whatsappText)}`;
           
           setMessages(prev => [...prev, { 
             role: 'model', 
-            text: `🎯 *Pedido conferido!* \n\nTotal: *R$ ${totalFinal.toFixed(2)}* (incluindo R$ ${finalFee.toFixed(2)} de entrega).\n\nEstou te enviando agora mesmo para o nosso WhatsApp oficial para que a cozinha receba seu pedido! 🚀` 
+            text: `🎯 *Tudo pronto!* \n\nO total ficou em *R$ ${totalFinal.toFixed(2)}* (Lanches: R$ ${subtotal.toFixed(2)} + Entrega: R$ ${finalFee.toFixed(2)}).\n\nEstou te levando agora para o WhatsApp da Nilo Lanches para finalizar! 🚀` 
           }]);
 
           setTimeout(() => {
             window.open(url, '_blank');
             if (onClearCart) onClearCart();
             setIsOpen(false);
-          }, 2500);
+          }, 3500);
         }
       }
     }
@@ -149,7 +150,7 @@ _Pedido gerado via Assistente Virtual Nilo_`;
                 <h3 className="text-white font-black text-sm uppercase tracking-widest">Nilo Assistente</h3>
                 <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
                    <span className={`w-1.5 h-1.5 rounded-full ${isStoreOpen ? 'bg-emerald-300 animate-pulse' : 'bg-red-400'}`}></span> 
-                   {isStoreOpen ? 'No Ponto' : 'Anotando Pedidos'}
+                   {isStoreOpen ? 'Online' : 'Agendando'}
                 </p>
               </div>
             </div>
@@ -180,7 +181,7 @@ _Pedido gerado via Assistente Virtual Nilo_`;
                     <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
                     <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                   </div>
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nilo está pensando...</span>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nilo está conferindo...</span>
                 </div>
               </div>
             )}
@@ -190,7 +191,7 @@ _Pedido gerado via Assistente Virtual Nilo_`;
             <input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Falar com o Nilo..." 
+              placeholder="Digite aqui sua mensagem..." 
               className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all placeholder:text-slate-400"
             />
             <button disabled={isLoading || !input.trim()} className="bg-emerald-600 disabled:bg-slate-300 text-white w-14 h-14 flex items-center justify-center rounded-xl shadow-lg active:scale-90 transition-all">

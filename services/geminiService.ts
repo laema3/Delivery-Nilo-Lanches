@@ -2,50 +2,16 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { Product } from "../types.ts";
 
-// Configuração segura da API Key
-const getApiKey = () => {
-  let key = "";
-  try {
-    // @ts-ignore
-    if (typeof import.meta !== "undefined" && import.meta.env) {
-      // @ts-ignore
-      key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || "";
-    }
-  } catch (e) {}
-
-  if (!key) {
-    try {
-      // @ts-ignore
-      if (typeof process !== "undefined" && process.env) {
-        // @ts-ignore
-        key = process.env.VITE_API_KEY || process.env.API_KEY || "";
-      }
-    } catch (e) {}
-  }
-
-  // Fallback de segurança
-  if (!key) key = "AIzaSyBpWUIlqFnUV6lWNUdLSUACYm21SuNKNYs";
-
-  if (key) key = key.trim().replace(/^["']|["']$/g, "");
-  return key;
-};
-
-const getAIClient = () => {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
-  return new GoogleGenAI({ apiKey });
-};
-
 // Tool para Adicionar ao Carrinho
 const addToCartTool: FunctionDeclaration = {
   name: "addToCart",
-  description: "Adiciona itens ao carrinho. Use quando o cliente disser que quer algo do cardápio.",
+  description: "Adiciona itens ao carrinho. Use sempre que o cliente quiser pedir algo do menu.",
   parameters: {
     type: Type.OBJECT,
     properties: {
-      productName: { type: Type.STRING, description: "Nome exato do produto conforme o cardápio." },
+      productName: { type: Type.STRING, description: "Nome EXATO do produto conforme o cardápio oficial." },
       quantity: { type: Type.NUMBER, description: "Quantidade (padrão 1)." },
-      observation: { type: Type.STRING, description: "Observações (ex: sem cebola)." }
+      observation: { type: Type.STRING, description: "Observações como 'sem cebola' ou 'ponto da carne'." }
     },
     required: ["productName"]
   }
@@ -54,14 +20,14 @@ const addToCartTool: FunctionDeclaration = {
 // Tool para Finalizar Pedido
 const finalizeOrderTool: FunctionDeclaration = {
   name: "finalizeOrder",
-  description: "Finaliza o pedido. Use apenas quando tiver nome, endereço (se entrega) e forma de pagamento.",
+  description: "Finaliza o pedido e prepara para o envio ao WhatsApp.",
   parameters: {
     type: Type.OBJECT,
     properties: {
       customerName: { type: Type.STRING, description: "Nome do cliente." },
-      address: { type: Type.STRING, description: "Endereço completo (Rua, Nº, Bairro)." },
-      paymentMethod: { type: Type.STRING, description: "Forma de pagamento escolhida." },
-      isDelivery: { type: Type.BOOLEAN, description: "Verdadeiro para entrega, falso para retirada." }
+      address: { type: Type.STRING, description: "Endereço completo (Rua, Número, Bairro)." },
+      paymentMethod: { type: Type.STRING, description: "Forma de pagamento (Dinheiro, Pix, Cartão)." },
+      isDelivery: { type: Type.BOOLEAN, description: "True para Entrega, False para Retirada no local." }
     },
     required: ["customerName", "paymentMethod", "isDelivery"]
   }
@@ -74,43 +40,46 @@ export const chatWithAssistant = async (
   isStoreOpen: boolean,
   currentDeliveryFee: number
 ) => {
-  const ai = getAIClient();
-  if (!ai) return { text: "⚠️ Erro de conexão com a IA.", functionCalls: null };
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const productsList = allProducts.map(p => `- ${p.name}: R$ ${p.price.toFixed(2)} (${p.description})`).join("\n");
     
     const systemInstruction = `
-      Você é o 'Nilo', o atendente virtual especializado e assertivo da Nilo Lanches. Sua missão é ser o melhor vendedor, garantindo que o cliente peça exatamente o que temos no cardápio.
+      Você é o 'Nilo', o assistente virtual OFICIAL da Nilo Lanches. Você é extremamente assertivo, vendedor e não comete erros de cálculo.
 
-      DIRETRIZES DE ATENDIMENTO:
-      1. FIDELIDADE AO CARDÁPIO: Utilize APENAS os itens da lista abaixo. Se o cliente pedir algo parecido, corrija educadamente: "Não temos esse exatamente, mas o nosso '${allProducts[0]?.name || 'X-Nilo'}' é bem parecido e você vai amar!".
-         CARDÁPIO ATUAL:
+      REGRAS DE OURO:
+      1. NOMES DOS PRODUTOS: Se o cliente pedir um item, você DEVE conferir se o nome bate com a lista abaixo. Se o cliente falar "X-Salada" e o nome for "Nilo X-Salada", use o nome oficial "Nilo X-Salada" e adicione ao carrinho.
+         CARDÁPIO REAL:
          ${productsList}
 
-      2. TAXA DE ENTREGA: A taxa de entrega para este cliente é EXATAMENTE R$ ${currentDeliveryFee.toFixed(2)}. Sempre que o cliente perguntar ou você for calcular o total para entrega, use este valor. Se for retirada, a taxa é R$ 0,00.
+      2. TAXA DE ENTREGA (ORDEM SUPREMA):
+         - A TAXA DE ENTREGA ATUAL É EXATAMENTE: R$ ${currentDeliveryFee.toFixed(2)}.
+         - Se o valor acima for maior que 0, VOCÊ DEVE informar ao cliente que existe essa taxa para entrega.
+         - Se o valor for 0.00, diga que a taxa será confirmada no fechamento (caso ele não esteja logado) ou que é cortesia (caso ele já tenha cadastrado o endereço).
+         - NUNCA invente outros valores de frete.
 
-      3. CÁLCULO PRECISO: Seja um mestre da matemática. Sempre some (Preço do Lanche x Quantidade) + Taxa de Entrega (se houver). 
+      3. CÁLCULO DE FECHAMENTO: Antes de finalizar, você deve dizer: "O total dos lanches deu R$ X + R$ ${currentDeliveryFee.toFixed(2)} de entrega, totalizando R$ Y".
 
-      4. STATUS DA LOJA: A loja está ${isStoreOpen ? 'ABERTA' : 'FECHADA'}. Se estiver fechada, aceite o pedido mas reforce: "Já vou deixar tudo pronto aqui, mas nossa chapa só esquenta às 18:30, beleza?".
+      4. DESTINO DO PEDIDO: Sempre deixe claro: "Vou gerar seu pedido agora e te encaminhar para o nosso WhatsApp oficial, onde nossa equipe de balcão vai confirmar e já mandar para a chapa!".
 
-      5. FINALIZAÇÃO E WHATSAPP: Quando o cliente quiser fechar, explique: "Excelente escolha! Vou gerar seu resumo aqui e te redirecionar para o nosso WhatsApp oficial, onde nossa equipe de balcão vai confirmar seu pedido e iniciar o preparo!". É CRUCIAL que o cliente saiba que o destino final é o WhatsApp.
+      5. STATUS DA LOJA: A loja está ${isStoreOpen ? 'ABERTA' : 'FECHADA'}. Se estiver fechada, aceite o pedido para agendamento, mas avise que a produção começa às 18:30.
 
-      6. PERSONALIDADE: Amigável, ágil, assertivo e usa emojis de comida. Não enrole, seja direto e vendedor.
+      6. PERSONALIDADE: Rápido, direto, usa emojis (🍔🍟🥤) e é muito educado.
     `;
 
     const validHistory = history.map(h => ({
       role: h.role,
-      parts: h.parts || [{ text: h.text }]
+      parts: Array.isArray(h.parts) ? h.parts : [{ text: String(h.text || h.parts) }]
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash", 
+      model: "gemini-3-flash-preview", 
       contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartTool, finalizeOrderTool] }],
-        temperature: 0.5, // Menor temperatura para respostas mais factuais e menos criativas
+        temperature: 0.2, // Baixa temperatura para máxima precisão
       }
     });
 
@@ -121,22 +90,25 @@ export const chatWithAssistant = async (
 
   } catch (error) {
     console.error("Erro Chat IA:", error);
-    return { text: "Tive um pequeno soluço técnico. Pode repetir o que deseja?", functionCalls: null };
+    return { text: "Tive um pequeno soluço aqui. Pode repetir?", functionCalls: null };
   }
 };
 
 export const generateProductImage = async (productName: string) => {
-  const ai = getAIClient();
-  if (!ai) return null;
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: `High quality food photo of ${productName}, studio lighting, appetizing.` }] },
+      contents: { parts: [{ text: `High quality food photo of ${productName}, delicious burger style, professional lighting.` }] },
       config: { imageConfig: { aspectRatio: "1:1" } }
     });
-    const parts = response.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      if (part.inlineData?.data) return `data:image/png;base64,${part.inlineData.data}`;
+    const candidates = response.candidates || [];
+    if (candidates.length > 0) {
+      for (const part of candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          return `data:image/png;base64,${part.inlineData.data}`;
+        }
+      }
     }
     return null;
   } catch (e) { return null; }
