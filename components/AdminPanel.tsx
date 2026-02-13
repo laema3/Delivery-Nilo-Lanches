@@ -10,7 +10,7 @@ import { generateProductImage } from '../services/geminiService.ts';
 import { compressImage } from '../services/imageService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v2.2 (Status Control)";
+const APP_VERSION = "v2.3 (Smarter Import)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -25,6 +25,12 @@ interface AdminPanelProps {
   onToggleStore: () => void;
   logoUrl: string;
   onUpdateLogo: (url: string) => void;
+  socialLinks: {
+    instagram?: string;
+    whatsapp?: string;
+    facebook?: string;
+  };
+  onUpdateSocialLinks: (links: { instagram?: string; whatsapp?: string; facebook?: string }) => void;
   onAddProduct: (p: Partial<Product>) => Promise<void>;
   onDeleteProduct: (id: string) => void;
   onUpdateProduct: (p: Product) => void;
@@ -59,7 +65,7 @@ type AdminView = 'dashboard' | 'pedidos' | 'produtos' | 'categorias' | 'subcateg
 
 export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const { 
-    products, orders, customers, zipRanges, categories, subCategories, complements, coupons, isStoreOpen, onToggleStore, logoUrl, onUpdateLogo, onAddProduct, onDeleteProduct, 
+    products, orders, customers, zipRanges, categories, subCategories, complements, coupons, isStoreOpen, onToggleStore, logoUrl, onUpdateLogo, socialLinks, onUpdateSocialLinks, onAddProduct, onDeleteProduct, 
     onUpdateProduct, onUpdateOrderStatus, onDeleteOrder, onUpdateCustomer, onAddCategory, onRemoveCategory, onUpdateCategory, onAddSubCategory, onUpdateSubCategory, onRemoveSubCategory,
     onAddComplement, onToggleComplement, onRemoveComplement, onUpdateComplement, onAddZipRange, onRemoveZipRange, onUpdateZipRange,
     onLogout, onBackToSite,
@@ -113,6 +119,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [payEmail, setPayEmail] = useState('');
   const [payToken, setPayToken] = useState('');
 
+  // Local state for social links in Adjustments
+  const [localInstagram, setLocalInstagram] = useState(socialLinks?.instagram || '');
+  const [localWhatsapp, setLocalWhatsapp] = useState(socialLinks?.whatsapp || '');
+  const [localFacebook, setLocalFacebook] = useState(socialLinks?.facebook || '');
+
+  useEffect(() => {
+    setLocalInstagram(socialLinks?.instagram || '');
+    setLocalWhatsapp(socialLinks?.whatsapp || '');
+    setLocalFacebook(socialLinks?.facebook || '');
+  }, [socialLinks]);
+
   // ------------------------------------------------------------------
   // CONTROLE DE SOM E NOTIFICAÇÕES
   // ------------------------------------------------------------------
@@ -122,9 +139,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   }, []);
 
   useEffect(() => {
-    // Toca o som APENAS se houver pedidos com status 'NOVO' que não foram deletados
     const hasNewOrders = orders.some(o => o.status === 'NOVO' && !deletedIds.includes(o.id));
-    
     if (hasNewOrders) {
       if (audioRef.current && audioRef.current.paused) {
         audioRef.current.play().catch(e => console.log("Interação necessária para tocar som:", e));
@@ -137,14 +152,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     }
   }, [orders, deletedIds]);
 
-  // Função Wrapper para atualizar status imediatamente na UI e parar o som se necessário
   const handleOrderStatusChange = (status: OrderStatus) => {
     if (!selectedOrder) return;
-    
-    // 1. Atualiza visualmente o modal agora (sem esperar o banco)
     setSelectedOrder(prev => prev ? { ...prev, status } : null);
-    
-    // 2. Chama a função do pai para atualizar no banco
     onUpdateOrderStatus(selectedOrder.id, status);
   };
 
@@ -209,6 +219,62 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     setEditingCustomer(null); setCustName(''); setCustPhone(''); setCustAddress(''); setCustNeighborhood(''); setCustZip('');
   };
 
+  const handleSqlImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      // Regex aprimorada para capturar valores de INSERT de forma mais flexível
+      const matches = text.matchAll(/INSERT INTO .*?VALUES\s*\((.*?)\);/gi);
+      let count = 0;
+
+      for (const match of matches) {
+        try {
+          const valuesStr = match[1];
+          // Split considerando vírgulas que não estão dentro de aspas
+          const parts = valuesStr.split(/,(?=(?:(?:[^']*'){2})*[^']*$)/).map(v => v.trim().replace(/^'|'$/g, ''));
+          
+          if (parts.length > 2) {
+            // LÓGICA INTELIGENTE: Identifica campos por padrão de conteúdo
+            let email = parts.find(p => p.includes('@')) || `import_${Date.now()}_${count}@nilo.com`;
+            let phone = parts.find(p => p.replace(/\D/g, '').length >= 8 && !p.includes('@')) || '0000000000';
+            
+            // O nome costuma ser o primeiro campo que não é email nem ID numérico curto
+            let name = parts.find(p => isNaN(Number(p)) && !p.includes('@') && p.length > 2) || 'Cliente Importado';
+            
+            // O que sobrar de texto longo costuma ser endereço
+            let address = parts.find(p => p.length > 10 && p !== name && !p.includes('@')) || '';
+
+            const importedCustomer: Customer = {
+              id: email,
+              name: name,
+              email: email,
+              phone: phone,
+              address: address,
+              neighborhood: '',
+              zipCode: '',
+              totalOrders: 0,
+              points: 0,
+              lastOrder: new Date().toISOString()
+            };
+            
+            await onUpdateCustomer(importedCustomer.id, importedCustomer);
+            count++;
+          }
+        } catch (err) {
+          console.error("Erro ao processar linha SQL:", err);
+        }
+      }
+      alert(`${count} clientes identificados e importados com sucesso!`);
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
   // Handlers Pagamento
   const handleSavePayment = () => {
     if (!payName.trim()) return alert("Nome obrigatório.");
@@ -236,8 +302,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const executeRealPrint = () => {
     if (!selectedOrder) return;
-
-    // Constrói o HTML do item
     const itemsHtml = selectedOrder.items.map(item => `
       <div class="item-row">
         <span>${item.quantity}x ${item.name}</span>
@@ -246,7 +310,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
       ${(item.selectedComplements || []).map(c => `<div style="font-size:10px; padding-left:10px; color:#555;">+ ${c.name}</div>`).join('')}
     `).join('');
 
-    // Conteúdo Completo
     const printContent = `
       <html>
       <head>
@@ -308,20 +371,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
       </html>
     `;
 
-    // Tentativa com window.open (Pop-up) para evitar sandbox error do iframe
     try {
         const printWindow = window.open('', '_blank', 'width=350,height=600,menubar=no,toolbar=no,location=no,status=no,titlebar=no');
-        
         if (printWindow) {
             printWindow.document.open();
             printWindow.document.write(printContent);
             printWindow.document.close();
         } else {
-            alert("Bloqueio de Pop-up detectado. Por favor, permita pop-ups para imprimir o cupom.");
+            alert("Bloqueio de Pop-up detectado.");
         }
     } catch (e) {
-        console.error("Erro ao abrir janela de impressão:", e);
-        alert("Erro ao tentar imprimir. Verifique as permissões do navegador.");
+        alert("Erro ao tentar imprimir.");
     }
   };
 
@@ -389,6 +449,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
       case 'CANCELADO': return 'bg-red-50 text-red-800 border-red-200';
       default: return 'bg-slate-100 text-slate-600';
     }
+  };
+
+  const handleSaveSocialLinks = () => {
+    onUpdateSocialLinks({
+      instagram: localInstagram,
+      whatsapp: localWhatsapp,
+      facebook: localFacebook
+    });
   };
 
   return (
@@ -536,20 +604,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                   {filteredOrders.length === 0 ? (
                     <div className="text-center py-20 text-slate-400 font-bold uppercase text-xs">Nenhum pedido encontrado.</div>
                   ) : (
-                    filteredOrders.map(order => (
-                      <div key={order.id} onClick={() => setSelectedOrder(order)} className={`bg-white p-4 rounded-xl border-l-4 ${getStatusColor(order.status).split(' ')[0]} border-opacity-100 shadow-sm cursor-pointer hover:bg-slate-50 hover:scale-[1.01] transition-all`}>
-                        <div className="flex justify-between items-center">
-                           <div>
-                              <h4 className="font-black text-sm uppercase">#{order.id.substring(0,5)} - {order.customerName}</h4>
-                              <p className="text-[10px] font-bold uppercase text-slate-400">{order.deliveryType} • {new Date(order.createdAt).toLocaleTimeString()}</p>
-                           </div>
-                           <div className="text-right">
-                              <p className="font-black text-emerald-600 text-sm">R$ {order.total.toFixed(2)}</p>
-                              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${getStatusColor(order.status)}`}>{order.status}</span>
-                           </div>
+                    filteredOrders.map(order => {
+                      const isNew = order.status === 'NOVO';
+                      return (
+                        <div 
+                          key={order.id} 
+                          onClick={() => setSelectedOrder(order)} 
+                          className={`p-4 rounded-xl border-l-4 ${getStatusColor(order.status).split(' ')[0]} border-opacity-100 shadow-sm cursor-pointer hover:scale-[1.01] transition-all ${isNew ? 'bg-blue-600 text-white shadow-blue-200' : 'bg-white text-slate-800 hover:bg-slate-50'}`}
+                        >
+                          <div className="flex justify-between items-center">
+                             <div>
+                                <h4 className={`font-black text-sm uppercase ${isNew ? 'text-white' : 'text-slate-800'}`}>#{order.id.substring(0,5)} - {order.customerName}</h4>
+                                <p className={`text-[10px] font-bold uppercase ${isNew ? 'text-blue-100' : 'text-slate-400'}`}>{order.deliveryType} • {new Date(order.createdAt).toLocaleTimeString()}</p>
+                             </div>
+                             <div className="text-right">
+                                <p className={`font-black text-sm ${isNew ? 'text-white' : 'text-emerald-600'}`}>R$ {order.total.toFixed(2)}</p>
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${isNew ? 'bg-white text-blue-600 shadow-sm' : getStatusColor(order.status)}`}>{order.status}</span>
+                             </div>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                </div>
              </div>
@@ -674,30 +749,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
           {activeView === 'clientes' && (
              <div className="space-y-6">
-                <input value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} placeholder="Buscar cliente por nome ou telefone..." className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none shadow-sm" />
+                <div className="flex gap-3">
+                  <input value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} placeholder="Buscar cliente por nome ou telefone..." className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none shadow-sm" />
+                  <label className="shrink-0 bg-slate-800 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-700 transition-all flex items-center gap-2 shadow-lg active:scale-95">
+                    📂 Importar SQL
+                    <input type="file" accept=".sql" className="hidden" onChange={handleSqlImport} />
+                  </label>
+                </div>
                 
+                <div className="bg-slate-100 p-4 rounded-xl border-l-4 border-slate-400">
+                  <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Dica de Importação</p>
+                  <p className="text-[10px] text-slate-500 mt-1">O sistema identifica automaticamente <strong>emails (@)</strong>, <strong>nomes</strong> e <strong>telefones</strong>. Não se preocupe se os campos do seu SQL estiverem em ordem diferente!</p>
+                </div>
+
                 {editingCustomer && (
                    <div className="bg-white p-6 rounded-2xl border border-emerald-500 shadow-md animate-fade-in mb-4">
                       <h4 className="font-black text-xs uppercase mb-4 text-emerald-600">Editando: {editingCustomer.name}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                         <input value={custName} onChange={e => setCustName(e.target.value)} placeholder="Nome" className="input-admin" />
-                         <input value={custPhone} onChange={e => setCustPhone(e.target.value)} placeholder="Telefone" className="input-admin" />
-                         <input value={custAddress} onChange={e => setCustAddress(e.target.value)} placeholder="Endereço" className="input-admin" />
-                         <input value={custNeighborhood} onChange={e => setCustNeighborhood(e.target.value)} placeholder="Bairro" className="input-admin" />
+                         <input value={custName} onChange={e => setCustName(e.target.value)} placeholder="Nome" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2" />
+                         <input value={custPhone} onChange={e => setCustPhone(e.target.value)} placeholder="Telefone" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2" />
+                         <input value={custAddress} onChange={e => setCustAddress(e.target.value)} placeholder="Endereço" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2" />
+                         <input value={custNeighborhood} onChange={e => setCustNeighborhood(e.target.value)} placeholder="Bairro" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2" />
                       </div>
                       <div className="flex gap-3">
-                         <button onClick={handleSaveCustomer} className="btn-admin bg-emerald-600 text-white">Salvar Dados</button>
-                         <button onClick={() => setEditingCustomer(null)} className="btn-admin bg-slate-200 text-slate-500">Cancelar</button>
+                         <button onClick={handleSaveCustomer} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase">Salvar Dados</button>
+                         <button onClick={() => setEditingCustomer(null)} className="bg-slate-200 text-slate-500 px-4 py-2 rounded-xl text-xs font-bold uppercase">Cancelar</button>
                       </div>
                    </div>
                 )}
-
                 <div className="space-y-2">
                    {customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone.includes(customerSearch)).map(c => (
                       <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-50">
                          <div>
                             <p className="font-bold text-sm text-slate-800">{c.name} {c.isBlocked && <span className="text-red-500 text-[10px] uppercase font-black">(BLOQUEADO)</span>}</p>
-                            <p className="text-xs text-slate-400">{c.phone} • {c.totalOrders || 0} pedidos</p>
+                            <p className="text-xs text-slate-400">{c.phone} • {c.email} • {c.totalOrders || 0} pedidos</p>
                          </div>
                          <div className="flex gap-2">
                             <button onClick={() => onUpdateCustomer(c.id, { isBlocked: !c.isBlocked })} className={`text-[10px] font-black uppercase px-3 py-1 rounded ${c.isBlocked ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
@@ -746,7 +831,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {activeView === 'ajustes' && (
              <div className="space-y-6">
                 <div className="bg-white p-6 rounded-2xl border border-slate-200">
-                   <h3 className="font-black text-sm uppercase mb-4 text-slate-700">Logo da Loja</h3>
+                   <h3 className="font-black text-sm uppercase mb-4 text-slate-700 tracking-widest flex items-center gap-2">
+                      <span>🖼️</span> Logo da Loja
+                   </h3>
                    <div className="flex items-center gap-6">
                       <div className="w-24 h-24 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden border">
                          {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" /> : <span className="text-2xl">🍔</span>}
@@ -757,10 +844,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       </label>
                    </div>
                 </div>
+
+                <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                   <h3 className="font-black text-sm uppercase mb-4 text-slate-700 tracking-widest flex items-center gap-2">
+                      <span>🌐</span> Redes Sociais
+                   </h3>
+                   <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Instagram URL</label>
+                            <input value={localInstagram} onChange={e => setLocalInstagram(e.target.value)} placeholder="https://instagram.com/seuperfil" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                         </div>
+                         <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">WhatsApp (Número com DDD)</label>
+                            <input value={localWhatsapp} onChange={e => setLocalWhatsapp(e.target.value)} placeholder="5534991183728" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                         </div>
+                         <div className="space-y-1 md:col-span-2">
+                            <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Facebook URL</label>
+                            <input value={localFacebook} onChange={e => setLocalFacebook(e.target.value)} placeholder="https://facebook.com/seuperfil" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                         </div>
+                      </div>
+                      <button onClick={handleSaveSocialLinks} className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest w-full border-b-4 border-emerald-800 active:translate-y-1">Salvar Redes Sociais</button>
+                   </div>
+                </div>
                 
                 <div className="bg-white p-6 rounded-2xl border border-slate-200">
-                   <h3 className="font-black text-sm uppercase mb-4 text-slate-700">Controles de Loja</h3>
-                   <button onClick={onToggleStore} className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${isStoreOpen ? 'bg-emerald-100 text-emerald-600 border border-emerald-200' : 'bg-red-600 text-white shadow-lg'}`}>
+                   <h3 className="font-black text-sm uppercase mb-4 text-slate-700 tracking-widest flex items-center gap-2">
+                      <span>🏪</span> Controles de Loja
+                   </h3>
+                   <button onClick={onToggleStore} className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${isStoreOpen ? 'bg-emerald-100 text-emerald-600 border border-emerald-200' : 'bg-red-600 text-white shadow-lg animate-pulse'}`}>
                       {isStoreOpen ? 'Loja Aberta (Clique para Fechar)' : 'Loja Fechada (Clique para Abrir)'}
                    </button>
                 </div>
@@ -770,10 +882,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         </div>
       </main>
 
-      {/* 
-         MENU LATERAL DE DETALHES DO PEDIDO 
-         Agora com animação de slide-in e botões de status robustos
-      */}
+      {/* MODAIS DE APOIO */}
       {selectedOrder && (
         <aside className="fixed inset-y-0 right-0 w-full md:w-[400px] bg-white shadow-2xl z-[9999] flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300">
           <div className="p-6 border-b flex justify-between items-center bg-slate-900 text-white">
@@ -783,7 +892,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             </div>
             <button onClick={() => setSelectedOrder(null)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white font-black bg-white/10 rounded-full">✕</button>
           </div>
-          
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 flex items-center gap-2">
@@ -794,24 +902,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                   {['NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'].map(s => {
                     const isActive = selectedOrder.status === s;
                     return (
-                      <button 
-                        key={s} 
-                        onClick={() => handleOrderStatusChange(s as OrderStatus)} 
-                        className={`
-                          p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all active:scale-95
-                          ${isActive 
-                             ? 'bg-slate-800 border-slate-800 text-white shadow-md transform scale-105' 
-                             : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-400 hover:text-emerald-600'
-                          }
-                        `}
-                      >
-                        {isActive && '✔ '} {s}
-                      </button>
+                      <button key={s} onClick={() => handleOrderStatusChange(s as OrderStatus)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all active:scale-95 ${isActive ? 'bg-slate-800 border-slate-800 text-white shadow-md transform scale-105' : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-400 hover:text-emerald-600'}`}>{isActive && '✔ '} {s}</button>
                     );
                   })}
                </div>
             </div>
-            
             <div className="space-y-4">
                <div>
                   <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Cliente</p>
@@ -820,16 +915,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      <p className="text-xs text-slate-500">{selectedOrder.customerPhone}</p>
                   </div>
                </div>
-               
                <div>
                   <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Endereço de Entrega</p>
                   <div className="bg-white p-3 rounded-xl border border-slate-100">
-                     <p className="font-bold text-xs text-slate-700 leading-relaxed">
-                        {selectedOrder.deliveryType === 'PICKUP' ? '🏪 Retirada no Balcão' : selectedOrder.customerAddress}
-                     </p>
+                     <p className="font-bold text-xs text-slate-700 leading-relaxed">{selectedOrder.deliveryType === 'PICKUP' ? '🏪 Retirada no Balcão' : selectedOrder.customerAddress}</p>
                   </div>
                </div>
-               
                <div>
                   <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Pagamento</p>
                   <div className="bg-white p-3 rounded-xl border border-slate-100">
@@ -837,7 +928,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                   </div>
                </div>
             </div>
-
             <div className="border-t-2 border-dashed border-slate-200 pt-6">
                <p className="text-[10px] font-black uppercase text-slate-400 mb-3">Itens do Pedido</p>
                <div className="space-y-3">
@@ -845,29 +935,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     <div key={idx} className="flex justify-between items-start text-xs bg-white p-2 rounded-lg border border-slate-50">
                        <div>
                           <span className="font-bold text-slate-800 block">{item.quantity}x {item.name}</span>
-                          {item.selectedComplements && item.selectedComplements.length > 0 && (
-                             <span className="text-[10px] text-slate-400 block mt-0.5">+ {item.selectedComplements.map(c => c.name).join(', ')}</span>
-                          )}
+                          {item.selectedComplements && item.selectedComplements.length > 0 && <span className="text-[10px] text-slate-400 block mt-0.5">+ {item.selectedComplements.map(c => c.name).join(', ')}</span>}
                        </div>
                        <span className="font-black text-slate-900">R$ {(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                </div>
-               
                <div className="mt-6 bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center shadow-lg">
                   <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Final</span>
                   <span className="font-black text-xl text-emerald-400">R$ {selectedOrder.total.toFixed(2)}</span>
                </div>
             </div>
           </div>
-          
           <div className="p-6 border-t bg-slate-50 space-y-3">
-            <button onClick={executeRealPrint} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs flex justify-center gap-2 items-center hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95">
-               <span>🖨️</span> Imprimir Cupom
-            </button>
-            <button onClick={() => setShowDeleteConfirm(true)} className="w-full py-4 bg-white text-red-500 border border-red-100 rounded-xl font-black uppercase text-xs hover:bg-red-50 hover:border-red-200 transition-all">
-               🗑️ Excluir Pedido
-            </button>
+            <button onClick={executeRealPrint} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs flex justify-center gap-2 items-center hover:bg-emerald-700 shadow-lg transition-all active:scale-95"><span>🖨️</span> Imprimir Cupom</button>
+            <button onClick={() => setShowDeleteConfirm(true)} className="w-full py-4 bg-white text-red-500 border border-red-100 rounded-xl font-black uppercase text-xs hover:bg-red-50 transition-all">🗑️ Excluir Pedido</button>
           </div>
         </aside>
       )}
@@ -884,21 +966,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           </div>
         </div>
       )}
-      
-      {showProductDeleteConfirm && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4">
-          <div className="bg-white p-8 rounded-3xl text-center max-w-sm w-full animate-in zoom-in-95">
-             <h3 className="font-black text-xl mb-2">Excluir Produto?</h3>
-             <div className="flex gap-4 mt-6">
-                <button onClick={() => setShowProductDeleteConfirm(false)} className="flex-1 py-3 bg-slate-100 rounded-xl font-bold text-xs uppercase">Não</button>
-                <button onClick={confirmDeleteProduct} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold text-xs uppercase">Sim, Excluir</button>
-             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Container Oculto para Impressão */}
-      <div id="printable-coupon-root" className="hidden"></div>
     </div>
   );
 };

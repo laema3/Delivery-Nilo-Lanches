@@ -37,8 +37,8 @@ const App: React.FC = () => {
   
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [logoUrl, setLogoUrl] = useState(DEFAULT_LOGO);
+  const [socialLinks, setSocialLinks] = useState({ instagram: '', whatsapp: '', facebook: '' });
   
-  // CORREÇÃO: Inicializa isAdmin verificando o sessionStorage para persistir após F5
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
   
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -139,6 +139,11 @@ const App: React.FC = () => {
           const settings = data.find(d => d.id === 'general') || data[0];
           setIsStoreOpen(settings.isStoreOpen !== false);
           setLogoUrl(settings.logoUrl || DEFAULT_LOGO);
+          setSocialLinks({
+            instagram: settings.instagramUrl || '',
+            whatsapp: settings.whatsappUrl || '',
+            facebook: settings.facebookUrl || ''
+          });
         }
       })
     ];
@@ -258,6 +263,7 @@ const App: React.FC = () => {
       `▪️ ${item.quantity}x *${item.name}*${item.selectedComplements?.length ? `\n   + ${item.selectedComplements.map(c => c.name).join(', ')}` : ''}`
     ).join('\n');
 
+    const whatsappNumber = socialLinks.whatsapp || '5534991183728';
     const whatsappText = `🍔 *PEDIDO #${lastOrder.id.substring(0,6)}*
 --------------------------------
 👤 *Cliente:* ${lastOrder.customerName}
@@ -272,8 +278,24 @@ ${itemsList}
 🛵 *Taxa:* R$ ${lastOrder.deliveryFee.toFixed(2)}
 `;
     
-    const url = `https://wa.me/5534991183728?text=${encodeURIComponent(whatsappText)}`;
+    const url = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappText)}`;
     window.open(url, '_blank');
+  };
+
+  const handleUpdateSocialLinks = async (links: { instagram?: string; whatsapp?: string; facebook?: string }) => {
+    try {
+      await dbService.save('settings', 'general', { 
+        id: 'general', 
+        isStoreOpen, 
+        logoUrl,
+        instagramUrl: links.instagram,
+        whatsappUrl: links.whatsapp,
+        facebookUrl: links.facebook
+      });
+      setToast({ show: true, msg: 'Redes Sociais atualizadas!', type: 'success' });
+    } catch (e) {
+      setToast({ show: true, msg: 'Erro ao salvar ajustes.', type: 'error' });
+    }
   };
 
   return (
@@ -309,8 +331,9 @@ ${itemsList}
         {isAdmin ? (
           <AdminPanel 
             products={products} orders={orders} customers={customers} zipRanges={zipRanges} categories={categories} subCategories={subCategories} complements={complements} coupons={coupons} isStoreOpen={isStoreOpen} 
-            onToggleStore={async () => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen: !isStoreOpen, logoUrl }); }} 
-            logoUrl={logoUrl} onUpdateLogo={async (url) => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen, logoUrl: url }); }}
+            onToggleStore={async () => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen: !isStoreOpen, logoUrl, instagramUrl: socialLinks.instagram, whatsappUrl: socialLinks.whatsapp, facebookUrl: socialLinks.facebook }); }} 
+            logoUrl={logoUrl} onUpdateLogo={async (url) => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen, logoUrl: url, instagramUrl: socialLinks.instagram, whatsappUrl: socialLinks.whatsapp, facebookUrl: socialLinks.facebook }); }}
+            socialLinks={socialLinks} onUpdateSocialLinks={handleUpdateSocialLinks}
             onAddProduct={async (p) => { const id = `prod_${Date.now()}`; await dbService.save('products', id, {...p, id} as Product); }} 
             onDeleteProduct={async (id) => { await dbService.remove('products', id); }}
             onAddCategory={async (n) => { const id = `cat_${Date.now()}`; await dbService.save('categories', id, {id, name: n}); }}
@@ -384,7 +407,7 @@ ${itemsList}
         )}
       </main>
 
-      <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} onAdminClick={() => setIsAdminLoginOpen(true)} />
+      <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} />
       <CartSidebar 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 

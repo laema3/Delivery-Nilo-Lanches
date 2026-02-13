@@ -5,9 +5,17 @@ interface FooterProps {
   logoUrl?: string;
   onAdminClick?: () => void;
   isStoreOpen?: boolean;
+  socialLinks?: {
+    instagram?: string;
+    whatsapp?: string;
+    facebook?: string;
+  };
 }
 
-export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOpen = true }) => {
+export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOpen = true, socialLinks }) => {
+  const whatsappNumber = socialLinks?.whatsapp || '5534991183728';
+  const whatsappUrl = whatsappNumber.startsWith('http') ? whatsappNumber : `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`;
+
   return (
     <footer className="bg-emerald-950 text-emerald-100/60 py-16 border-t border-emerald-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -30,9 +38,13 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOp
               O melhor sabor de Uberaba direto na sua casa. Ingredientes selecionados e entrega rápida para matar sua fome com qualidade artesanal.
             </p>
             <div className="flex gap-4">
-              <a href="#" className="w-8 h-8 rounded-lg bg-emerald-900/50 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all text-[10px] font-black">IG</a>
-              <a href="#" className="w-8 h-8 rounded-lg bg-emerald-900/50 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all text-[10px] font-black">WA</a>
-              <a href="#" className="w-8 h-8 rounded-lg bg-emerald-900/50 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all text-[10px] font-black">FB</a>
+              {socialLinks?.instagram && (
+                <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-emerald-900/50 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all text-[10px] font-black">IG</a>
+              )}
+              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-emerald-900/50 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all text-[10px] font-black">WA</a>
+              {socialLinks?.facebook && (
+                <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-emerald-900/50 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all text-[10px] font-black">FB</a>
+              )}
             </div>
           </div>
 
