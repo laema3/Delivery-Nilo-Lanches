@@ -10,7 +10,7 @@ import { generateProductImage } from '../services/geminiService.ts';
 import { compressImage } from '../services/imageService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v2.5 (Progressive SQL Import)";
+const APP_VERSION = "v2.6 (Smooth Scroll Edit)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -83,6 +83,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // States Formulários
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -136,6 +137,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   }, [socialLinks]);
 
   // ------------------------------------------------------------------
+  // UTILITÁRIO DE SCROLL
+  // ------------------------------------------------------------------
+  const scrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // ------------------------------------------------------------------
   // CONTROLE DE SOM E NOTIFICAÇÕES
   // ------------------------------------------------------------------
   useEffect(() => {
@@ -170,7 +180,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     else { await onAddProduct(newProduct); }
     setNewProduct({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 });
   };
-  const handleEditProductClick = (p: Product) => { setEditingProduct(p); setNewProduct(p); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const handleEditProductClick = (p: Product) => { setEditingProduct(p); setNewProduct(p); scrollToTop(); };
   const handleDeleteProductClick = (id: string) => { setProductToDeleteId(id); setShowProductDeleteConfirm(true); };
   const confirmDeleteProduct = () => { if (productToDeleteId) { onDeleteProduct(productToDeleteId); setProductToDeleteId(null); setShowProductDeleteConfirm(false); }};
 
@@ -180,7 +190,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     if (editingCategory) { onUpdateCategory(editingCategory.id, catName); setEditingCategory(null); } else { onAddCategory(catName); }
     setCatName('');
   };
-  const handleEditCategoryClick = (c: CategoryItem) => { setEditingCategory(c); setCatName(c.name); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const handleEditCategoryClick = (c: CategoryItem) => { setEditingCategory(c); setCatName(c.name); scrollToTop(); };
 
   // Handlers SubCategorias
   const handleSaveSubCategory = () => {
@@ -188,7 +198,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     if (editingSubCat) { onUpdateSubCategory(editingSubCat.id, subCatName, subCatParent); setEditingSubCat(null); } else { onAddSubCategory(subCatParent, subCatName); }
     setSubCatName(''); setSubCatParent('');
   };
-  const handleEditSubCategoryClick = (s: SubCategoryItem) => { setEditingSubCat(s); setSubCatName(s.name); setSubCatParent(s.categoryId); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const handleEditSubCategoryClick = (s: SubCategoryItem) => { setEditingSubCat(s); setSubCatName(s.name); setSubCatParent(s.categoryId); scrollToTop(); };
 
   // Handlers Adicionais
   const handleSaveComplement = () => {
@@ -196,7 +206,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     if (editingComp) { onUpdateComplement(editingComp.id, compName, compPrice, compCategories); setEditingComp(null); } else { onAddComplement(compName, compPrice, compCategories); }
     setCompName(''); setCompPrice(0); setCompCategories([]);
   };
-  const handleEditComplementClick = (c: Complement) => { setEditingComp(c); setCompName(c.name); setCompPrice(c.price); setCompCategories(c.applicable_categories || []); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const handleEditComplementClick = (c: Complement) => { setEditingComp(c); setCompName(c.name); setCompPrice(c.price); setCompCategories(c.applicable_categories || []); scrollToTop(); };
   const toggleCompCategory = (catId: string) => { setCompCategories(prev => prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]); };
 
   // Handlers Frete
@@ -214,10 +224,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     if (editingZip) { onUpdateZipRange(editingZip.id, zipStart, zipEnd, zipFee); setEditingZip(null); } else { onAddZipRange(zipStart, zipEnd, zipFee); }
     setZipStart(''); setZipEnd(''); setZipFee(0);
   };
-  const handleEditZipClick = (z: ZipRange) => { setEditingZip(z); setZipStart(z.start); setZipEnd(z.end); setZipFee(z.fee); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const handleEditZipClick = (z: ZipRange) => { setEditingZip(z); setZipStart(z.start); setZipEnd(z.end); setZipFee(z.fee); scrollToTop(); };
 
   // Handlers Clientes
-  const handleEditCustomerClick = (c: Customer) => { setEditingCustomer(c); setCustName(c.name); setCustPhone(c.phone); setCustAddress(c.address); setCustNeighborhood(c.neighborhood); setCustZip(c.zipCode); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const handleEditCustomerClick = (c: Customer) => { setEditingCustomer(c); setCustName(c.name); setCustPhone(c.phone); setCustAddress(c.address); setCustNeighborhood(c.neighborhood); setCustZip(c.zipCode); scrollToTop(); };
   const handleSaveCustomer = () => {
     if (!editingCustomer || !custName || !custPhone) return alert("Dados incompletos.");
     onUpdateCustomer(editingCustomer.id, { name: custName, phone: custPhone, address: custAddress, neighborhood: custNeighborhood, zipCode: custZip });
@@ -294,7 +304,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     if (editingPayment) { onUpdatePaymentSettings(editingPayment.id, { name: payName, type: payType, email: payEmail, token: payToken }); setEditingPayment(null); } else { onAddPaymentMethod(payName, payType, payEmail, payToken); }
     setPayName(''); setPayType('DELIVERY'); setPayEmail(''); setPayToken('');
   };
-  const handleEditPaymentClick = (p: PaymentSettings) => { setEditingPayment(p); setPayName(p.name); setPayType(p.type); setPayEmail(p.email || ''); setPayToken(p.token || ''); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const handleEditPaymentClick = (p: PaymentSettings) => { setEditingPayment(p); setPayName(p.name); setPayType(p.type); setPayEmail(p.email || ''); setPayToken(p.token || ''); scrollToTop(); };
 
   // Utilitários
   const filteredSubCategories = useMemo(() => {
@@ -516,7 +526,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-32">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 md:p-8 pb-32">
           {activeView === 'dashboard' && (
             <div className="space-y-8 animate-in fade-in duration-500">
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
