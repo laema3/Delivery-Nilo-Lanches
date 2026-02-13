@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { chatWithAssistant } from '../services/geminiService.ts';
-import { Product, CartItem } from '../types.ts';
+import { Product, CartItem, Customer } from '../types.ts';
 
 interface Message {
   role: 'user' | 'model';
@@ -14,11 +14,12 @@ interface ChatBotProps {
   deliveryFee: number;
   whatsappNumber?: string;
   isStoreOpen: boolean;
+  currentUser: Customer | null;
   onAddToCart?: (product: Product, quantity: number) => void;
   onClearCart?: () => void;
 }
 
-export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, whatsappNumber, isStoreOpen, onAddToCart, onClearCart }) => {
+export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, whatsappNumber, isStoreOpen, currentUser, onAddToCart, onClearCart }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
@@ -44,7 +45,8 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
 
     const history = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
     
-    const response = await chatWithAssistant(userMsg, history, products, isStoreOpen, deliveryFee);
+    // Passing !!currentUser to let the AI know if the fee is "Real" or "Unknown"
+    const response = await chatWithAssistant(userMsg, history, products, isStoreOpen, deliveryFee, !!currentUser);
     
     let finalText = response.text;
 
@@ -70,8 +72,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
             
             let feedback = `✅ Adicionado: *${foundProduct.name}* (${qty}x).\n💰 Subtotal: R$ ${subtotalAtual.toFixed(2)}`;
             
-            if (deliveryFee > 0) {
+            if (currentUser && deliveryFee >= 0) {
               feedback += `\n🛵 Taxa de entrega: R$ ${deliveryFee.toFixed(2)}\n💵 Total com entrega: R$ ${(subtotalAtual + deliveryFee).toFixed(2)}`;
+            } else if (!currentUser) {
+              feedback += `\n\n💡 *Dica:* Entre na sua conta para calcularmos a entrega exata para você!`;
             }
 
             if (!isStoreOpen) {

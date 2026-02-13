@@ -389,7 +389,6 @@ ${itemsList}
             onRemoveCategory={async (id) => { await dbService.remove('categories', id); }}
             onUpdateCategory={async (id, name) => { await dbService.save('categories', id, {id, name}); setToast({show:true, msg:'Categoria salva!', type:'success'}); }}
             onAddSubCategory={async (catId, n) => { const id = `sub_${Date.now()}`; await dbService.save('sub_categories', id, {id, categoryId: catId, name: n}); }}
-            /* Fix: Restored onUpdateSubCategory and fixed the syntax error */
             onUpdateSubCategory={async (id, name, catId) => { await dbService.save('sub_categories', id, {id, name, categoryId: catId}); setToast({show:true, msg:'Subcategoria salva!', type:'success'}); }}
             onRemoveSubCategory={async (id) => { await dbService.remove('sub_categories', id); }}
             onAddComplement={async (n, p, c) => { const id = `comp_${Date.now()}`; await dbService.save('complements', id, {id, name: n, price: p, active: true, applicable_categories: c}); }}
@@ -482,7 +481,7 @@ ${itemsList}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
       <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} order={lastOrder} onSendWhatsApp={handleSendWhatsApp} isKioskMode={isKioskMode} />
-      {!isAdmin && !isKioskMode && <ChatBot products={products} cart={Array.isArray(cart) ? cart : []} deliveryFee={currentDeliveryFee} whatsappNumber={socialLinks.whatsapp} isStoreOpen={isStoreOpen} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
+      {!isAdmin && !isKioskMode && <ChatBot products={products} cart={Array.isArray(cart) ? cart : []} deliveryFee={currentDeliveryFee} whatsappNumber={socialLinks.whatsapp} isStoreOpen={isStoreOpen} currentUser={currentUser} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
     </div>
   );
 };

@@ -38,23 +38,36 @@ export const chatWithAssistant = async (
   history: any[], 
   allProducts: Product[], 
   isStoreOpen: boolean,
-  currentDeliveryFee: number
+  currentDeliveryFee: number,
+  isLoggedIn: boolean
 ) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const productsList = allProducts.map(p => `- ${p.name}: R$ ${p.price.toFixed(2)} (${p.description})`).join("\n");
     
+    // Improved logic for delivery fee explanation
+    let deliveryStatusInstruction = "";
+    if (isLoggedIn) {
+      if (currentDeliveryFee > 0) {
+        deliveryStatusInstruction = `O cliente está LOGADO e a taxa para o endereço dele é EXATAMENTE R$ ${currentDeliveryFee.toFixed(2)}. Você DEVE cobrar este valor.`;
+      } else {
+        deliveryStatusInstruction = `O cliente está LOGADO e a taxa é R$ 0,00 (Grátis para este endereço).`;
+      }
+    } else {
+      deliveryStatusInstruction = `O cliente NÃO está logado. Mesmo que o sistema mostre R$ 0,00, você NÃO PODE dizer que a entrega é grátis. Você DEVE dizer: "A taxa de entrega será calculada automaticamente assim que você entrar na sua conta e confirmar seu endereço".`;
+    }
+
     const systemInstruction = `
       Você é o 'Nilo', o atendente virtual OFICIAL da Nilo Lanches. Você é preciso, focado em vendas e rigoroso com valores.
 
       REGRAS CRÍTICAS DE TAXA DE ENTREGA:
-      1. VALOR REAL DA TAXA: O sistema informa que a taxa para este cliente é EXATAMENTE R$ ${currentDeliveryFee.toFixed(2)}.
-      2. PROIBIÇÃO DE CORTESIA: Se o valor acima (R$ ${currentDeliveryFee.toFixed(2)}) for maior que zero, é TERMINANTEMENTE PROIBIDO dizer que a entrega é cortesia ou grátis. Você deve informar o valor de R$ ${currentDeliveryFee.toFixed(2)}.
-      3. LOGICA DE ZERO: Se o valor for 0.00, verifique o contexto:
-         - Se o cliente ainda NÃO informou o endereço ou não está logado: Diga "A taxa de entrega será calculada automaticamente assim que você informar seu endereço no fechamento".
-         - Se o cliente JÁ informou o endereço e o valor retornado é 0.00: Aí sim você pode dizer que para esse endereço a entrega é por nossa conta.
-      4. CÁLCULO TOTAL: Sempre some: (Valor dos Produtos) + (Taxa de R$ ${currentDeliveryFee.toFixed(2)}) = Total.
+      1. STATUS ATUAL: ${deliveryStatusInstruction}
+      2. PROIBIÇÃO DE HALLUCINAÇÃO: Se o valor informado for R$ ${currentDeliveryFee.toFixed(2)} e o cliente estiver logado, esse é o único valor real.
+      3. Se o cliente perguntar a taxa e não estiver logado, peça para ele fazer login ou diga que o sistema calcula no final. NUNCA prometa frete grátis se ele não estiver logado.
+
+      CÁLCULO TOTAL:
+      - Sempre apresente a soma: (Subtotal dos Lanches) + (Taxa de Entrega informada) = Total.
 
       REGRAS DE CARDÁPIO:
       - Use apenas os nomes oficiais:
@@ -78,7 +91,7 @@ export const chatWithAssistant = async (
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartTool, finalizeOrderTool] }],
-        temperature: 0.1, // Temperatura baixíssima para evitar "criatividade" em valores
+        temperature: 0.1, 
       }
     });
 
