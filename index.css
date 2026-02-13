@@ -13,7 +13,7 @@ html, body {
   padding: 0;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  /* Removido overflow-x: hidden para permitir position: sticky */
   position: relative;
   font-family: 'Plus Jakarta Sans', sans-serif; 
   background-color: #f8fafc; 
@@ -24,20 +24,17 @@ html, body {
 #root {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
-/* --- ÁREA DE IMPRESSÃO (Fora da viewport normal) --- */
+/* --- ÁREA DE IMPRESSÃO --- */
 #printable-coupon-root {
   display: none;
 }
 
-/* --- REGRAS DE IMPRESSÃO --- */
 @media print {
-  /* Esconde absolutamente tudo que não seja o cupom */
   body * {
     visibility: hidden !important;
   }
@@ -57,9 +54,8 @@ html, body {
     background: white !important;
   }
 
-  /* Estilos específicos do Cupom para papel de 58mm/80mm */
   .coupon-content {
-    width: 72mm; /* Largura segura para térmicas */
+    width: 72mm;
     margin: 0 auto;
     font-family: 'Courier New', Courier, monospace !important;
     font-size: 12px;

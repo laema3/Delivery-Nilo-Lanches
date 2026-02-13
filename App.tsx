@@ -191,8 +191,8 @@ const App: React.FC = () => {
               </section>
             )}
             
-            {/* O MENU QUE DEVE FICAR FIXO - Ajustado para valores em pixels (Navbar: 80px mobile / 112px desktop) */}
-            <div id="menu-anchor" className="bg-white shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300 sticky top-[80px] sm:top-[112px] z-[35]">
+            {/* O MENU FIXO - Top em pixels batendo com a Navbar fixa (80px mobile / 112px desktop) */}
+            <div id="menu-anchor" className="bg-white shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300 sticky top-[80px] sm:top-[112px] z-[45]">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
                  <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>Todos</button>
                  {categories.map(cat => (
