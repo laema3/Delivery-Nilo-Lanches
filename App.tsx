@@ -434,9 +434,9 @@ ${itemsList}
             
             <div id="menu-anchor" className="bg-white shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
-                 <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 md:px-4 md:py-2 rounded-full text-xs md:text-[10px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>Todos</button>
+                 <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 md:px-6 md:py-3 rounded-full text-xs md:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>Todos</button>
                  {categories.map(cat => (
-                   <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 md:px-4 md:py-2 rounded-full text-xs md:text-[10px] font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>{cat.name}</button>
+                   <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-6 py-3 md:px-6 md:py-3 rounded-full text-xs md:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>{cat.name}</button>
                  ))}
                </div>
                {activeSubCategories.length > 0 && (
