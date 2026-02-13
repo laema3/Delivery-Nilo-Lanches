@@ -47,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, []);
 
   return (
-    <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md w-full border-b border-slate-100 shadow-sm">
+    <nav className="sticky top-0 z-[50] bg-white/95 backdrop-blur-md w-full border-b border-slate-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between items-center h-20 sm:h-28 gap-3">
           
@@ -148,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
             
             {!isAdmin && (
-              <button onClick={onCartClick} className="relative p-3 text-white bg-emerald-600 rounded-2xl shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all">
+              <button onClick={onCartClick} className="relative p-3 text-white bg-emerald-600 rounded-2xl shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-90 transition-all">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
