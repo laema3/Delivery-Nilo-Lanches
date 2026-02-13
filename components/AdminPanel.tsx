@@ -10,7 +10,7 @@ import { generateProductImage } from '../services/geminiService.ts';
 import { compressImage } from '../services/imageService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v2.8 (Device-based Kiosk)";
+const APP_VERSION = "v2.9 (Coupons Restored)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -63,13 +63,14 @@ interface AdminPanelProps {
   onBackToSite: () => void;
 }
 
-type AdminView = 'dashboard' | 'pedidos' | 'produtos' | 'categorias' | 'subcategorias' | 'adicionais' | 'entregas' | 'clientes' | 'pagamentos' | 'ajustes';
+type AdminView = 'dashboard' | 'pedidos' | 'produtos' | 'categorias' | 'subcategorias' | 'adicionais' | 'cupons' | 'entregas' | 'clientes' | 'pagamentos' | 'ajustes';
 
 export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const { 
     products, orders, customers, zipRanges, categories, subCategories, complements, coupons, isStoreOpen, onToggleStore, isKioskMode, onToggleKioskMode, logoUrl, onUpdateLogo, socialLinks, onUpdateSocialLinks, onAddProduct, onDeleteProduct, 
     onUpdateProduct, onUpdateOrderStatus, onDeleteOrder, onUpdateCustomer, onAddCategory, onRemoveCategory, onUpdateCategory, onAddSubCategory, onUpdateSubCategory, onRemoveSubCategory,
     onAddComplement, onToggleComplement, onRemoveComplement, onUpdateComplement, onAddZipRange, onRemoveZipRange, onUpdateZipRange,
+    onAddCoupon, onRemoveCoupon,
     onLogout, onBackToSite,
     paymentSettings, onTogglePaymentMethod, onAddPaymentMethod, onRemovePaymentMethod, onUpdatePaymentSettings
   } = props;
@@ -103,6 +104,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [compPrice, setCompPrice] = useState<number>(0);
   const [compCategories, setCompCategories] = useState<string[]>([]);
   const [editingComp, setEditingComp] = useState<Complement | null>(null);
+
+  const [cpCode, setCpCode] = useState('');
+  const [cpDiscount, setCpDiscount] = useState<number>(0);
+  const [cpType, setCpType] = useState<'PERCENT' | 'FIXED'>('PERCENT');
   
   const [zipStart, setZipStart] = useState('');
   const [zipEnd, setZipEnd] = useState('');
@@ -210,6 +215,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   };
   const handleEditComplementClick = (c: Complement) => { setEditingComp(c); setCompName(c.name); setCompPrice(c.price); setCompCategories(c.applicable_categories || []); scrollToTop(); };
   const toggleCompCategory = (catId: string) => { setCompCategories(prev => prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]); };
+
+  // Handlers Cupons
+  const handleSaveCoupon = () => {
+    if (!cpCode.trim() || cpDiscount <= 0) return alert("Preencha o código e o desconto.");
+    onAddCoupon(cpCode.toUpperCase(), cpDiscount, cpType);
+    setCpCode('');
+    setCpDiscount(0);
+  };
 
   // Handlers Frete
   const formatZipInput = (val: string) => {
@@ -458,6 +471,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     { id: 'categorias', label: 'Categorias', icon: '📁' },
     { id: 'subcategorias', label: 'Sub-Cats', icon: '📂' },
     { id: 'adicionais', label: 'Extras', icon: '➕' },
+    { id: 'cupons', label: 'Cupons', icon: '🎫' },
     { id: 'entregas', label: 'Fretes', icon: '🚚' },
     { id: 'clientes', label: 'Clientes', icon: '👥' },
     { id: 'pagamentos', label: 'Pagto', icon: '💳' },
@@ -749,6 +763,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      </div>
                   ))}
                </div>
+            </div>
+          )}
+
+          {activeView === 'cupons' && (
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 w-full space-y-2">
+                   <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Código do Cupom</label>
+                   <input value={cpCode} onChange={e => setCpCode(e.target.value.toUpperCase())} placeholder="Ex: NILO10" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none" />
+                </div>
+                <div className="w-full md:w-40 space-y-2">
+                   <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Desconto</label>
+                   <input type="number" value={cpDiscount} onChange={e => setCpDiscount(parseFloat(e.target.value))} placeholder="Valor" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none" />
+                </div>
+                <div className="w-full md:w-48 space-y-2">
+                   <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Tipo</label>
+                   <select value={cpType} onChange={e => setCpType(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none">
+                      <option value="PERCENT">Porcentagem (%)</option>
+                      <option value="FIXED">Valor Fixo (R$)</option>
+                   </select>
+                </div>
+                <button onClick={handleSaveCoupon} className="bg-emerald-600 text-white font-black px-6 py-3 rounded-xl uppercase text-xs h-[42px] shrink-0">Adicionar</button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {coupons.map(cp => (
+                  <div key={cp.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center shadow-sm">
+                    <div>
+                      <span className="font-black text-sm block text-slate-800">{cp.code}</span>
+                      <span className="text-[10px] text-emerald-600 font-bold uppercase">
+                        {cp.type === 'PERCENT' ? `${cp.discount}% OFF` : `R$ ${cp.discount.toFixed(2)} OFF`}
+                      </span>
+                    </div>
+                    <button onClick={() => onRemoveCoupon(cp.id)} className="bg-red-50 text-red-500 p-2 rounded-lg hover:bg-red-100 transition-colors">🗑️</button>
+                  </div>
+                ))}
+                {coupons.length === 0 && (
+                  <div className="col-span-full py-12 text-center text-slate-400 font-bold uppercase text-[10px]">Nenhum cupom cadastrado</div>
+                )}
+              </div>
             </div>
           )}
 
