@@ -21,7 +21,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'Olá! Sou o Nilo. 👋 Como posso montar seu lanche hoje? 🍔' }
+    { role: 'model', text: 'Fala aí! Sou o Nilo, seu assistente de lanches. 🍔 Pronto para a melhor experiência de Uberaba? O que vai ser hoje?' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -50,41 +50,41 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
     if (response.functionCalls) {
       for (const call of response.functionCalls) {
         
-        // 1. ADICIONAR AO CARRINHO
+        // 1. ADICIONAR AO CARRINHO (Com verificação rigorosa de nome)
         if (call.name === 'addToCart' && onAddToCart) {
           const args = call.args as any;
           const searchName = (args.productName || '').toLowerCase();
           const qty = Number(args.quantity) || 1;
 
+          // Busca por nome exato ou contenção para evitar erros da IA
           const foundProduct = products.find(p => 
-            p.name.toLowerCase().includes(searchName) || 
-            searchName.includes(p.name.toLowerCase())
+            p.name.toLowerCase() === searchName ||
+            p.name.toLowerCase().includes(searchName)
           );
 
           if (foundProduct) {
             onAddToCart(foundProduct, qty);
             
-            // Calcula subtotal considerando o que já tem + o novo
             const subtotalAtual = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0) + (foundProduct.price * qty);
             
-            let feedback = `✅ Perfeito! Adicionei ${qty}x *${foundProduct.name}* ao seu pedido.\n💰 Subtotal: R$ ${subtotalAtual.toFixed(2)}`;
+            let feedback = `✅ Adicionado: ${qty}x *${foundProduct.name}*.\n💰 Valor deste item: R$ ${(foundProduct.price * qty).toFixed(2)}\n📊 Total acumulado no carrinho: R$ ${subtotalAtual.toFixed(2)}`;
             
             if (!isStoreOpen) {
-              feedback += `\n\n⚠️ *Aviso:* Nossa cozinha só abre às 18:30, mas seu pedido já ficará reservado aqui!`;
+              feedback += `\n\n🕒 *Lembrete:* Estamos anotando tudo, mas a produção começa às 18:30!`;
             }
 
             setMessages(prev => [...prev, { role: 'model', text: feedback }]);
           } else {
-            setMessages(prev => [...prev, { role: 'model', text: `Putz, não achei "${args.productName}" no cardápio. Dá uma olhadinha nos nomes corretos?` }]);
+            setMessages(prev => [...prev, { role: 'model', text: `Desculpe, não encontrei exatamente o item "${args.productName}" no nosso cardápio atual. Poderia conferir o nome no menu acima?` }]);
           }
         }
 
-        // 2. FINALIZAR PEDIDO (WHATSAPP)
+        // 2. FINALIZAR PEDIDO (Encaminhamento para WhatsApp)
         if (call.name === 'finalizeOrder') {
           const args = call.args as any;
           
           if (cart.length === 0) {
-            setMessages(prev => [...prev, { role: 'model', text: "Opa! Seu carrinho está vazio. Adicione um lanche primeiro para eu poder finalizar! 🍔" }]);
+            setMessages(prev => [...prev, { role: 'model', text: "Seu carrinho está vazio! Escolha uma delícia do cardápio primeiro para podermos fechar o pedido. 🍔" }]);
             continue;
           }
 
@@ -96,20 +96,35 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
           
           const headerStatus = !isStoreOpen ? '📝 *PEDIDO AGENDADO (Abertura 18:30)*' : '🍔 *NOVO PEDIDO NILO LANCHES*';
           
-          const whatsappText = `${headerStatus}\n--------------------------------\n👤 *Cliente:* ${args.customerName}\n📍 *Tipo:* ${args.isDelivery ? 'Entrega' : 'Retirada'}\n🏠 *Endereço:* ${args.address || 'N/A'}\n💳 *Pagamento:* ${args.paymentMethod}\n--------------------------------\n*ITENS:*\n${itemsList}\n--------------------------------\n💵 *Subtotal:* R$ ${subtotal.toFixed(2)}\n🛵 *Entrega:* R$ ${finalFee.toFixed(2)}\n💰 *TOTAL: R$ ${totalFinal.toFixed(2)}*`;
+          const whatsappText = `${headerStatus}
+--------------------------------
+👤 *Cliente:* ${args.customerName}
+📍 *Tipo:* ${args.isDelivery ? '🚀 Entrega' : '🏪 Retirada'}
+🏠 *Endereço:* ${args.address || 'N/A'}
+💳 *Pagamento:* ${args.paymentMethod}
+--------------------------------
+*ITENS:*
+${itemsList}
+--------------------------------
+💵 *Subtotal:* R$ ${subtotal.toFixed(2)}
+🛵 *Taxa de Entrega:* R$ ${finalFee.toFixed(2)}
+💰 *TOTAL: R$ ${totalFinal.toFixed(2)}*
+--------------------------------
+_Pedido gerado via Assistente Virtual Nilo_`;
           
+          // O número do WhatsApp deve ser o oficial da lanchonete
           const url = `https://wa.me/5534991183728?text=${encodeURIComponent(whatsappText)}`;
           
           setMessages(prev => [...prev, { 
             role: 'model', 
-            text: `🔥 *Maravilha!* Já calculei tudo aqui.\n\nItems:\n${itemsList}\n\n*Resumo Final:*\nSubtotal: R$ ${subtotal.toFixed(2)}\nTaxa: R$ ${finalFee.toFixed(2)}\n*Total: R$ ${totalFinal.toFixed(2)}*\n\nEstou te levando para o WhatsApp para confirmar o pedido...` 
+            text: `🎯 *Pedido conferido!* \n\nTotal: *R$ ${totalFinal.toFixed(2)}* (incluindo R$ ${finalFee.toFixed(2)} de entrega).\n\nEstou te enviando agora mesmo para o nosso WhatsApp oficial para que a cozinha receba seu pedido! 🚀` 
           }]);
 
           setTimeout(() => {
             window.open(url, '_blank');
             if (onClearCart) onClearCart();
             setIsOpen(false);
-          }, 3000);
+          }, 2500);
         }
       }
     }
@@ -127,14 +142,14 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
         <div className="w-full h-full sm:w-[400px] sm:h-[600px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
           <div className="bg-emerald-600 p-5 flex items-center justify-between shrink-0 shadow-md z-10">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-2xl border-2 border-emerald-500 relative overflow-hidden">
+              <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-2xl border-2 border-emerald-500 relative overflow-hidden shadow-inner">
                 🤖
               </div>
               <div>
                 <h3 className="text-white font-black text-sm uppercase tracking-widest">Nilo Assistente</h3>
                 <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
                    <span className={`w-1.5 h-1.5 rounded-full ${isStoreOpen ? 'bg-emerald-300 animate-pulse' : 'bg-red-400'}`}></span> 
-                   {isStoreOpen ? 'Online' : 'Loja Fechada (Agendando)'}
+                   {isStoreOpen ? 'No Ponto' : 'Anotando Pedidos'}
                 </p>
               </div>
             </div>
@@ -159,12 +174,13 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-white px-4 py-3 rounded-2xl border border-slate-100 flex items-center gap-2">
+                <div className="bg-white px-4 py-3 rounded-2xl border border-slate-100 flex items-center gap-2 shadow-sm">
                    <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                    <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                    <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                   </div>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nilo está pensando...</span>
                 </div>
               </div>
             )}
@@ -175,7 +191,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Falar com o Nilo..." 
-              className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all"
+              className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all placeholder:text-slate-400"
             />
             <button disabled={isLoading || !input.trim()} className="bg-emerald-600 disabled:bg-slate-300 text-white w-14 h-14 flex items-center justify-center rounded-xl shadow-lg active:scale-90 transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -189,10 +205,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
       {!isOpen && (
         <button 
           onClick={() => setIsOpen(true)}
-          className="group w-16 h-16 bg-emerald-600 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 border-4 border-white"
+          className="group w-16 h-16 bg-emerald-600 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 border-4 border-white relative"
         >
           <span className="text-3xl">💬</span>
-          {cart.length > 0 && <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-[10px] font-black border-2 border-white rounded-full flex items-center justify-center">{cart.length}</span>}
+          {cart.length > 0 && <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-[10px] font-black border-2 border-white rounded-full flex items-center justify-center animate-bounce">{cart.length}</span>}
         </button>
       )}
     </div>
