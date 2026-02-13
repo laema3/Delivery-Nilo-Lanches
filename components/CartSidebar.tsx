@@ -13,6 +13,7 @@ interface CartSidebarProps {
   onAuthClick: () => void;
   paymentSettings: PaymentSettings[];
   currentUser: Customer | null;
+  isKioskMode?: boolean;
   deliveryFee: number;
   availableCoupons: any[];
   isStoreOpen?: boolean;
@@ -20,10 +21,10 @@ interface CartSidebarProps {
 }
 
 export const CartSidebar: React.FC<CartSidebarProps> = ({ 
-  isOpen, onClose, items = [], coupons, onUpdateQuantity, onRemove, onCheckout, onAuthClick, paymentSettings, currentUser, deliveryFee = 0, isStoreOpen = true, isProcessing = false
+  isOpen, onClose, items = [], coupons, onUpdateQuantity, onRemove, onCheckout, onAuthClick, paymentSettings, currentUser, isKioskMode = false, deliveryFee = 0, isStoreOpen = true, isProcessing = false
 }) => {
   const [selectedPayment, setSelectedPayment] = useState('');
-  const [deliveryType, setDeliveryType] = useState<DeliveryType>('DELIVERY');
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>(isKioskMode ? 'PICKUP' : 'DELIVERY');
   const [changeValue, setChangeValue] = useState<string>('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   
@@ -31,7 +32,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   const safeItems = Array.isArray(items) ? items : [];
 
   const subtotal = useMemo(() => safeItems.reduce((acc, item) => acc + (item.price * item.quantity), 0), [safeItems]);
-  const activeDeliveryFee = deliveryType === 'PICKUP' ? 0 : (deliveryFee || 0);
+  const activeDeliveryFee = (isKioskMode || deliveryType === 'PICKUP') ? 0 : (deliveryFee || 0);
 
   const discountAmount = useMemo(() => {
     if (!appliedCoupon) return 0;
@@ -53,10 +54,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           <div className="p-6 sm:p-8 border-b flex justify-between items-center bg-white shadow-sm z-10 relative">
             <div>
               <h2 className="text-xl font-black text-slate-900 tracking-tighter uppercase">Meu Pedido</h2>
-              {currentUser && (
+              {!isKioskMode && currentUser && (
                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">
                   {currentUser.zipCode ? `Entrega: R$ ${activeDeliveryFee.toFixed(2)}` : 'Calculando frete...'}
                 </p>
+              )}
+              {isKioskMode && (
+                <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mt-0.5">Atendimento Local</p>
               )}
             </div>
             
@@ -77,10 +81,12 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               </div>
             ) : (
               <>
-                <div className="bg-slate-100 p-1.5 rounded-[24px] flex gap-1.5">
-                  <button onClick={() => setDeliveryType('DELIVERY')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${deliveryType === 'DELIVERY' ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-400'}`}>🚀 Entrega</button>
-                  <button onClick={() => setDeliveryType('PICKUP')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${deliveryType === 'PICKUP' ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-400'}`}>🏪 Retirada</button>
-                </div>
+                {!isKioskMode && (
+                  <div className="bg-slate-100 p-1.5 rounded-[24px] flex gap-1.5">
+                    <button onClick={() => setDeliveryType('DELIVERY')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${deliveryType === 'DELIVERY' ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-400'}`}>🚀 Entrega</button>
+                    <button onClick={() => setDeliveryType('PICKUP')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${deliveryType === 'PICKUP' ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-400'}`}>🏪 Retirada</button>
+                  </div>
+                )}
 
                 <div className="space-y-4">
                   {safeItems.map((item, idx) => (
@@ -158,7 +164,8 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             <div className="p-6 sm:p-8 bg-white border-t border-slate-100 rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
               <div className="space-y-1 text-slate-500 text-[10px] font-black uppercase tracking-widest px-1 mb-4">
                 <div className="flex justify-between"><span>Subtotal</span><span>R$ {subtotal.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span>Frete</span><span>R$ {activeDeliveryFee.toFixed(2)}</span></div>
+                {!isKioskMode && <div className="flex justify-between"><span>Frete</span><span>R$ {activeDeliveryFee.toFixed(2)}</span></div>}
+                {isKioskMode && <div className="flex justify-between"><span>Taxa de Serviço</span><span>Grátis</span></div>}
                 <div className="flex justify-between text-slate-900 text-xl pt-2 font-black border-t border-dashed border-slate-200 mt-2"><span>Total</span><span className="text-emerald-600">R$ {total.toFixed(2)}</span></div>
               </div>
               <button 

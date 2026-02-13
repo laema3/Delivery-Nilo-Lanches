@@ -36,6 +36,11 @@ const App: React.FC = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   
   const [isStoreOpen, setIsStoreOpen] = useState(true);
+  
+  // MODO QUIOSQUE AGORA É LOCAL (Por Aparelho)
+  const [isKioskMode, setIsKioskMode] = useState(() => localStorage.getItem('nl_kiosk_enabled') === 'true');
+  const [showKioskWelcome, setShowKioskWelcome] = useState(isKioskMode);
+  
   const [logoUrl, setLogoUrl] = useState(DEFAULT_LOGO);
   const [socialLinks, setSocialLinks] = useState({ instagram: '', whatsapp: '', facebook: '' });
   
@@ -211,7 +216,24 @@ const App: React.FC = () => {
   };
 
   const handleCheckout = async (paymentMethod: string, fee: number, discount: number, couponCode: string, deliveryType: DeliveryType, changeFor?: number) => {
-    if (!currentUser) return setIsAuthModalOpen(true);
+    let activeUser = currentUser;
+    if (isKioskMode && !activeUser) {
+      activeUser = {
+        id: 'quiosque_local',
+        name: 'Cliente Local (Quiosque)',
+        email: 'quiosque@nilo.com',
+        phone: '00000000',
+        address: 'ATENDIMENTO LOCAL',
+        neighborhood: 'LOJA',
+        zipCode: '00000000',
+        totalOrders: 0,
+        points: 0,
+        lastOrder: new Date().toISOString()
+      };
+    }
+
+    if (!activeUser && !isKioskMode) return setIsAuthModalOpen(true);
+
     setIsOrderProcessing(true);
     try {
         const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -219,14 +241,14 @@ const App: React.FC = () => {
         const total = subtotal + fee - discount;
         const newOrder: Order = {
           id: orderId, 
-          customerId: currentUser.email, 
-          customerName: currentUser.name, 
-          customerPhone: currentUser.phone,
-          customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : `${currentUser.address}`,
+          customerId: activeUser!.email, 
+          customerName: activeUser!.name, 
+          customerPhone: activeUser!.phone,
+          customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (isKioskMode ? 'CONSUMO LOCAL' : activeUser!.address),
           items: [...cart], 
           total, 
           deliveryFee: fee, 
-          deliveryType, 
+          deliveryType: isKioskMode ? 'PICKUP' : deliveryType, 
           status: 'NOVO', 
           paymentMethod, 
           createdAt: new Date().toISOString(), 
@@ -236,7 +258,8 @@ const App: React.FC = () => {
           couponCode: couponCode || ''
         };
         await dbService.save('orders', orderId, newOrder);
-        if (currentUser) {
+        
+        if (!isKioskMode && currentUser) {
           const updatedUser = { 
              ...currentUser, 
              lastOrder: new Date().toISOString(),
@@ -246,9 +269,13 @@ const App: React.FC = () => {
           setCurrentUser(updatedUser);
           await dbService.save('customers', currentUser.email, updatedUser);
         }
+        
         setLastOrder(newOrder);
         setIsSuccessModalOpen(true);
         setCart([]);
+        if (isKioskMode) {
+          setTimeout(() => setShowKioskWelcome(true), 5000);
+        }
     } catch (e) { 
       setToast({ show: true, msg: 'Erro ao processar. Tente novamente.', type: 'error' }); 
     } finally {
@@ -292,18 +319,37 @@ ${itemsList}
         whatsappUrl: links.whatsapp,
         facebookUrl: links.facebook
       });
-      setToast({ show: true, msg: 'Redes Sociais atualizadas!', type: 'success' });
+      setToast({ show: true, msg: 'Ajustes salvos!', type: 'success' });
     } catch (e) {
       setToast({ show: true, msg: 'Erro ao salvar ajustes.', type: 'error' });
     }
+  };
+
+  const toggleKioskLocal = () => {
+    const newState = !isKioskMode;
+    setIsKioskMode(newState);
+    localStorage.setItem('nl_kiosk_enabled', newState ? 'true' : 'false');
+    if (newState) setShowKioskWelcome(true);
+    else setShowKioskWelcome(false);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col w-full overflow-x-hidden">
       {isInitialLoading && <ProductLoader />}
       <Toast isVisible={toast.show} message={toast.msg} type={toast.type} onClose={() => setToast(prev => ({ ...prev, show: false }))} />
-      <InstallBanner logoUrl={logoUrl} />
+      {!isKioskMode && <InstallBanner logoUrl={logoUrl} />}
       
+      {isKioskMode && showKioskWelcome && (
+        <div className="fixed inset-0 z-[300] bg-emerald-600 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+           <div className="w-48 h-48 bg-white rounded-[40px] flex items-center justify-center shadow-2xl mb-8 overflow-hidden">
+              {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" /> : <span className="text-8xl">🍔</span>}
+           </div>
+           <h1 className="text-white font-brand text-6xl uppercase leading-none mb-4">Bem-vindo ao Nilo!</h1>
+           <p className="text-emerald-100 font-bold text-xl mb-12 uppercase tracking-widest">Faça seu pedido agora mesmo</p>
+           <button onClick={() => setShowKioskWelcome(false)} className="bg-white text-emerald-600 px-12 py-6 rounded-[32px] font-black text-2xl uppercase tracking-widest shadow-xl animate-bounce active:scale-95 transition-all">Toque para Começar</button>
+        </div>
+      )}
+
       {!isStoreOpen && !isAdmin && (
         <div className="w-full bg-red-600 text-white py-2.5 text-center text-[10px] font-black uppercase tracking-[0.2em] z-[60] relative animate-pulse flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(220,38,38,0.3)]">
           <span className="text-sm">⚠️</span>
@@ -316,6 +362,7 @@ ${itemsList}
         cartCount={Array.isArray(cart) ? cart.reduce((acc, i) => acc + i.quantity, 0) : 0} 
         onCartClick={() => setIsCartOpen(true)} 
         isAdmin={isAdmin} 
+        isKioskMode={isKioskMode}
         onToggleAdmin={() => isAdmin ? setIsAdmin(false) : (isAdminAuthenticated ? setIsAdmin(true) : setIsAdminLoginOpen(true))} 
         searchTerm={searchTerm} 
         onSearchChange={setSearchTerm} 
@@ -332,6 +379,8 @@ ${itemsList}
           <AdminPanel 
             products={products} orders={orders} customers={customers} zipRanges={zipRanges} categories={categories} subCategories={subCategories} complements={complements} coupons={coupons} isStoreOpen={isStoreOpen} 
             onToggleStore={async () => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen: !isStoreOpen, logoUrl, instagramUrl: socialLinks.instagram, whatsappUrl: socialLinks.whatsapp, facebookUrl: socialLinks.facebook }); }} 
+            isKioskMode={isKioskMode}
+            onToggleKioskMode={toggleKioskLocal}
             logoUrl={logoUrl} onUpdateLogo={async (url) => { await dbService.save('settings', 'general', { id: 'general', isStoreOpen, logoUrl: url, instagramUrl: socialLinks.instagram, whatsappUrl: socialLinks.whatsapp, facebookUrl: socialLinks.facebook }); }}
             socialLinks={socialLinks} onUpdateSocialLinks={handleUpdateSocialLinks}
             onAddProduct={async (p) => { const id = `prod_${Date.now()}`; await dbService.save('products', id, {...p, id} as Product); }} 
@@ -371,15 +420,17 @@ ${itemsList}
           />
         ) : (
           <div className="flex flex-col w-full items-center">
-            <section className="relative w-full min-h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden">
-               <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Banner"/>
-               <div className="relative z-10 text-center px-4">
-                  <h1 className="font-brand text-6xl sm:text-[100px] text-white uppercase leading-none">
-                    <span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span>
-                  </h1>
-                  <button onClick={() => document.getElementById('menu-anchor')?.scrollIntoView({behavior:'smooth'})} className="mt-8 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-brand text-xl border-b-4 border-emerald-800 shadow-xl transition-all active:scale-95 uppercase tracking-widest">Ver Cardápio</button>
-               </div>
-            </section>
+            {!isKioskMode && (
+              <section className="relative w-full min-h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden">
+                <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Banner"/>
+                <div className="relative z-10 text-center px-4">
+                    <h1 className="font-brand text-6xl sm:text-[100px] text-white uppercase leading-none">
+                      <span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span>
+                    </h1>
+                    <button onClick={() => document.getElementById('menu-anchor')?.scrollIntoView({behavior:'smooth'})} className="mt-8 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-brand text-xl border-b-4 border-emerald-800 shadow-xl transition-all active:scale-95 uppercase tracking-widest">Ver Cardápio</button>
+                </div>
+              </section>
+            )}
             
             <div id="menu-anchor" className="bg-white shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
@@ -407,7 +458,8 @@ ${itemsList}
         )}
       </main>
 
-      <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} />
+      {!isAdmin && !isKioskMode && <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} />}
+      
       <CartSidebar 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 
@@ -419,6 +471,7 @@ ${itemsList}
         onAuthClick={() => setIsAuthModalOpen(true)} 
         paymentSettings={paymentMethods} 
         currentUser={currentUser} 
+        isKioskMode={isKioskMode}
         deliveryFee={currentDeliveryFee || 0} 
         availableCoupons={[]} 
         isStoreOpen={isStoreOpen} 
@@ -427,8 +480,8 @@ ${itemsList}
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={async (u) => { setCurrentUser(u); await dbService.save('customers', u.email, u); }} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdminAuthenticated(true); sessionStorage.setItem('nl_admin_auth', 'true'); setIsAdmin(true); }} />
-      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} order={lastOrder} onSendWhatsApp={handleSendWhatsApp} />
-      {!isAdmin && <ChatBot products={products} cart={Array.isArray(cart) ? cart : []} deliveryFee={currentDeliveryFee} isStoreOpen={isStoreOpen} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
+      <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} order={lastOrder} onSendWhatsApp={handleSendWhatsApp} isKioskMode={isKioskMode} />
+      {!isAdmin && !isKioskMode && <ChatBot products={products} cart={Array.isArray(cart) ? cart : []} deliveryFee={currentDeliveryFee} isStoreOpen={isStoreOpen} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
     </div>
   );
 };

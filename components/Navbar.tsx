@@ -6,6 +6,7 @@ interface NavbarProps {
   cartCount: number;
   onCartClick: () => void;
   isAdmin: boolean;
+  isKioskMode?: boolean;
   onToggleAdmin: () => void;
   searchTerm: string;
   onSearchChange: (val: string) => void;
@@ -21,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   cartCount, 
   onCartClick, 
   isAdmin, 
+  isKioskMode = false,
   onToggleAdmin,
   searchTerm,
   onSearchChange,
@@ -70,6 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {isStoreOpen ? 'Aberto' : 'Fechado'}
                 </span>
                 <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">● LIVE</span>
+                {isKioskMode && <span className="text-[7px] font-black bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded uppercase tracking-widest">QUIOSQUE</span>}
               </div>
             </div>
           </div>
@@ -90,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {!isAdmin && currentUser && (
+            {!isAdmin && currentUser && !isKioskMode && (
               <div className="flex flex-col items-end mr-1">
                 <div className="flex items-center gap-1">
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Olá,</span>
@@ -102,7 +105,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {!isAdmin && (
+            {!isAdmin && !isKioskMode && (
               <button 
                 onClick={onToggleAdmin}
                 className="hidden md:flex p-3 text-slate-400 hover:text-emerald-600 bg-slate-50 rounded-2xl transition-all"
@@ -114,7 +117,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {!isAdmin && currentUser && (
+            {!isAdmin && currentUser && !isKioskMode && (
               <button 
                 onClick={onMyOrdersClick} 
                 className="p-3 text-white hover:bg-blue-700 transition-all bg-blue-600 rounded-2xl shadow-lg border border-blue-500" 
@@ -126,7 +129,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {!isAdmin && (
+            {!isAdmin && !isKioskMode && (
               currentUser ? (
                 <button 
                   onClick={onLogout} 

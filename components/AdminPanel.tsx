@@ -10,7 +10,7 @@ import { generateProductImage } from '../services/geminiService.ts';
 import { compressImage } from '../services/imageService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v2.6 (Smooth Scroll Edit)";
+const APP_VERSION = "v2.8 (Device-based Kiosk)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -23,6 +23,8 @@ interface AdminPanelProps {
   coupons: Coupon[];
   isStoreOpen: boolean;
   onToggleStore: () => void;
+  isKioskMode: boolean;
+  onToggleKioskMode: () => void;
   logoUrl: string;
   onUpdateLogo: (url: string) => void;
   socialLinks: {
@@ -65,7 +67,7 @@ type AdminView = 'dashboard' | 'pedidos' | 'produtos' | 'categorias' | 'subcateg
 
 export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const { 
-    products, orders, customers, zipRanges, categories, subCategories, complements, coupons, isStoreOpen, onToggleStore, logoUrl, onUpdateLogo, socialLinks, onUpdateSocialLinks, onAddProduct, onDeleteProduct, 
+    products, orders, customers, zipRanges, categories, subCategories, complements, coupons, isStoreOpen, onToggleStore, isKioskMode, onToggleKioskMode, logoUrl, onUpdateLogo, socialLinks, onUpdateSocialLinks, onAddProduct, onDeleteProduct, 
     onUpdateProduct, onUpdateOrderStatus, onDeleteOrder, onUpdateCustomer, onAddCategory, onRemoveCategory, onUpdateCategory, onAddSubCategory, onUpdateSubCategory, onRemoveSubCategory,
     onAddComplement, onToggleComplement, onRemoveComplement, onUpdateComplement, onAddZipRange, onRemoveZipRange, onUpdateZipRange,
     onLogout, onBackToSite,
@@ -521,9 +523,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 relative">
         <header className="bg-white border-b border-slate-200 p-4 flex justify-between items-center shrink-0 shadow-sm z-20">
           <h2 className="text-xl font-black uppercase text-slate-800 tracking-tight">{activeView}</h2>
-          <button onClick={onToggleStore} className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all ${isStoreOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-red-600 text-white animate-pulse'}`}>
-            {isStoreOpen ? '● Loja Aberta' : '● Loja Fechada'}
-          </button>
+          <div className="flex gap-2">
+            <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${isKioskMode ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+              {isKioskMode ? '🖥️ MODO TOTEM ATIVO' : '📱 MODO DELIVERY'}
+            </div>
+            <button onClick={onToggleStore} className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all ${isStoreOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-red-600 text-white animate-pulse'}`}>
+              {isStoreOpen ? '● Loja Aberta' : '● Loja Fechada'}
+            </button>
+          </div>
         </header>
 
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 md:p-8 pb-32">
@@ -929,6 +936,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       </div>
                       <button onClick={handleSaveSocialLinks} className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest w-full border-b-4 border-emerald-800 active:translate-y-1">Salvar Redes Sociais</button>
                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                   <h3 className="font-black text-sm uppercase mb-4 text-slate-700 tracking-widest flex items-center gap-2">
+                      <span>🖥️</span> Modo Quiosque (Autoatendimento)
+                   </h3>
+                   <p className="text-[10px] text-red-600 mb-4 uppercase font-black bg-red-50 p-3 rounded-lg border border-red-100">
+                      ⚠️ ATENÇÃO: Ativar esta opção mudará a cara do site APENAS NESTE APARELHO para que ele funcione como um totem de balcão. Os clientes externos continuarão vendo o site normal de delivery.
+                   </p>
+                   <button onClick={onToggleKioskMode} className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${isKioskMode ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                      {isKioskMode ? 'Desativar Quiosque NESTE APARELHO' : 'Ativar Modo Quiosque NESTE APARELHO'}
+                   </button>
                 </div>
                 
                 <div className="bg-white p-6 rounded-2xl border border-slate-200">
