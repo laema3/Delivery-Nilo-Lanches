@@ -4,7 +4,7 @@ import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, Orde
 import { compressImage } from '../services/imageService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v4.2 (Light Theme + Uploads)";
+const APP_VERSION = "v4.6 (Auto Sound + Dark Sidebar)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -55,33 +55,42 @@ interface AdminPanelProps {
 
 type AdminView = 'dashboard' | 'pedidos' | 'produtos' | 'categorias' | 'subcategorias' | 'adicionais' | 'cupons' | 'entregas' | 'clientes' | 'pagamentos' | 'ajustes';
 
+// Tipo para o alvo da exclusão
+type DeleteTarget = {
+  type: 'ORDER' | 'PRODUCT' | 'CATEGORY' | 'SUBCATEGORY' | 'COMPLEMENT' | 'COUPON' | 'ZIP' | 'PAYMENT';
+  id: string;
+  name?: string;
+};
+
 export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const { 
     products, orders, customers, zipRanges, categories, subCategories, complements, coupons, isStoreOpen, onToggleStore, isKioskMode, onToggleKioskMode,
     logoUrl, onUpdateLogo, socialLinks, onUpdateSocialLinks, onAddProduct, onDeleteProduct, onUpdateProduct, 
-    onUpdateOrderStatus, onDeleteOrder, onAddCategory, onRemoveCategory, onAddSubCategory, 
-    onRemoveSubCategory, onAddComplement, onToggleComplement, onRemoveComplement, 
+    onUpdateOrderStatus, onDeleteOrder, onAddCategory, onRemoveCategory, onUpdateCategory, onAddSubCategory, 
+    onUpdateSubCategory, onRemoveSubCategory, onAddComplement, onToggleComplement, onRemoveComplement, 
     onAddZipRange, onRemoveZipRange, onAddCoupon, onRemoveCoupon, onLogout, onBackToSite, 
     paymentSettings, onTogglePaymentMethod, onAddPaymentMethod, onRemovePaymentMethod
   } = props;
 
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState<OrderStatus | 'TODOS'>('NOVO');
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  // Áudio sempre habilitado por padrão
+  const [audioEnabled, setAudioEnabled] = useState(true);
   
-  // Modais de confirmação
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
+  // --- GERENCIAMENTO DE EXCLUSÃO (MODAL GENÉRICO) ---
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   // States de Formulários (Produtos)
-  const [editingId, setEditingId] = useState<string | null>(null); // ID do produto sendo editado no topo
+  const [editingId, setEditingId] = useState<string | null>(null); 
   const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 });
   const [isProcessingImg, setIsProcessingImg] = useState(false);
 
   // States de Formulários (Categorias/Sub)
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [catName, setCatName] = useState('');
+  
+  const [editingSubCatId, setEditingSubCatId] = useState<string | null>(null);
   const [subCatName, setSubCatName] = useState('');
   const [subCatParent, setSubCatParent] = useState('');
 
@@ -137,7 +146,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
     if (hasNewOrders && audioEnabled) {
       if (audioRef.current && audioRef.current.paused) {
-        audioRef.current.play().catch(() => setAudioEnabled(false));
+        audioRef.current.play().catch(e => {
+          console.warn("Autoplay bloqueado pelo navegador. Interaja com a página.", e);
+        });
       }
     } else {
       stopAlarm();
@@ -147,6 +158,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const handleUpdateStatus = (id: string, status: OrderStatus) => {
     stopAlarm();
     onUpdateOrderStatus(id, status);
+  };
+
+  // --- FUNÇÃO CENTRAL DE DELETE ---
+  const requestDelete = (type: DeleteTarget['type'], id: string, name?: string) => {
+    setDeleteTarget({ type, id, name });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+
+    switch (deleteTarget.type) {
+      case 'ORDER':
+        setDeletedIds(prev => [...prev, deleteTarget.id]);
+        onDeleteOrder(deleteTarget.id);
+        stopAlarm();
+        break;
+      case 'PRODUCT': onDeleteProduct(deleteTarget.id); break;
+      case 'CATEGORY': onRemoveCategory(deleteTarget.id); break;
+      case 'SUBCATEGORY': onRemoveSubCategory(deleteTarget.id); break;
+      case 'COMPLEMENT': onRemoveComplement(deleteTarget.id); break;
+      case 'COUPON': onRemoveCoupon(deleteTarget.id); break;
+      case 'ZIP': onRemoveZipRange(deleteTarget.id); break;
+      case 'PAYMENT': onRemovePaymentMethod(deleteTarget.id); break;
+    }
+    setDeleteTarget(null);
   };
 
   // --- PROCESSAMENTO DE IMAGEM ---
@@ -175,51 +211,77 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const handleEditProductClick = (p: Product) => {
     setEditingId(p.id);
     setNewProduct({ ...p });
-    // Rola suavemente para o topo onde está o formulário
-    if (formTopRef.current) {
-      formTopRef.current.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (formTopRef.current) formTopRef.current.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleSaveProduct = async () => {
     if (editingId && newProduct.name) {
-      // Atualizar Existente
       onUpdateProduct({ ...newProduct, id: editingId } as Product);
       setEditingId(null);
     } else if (newProduct.name) {
-      // Criar Novo
       await onAddProduct(newProduct);
     }
-    // Limpar form
     setNewProduct({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 });
   };
 
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setNewProduct({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 });
+  const handleEditCategoryClick = (c: CategoryItem) => {
+    setEditingCatId(c.id);
+    setCatName(c.name);
+    if (formTopRef.current) formTopRef.current.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSaveCategory = () => {
+    if (catName) {
+      if (editingCatId) {
+        onUpdateCategory(editingCatId, catName);
+        setEditingCatId(null);
+      } else {
+        onAddCategory(catName);
+      }
+      setCatName('');
+    }
+  };
+
+  const handleEditSubCategoryClick = (s: SubCategoryItem) => {
+    setEditingSubCatId(s.id);
+    setSubCatName(s.name);
+    setSubCatParent(s.categoryId);
+    if (formTopRef.current) formTopRef.current.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSaveSubCategory = () => {
+    if (subCatName && subCatParent) {
+      if (editingSubCatId) {
+        onUpdateSubCategory(editingSubCatId, subCatName, subCatParent);
+        setEditingSubCatId(null);
+      } else {
+        onAddSubCategory(subCatParent, subCatName);
+      }
+      setSubCatName('');
+    }
   };
 
   const activeOrdersCount = orders.filter(o => o.status === 'NOVO' && !deletedIds.includes(o.id)).length;
 
-  // ESTILOS GERAIS (Light Theme)
+  // ESTILOS GERAIS
   const cardClass = "bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all";
-  const inputClass = "w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all placeholder:text-slate-400";
-  const labelClass = "text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1 mb-1 block";
+  const inputClass = "w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-base text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all placeholder:text-slate-400";
+  const labelClass = "text-xs font-bold uppercase text-slate-500 tracking-wider ml-1 mb-1 block";
+  const buttonClass = "bg-emerald-600 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95";
+  const editButtonClass = "bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95";
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-emerald-200 selection:text-emerald-900">
-      {/* SIDEBAR */}
-      <aside className="w-full lg:w-72 bg-white flex flex-col border-r border-slate-200 shrink-0 z-30">
-        <div className="p-8 border-b border-slate-100 flex flex-col items-center">
-          <div className="w-20 h-20 bg-emerald-600 rounded-[24px] shadow-xl shadow-emerald-200 flex items-center justify-center mb-4 border-4 border-white group cursor-pointer overflow-hidden relative" onClick={onBackToSite}>
-             {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" /> : <span className="text-4xl">🍔</span>}
+      {/* SIDEBAR (TEMA ESCURO) */}
+      <aside className="w-full lg:w-72 bg-slate-950 flex flex-col border-r border-slate-800 shrink-0 z-30">
+        <div className="p-8 border-b border-slate-800/50 flex flex-col items-center">
+          <div className="w-24 h-24 bg-emerald-600 rounded-[24px] shadow-xl shadow-emerald-900/40 flex items-center justify-center mb-4 border-4 border-white/10 group cursor-pointer overflow-hidden relative" onClick={onBackToSite}>
+             {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" /> : <span className="text-5xl">🍔</span>}
           </div>
-          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">NILO <span className="text-emerald-600">ADMIN</span></h2>
+          <h2 className="text-2xl font-black text-white uppercase tracking-tighter">NILO <span className="text-emerald-500">ADMIN</span></h2>
           <div className="flex items-center gap-2 mt-2">
-            <div className={`w-2 h-2 rounded-full ${isStoreOpen ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isStoreOpen ? 'Loja Aberta' : 'Loja Fechada'}</span>
+            <div className={`w-3 h-3 rounded-full ${isStoreOpen ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{isStoreOpen ? 'Loja Aberta' : 'Loja Fechada'}</span>
           </div>
         </div>
 
@@ -227,13 +289,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           <NavItem active={activeView === 'dashboard'} icon="📊" label="Dashboard" onClick={() => setActiveView('dashboard')} />
           <NavItem active={activeView === 'pedidos'} icon="🛍️" label="Pedidos" onClick={() => setActiveView('pedidos')} badge={activeOrdersCount > 0 ? activeOrdersCount : undefined} />
           
-          <div className="pt-4 pb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cardápio</div>
+          <div className="pt-6 pb-2 px-4 text-xs font-black text-slate-600 uppercase tracking-widest">Cardápio</div>
           <NavItem active={activeView === 'produtos'} icon="🍔" label="Produtos" onClick={() => setActiveView('produtos')} />
           <NavItem active={activeView === 'categorias'} icon="📁" label="Categorias" onClick={() => setActiveView('categorias')} />
           <NavItem active={activeView === 'subcategorias'} icon="🌿" label="Subcategorias" onClick={() => setActiveView('subcategorias')} />
           <NavItem active={activeView === 'adicionais'} icon="➕" label="Adicionais" onClick={() => setActiveView('adicionais')} />
           
-          <div className="pt-4 pb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Gestão</div>
+          <div className="pt-6 pb-2 px-4 text-xs font-black text-slate-600 uppercase tracking-widest">Gestão</div>
           <NavItem active={activeView === 'cupons'} icon="🏷️" label="Cupons" onClick={() => setActiveView('cupons')} />
           <NavItem active={activeView === 'entregas'} icon="🚚" label="Taxas Frete" onClick={() => setActiveView('entregas')} />
           <NavItem active={activeView === 'clientes'} icon="👥" label="Clientes" onClick={() => setActiveView('clientes')} />
@@ -241,59 +303,50 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           <NavItem active={activeView === 'ajustes'} icon="⚙️" label="Ajustes" onClick={() => setActiveView('ajustes')} />
         </nav>
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-           <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl text-red-500 hover:bg-red-50 transition-all font-black uppercase text-[10px] tracking-widest">
+        <div className="p-4 border-t border-slate-800/50 bg-slate-950/50">
+           <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl text-red-400 hover:bg-red-500/10 transition-all font-black uppercase text-xs tracking-widest">
              🚪 <span>Sair do Painel</span>
            </button>
-           <div className="mt-2 text-center text-[8px] font-bold text-slate-400 uppercase">{APP_VERSION}</div>
+           <div className="mt-2 text-center text-[10px] font-bold text-slate-600 uppercase">{APP_VERSION}</div>
         </div>
       </aside>
 
-      {/* CONTEÚDO PRINCIPAL */}
+      {/* CONTEÚDO PRINCIPAL (CLARO) */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 relative">
-        <header className="h-20 sm:h-24 bg-white/80 border-b border-slate-200 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md shadow-sm">
-           <h1 className="text-xl sm:text-2xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-3">
-             <span className="p-2 bg-slate-100 text-slate-600 rounded-lg text-lg border border-slate-200">
+        <header className="h-24 bg-white/80 border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md shadow-sm">
+           <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-3">
+             <span className="p-2.5 bg-slate-100 text-slate-600 rounded-xl text-xl border border-slate-200">
                {activeView === 'dashboard' ? '📊' : activeView === 'pedidos' ? '🛍️' : '⚙️'}
              </span>
              {activeView}
            </h1>
 
            <div className="flex items-center gap-4">
-             <button 
-               onClick={() => {
-                 const next = !audioEnabled;
-                 setAudioEnabled(next);
-                 if (!next) stopAlarm();
-               }}
-               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${audioEnabled ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
-             >
-               {audioEnabled ? '🔔 Som Ativado' : '🔕 Som Desativado'}
-             </button>
-             <button onClick={onBackToSite} className="bg-slate-900 hover:bg-black text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-slate-200">Ver Site</button>
+             {/* BOTÃO DE ÁUDIO REMOVIDO - SOM SEMPRE ATIVO */}
+             <button onClick={onBackToSite} className="bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-slate-200">Ver Site</button>
            </div>
         </header>
 
-        <div className="flex-1 p-6 sm:p-10 overflow-y-auto no-scrollbar scroll-smooth">
+        <div className="flex-1 p-8 sm:p-10 overflow-y-auto no-scrollbar scroll-smooth">
           
           {/* DASHBOARD */}
           {activeView === 'dashboard' && (
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in">
                <div className={cardClass}>
-                 <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Total de Pedidos</p>
-                 <p className="text-3xl font-black text-slate-800 mt-2">{orders.length}</p>
+                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Total de Pedidos</p>
+                 <p className="text-4xl font-black text-slate-800 mt-2">{orders.length}</p>
                </div>
                <div className={cardClass}>
-                 <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Faturamento</p>
-                 <p className="text-3xl font-black text-emerald-600 mt-2">R$ {orders.reduce((acc, o) => acc + o.total, 0).toFixed(2)}</p>
+                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Faturamento</p>
+                 <p className="text-4xl font-black text-emerald-600 mt-2">R$ {orders.reduce((acc, o) => acc + o.total, 0).toFixed(2)}</p>
                </div>
                <div className={cardClass}>
-                 <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Clientes</p>
-                 <p className="text-3xl font-black text-blue-600 mt-2">{customers.length}</p>
+                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Clientes</p>
+                 <p className="text-4xl font-black text-blue-600 mt-2">{customers.length}</p>
                </div>
                <div className={cardClass}>
-                 <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Produtos Ativos</p>
-                 <p className="text-3xl font-black text-purple-600 mt-2">{products.length}</p>
+                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Produtos Ativos</p>
+                 <p className="text-4xl font-black text-purple-600 mt-2">{products.length}</p>
                </div>
              </div>
           )}
@@ -301,51 +354,58 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {/* PEDIDOS */}
           {activeView === 'pedidos' && (
             <div className="space-y-8 animate-in fade-in duration-500">
-               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+               <div className="flex gap-3 overflow-x-auto no-scrollbar pb-4">
                  {['TODOS', 'NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'].map(status => (
                     <button 
                       key={status} 
                       onClick={() => setActiveOrderTab(status as any)}
-                      className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border-2 ${activeOrderTab === status ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-500 border-transparent hover:bg-slate-100'}`}
+                      className={`px-6 py-4 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all border-2 ${activeOrderTab === status ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-500 border-transparent hover:bg-slate-100'}`}
                     >
                       {status} {status !== 'TODOS' && `(${orders.filter(o => o.status === status && !deletedIds.includes(o.id)).length})`}
                     </button>
                  ))}
                </div>
 
-               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+               <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                   {orders
                     .filter(o => (activeOrderTab === 'TODOS' || o.status === activeOrderTab) && !deletedIds.includes(o.id))
                     .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .map(order => (
-                      <div key={order.id} className={`bg-white border-l-4 rounded-2xl overflow-hidden transition-all shadow-sm hover:shadow-md ${order.status === 'NOVO' ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200'}`}>
-                        <div className="p-6 flex flex-col sm:flex-row justify-between gap-4">
-                          <div className="space-y-2">
+                      <div key={order.id} className={`bg-white border-l-8 rounded-3xl overflow-hidden transition-all shadow-sm hover:shadow-lg ${order.status === 'NOVO' ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-200'}`}>
+                        <div className="p-8 flex flex-col sm:flex-row justify-between gap-6">
+                          <div className="space-y-3">
                              <div className="flex items-center gap-3">
-                               <span className="text-xl font-black text-slate-800">#{order.id.substring(0,6)}</span>
-                               <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase ${
+                               <span className="text-2xl font-black text-slate-800">#{order.id.substring(0,6)}</span>
+                               <span className={`text-xs font-black px-4 py-1.5 rounded-lg uppercase ${
                                   order.status === 'NOVO' ? 'bg-blue-100 text-blue-700' : 
                                   order.status === 'FINALIZADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
                                }`}>{order.status}</span>
                              </div>
-                             <div className="text-slate-500 text-xs font-bold flex items-center gap-2">
+                             <div className="text-slate-500 text-sm font-bold flex items-center gap-2">
                                 📅 {new Date(order.createdAt).toLocaleTimeString()} 
-                                <span className="text-slate-300">|</span> 👤 {order.customerName}
+                                <span className="text-slate-300 mx-2">|</span> 
+                                👤 <span className="text-slate-700">{order.customerName}</span>
                              </div>
+                             {order.deliveryType === 'DELIVERY' && (
+                               <div className="text-xs font-medium text-slate-500 bg-slate-50 p-2 rounded-lg">
+                                  📍 {order.customerAddress}
+                               </div>
+                             )}
                           </div>
                           <div className="text-right">
-                             <div className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</div>
+                             <div className="text-3xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</div>
+                             <div className="text-xs font-bold text-slate-400 mt-1 uppercase">{order.paymentMethod}</div>
                           </div>
                         </div>
                         
-                        <div className="px-6 py-4 bg-slate-50 border-y border-slate-100">
-                          <ul className="space-y-3">
+                        <div className="px-8 py-6 bg-slate-50 border-y border-slate-100">
+                          <ul className="space-y-4">
                             {order.items.map((item, idx) => (
-                              <li key={idx} className="flex justify-between items-start text-sm">
+                              <li key={idx} className="flex justify-between items-start text-base">
                                 <div className="flex flex-col">
                                    <span className="font-black text-slate-700 uppercase leading-none">{item.quantity}x {item.name}</span>
                                    {item.selectedComplements?.map((c, ci) => (
-                                     <span key={ci} className="text-[10px] text-emerald-600 font-bold ml-4">+ {c.name}</span>
+                                     <span key={ci} className="text-xs text-emerald-600 font-bold ml-4 mt-1 block">+ {c.name}</span>
                                    ))}
                                 </div>
                                 <span className="text-slate-500 font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span>
@@ -354,18 +414,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                           </ul>
                         </div>
 
-                        <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white">
+                        <div className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white">
                           {order.status === 'NOVO' && (
-                             <button onClick={() => handleUpdateStatus(order.id, 'PREPARANDO')} className="col-span-2 py-3 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase rounded-xl shadow-lg shadow-blue-100 transition-all">🚀 ACEITAR</button>
+                             <button onClick={() => handleUpdateStatus(order.id, 'PREPARANDO')} className="col-span-2 py-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase rounded-xl shadow-lg shadow-blue-100 transition-all">🚀 ACEITAR PEDIDO</button>
                           )}
                           {order.status === 'PREPARANDO' && (
-                             <button onClick={() => handleUpdateStatus(order.id, order.deliveryType === 'PICKUP' ? 'PRONTO PARA RETIRADA' : 'SAIU PARA ENTREGA')} className="col-span-2 py-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-xl transition-all">🔥 PRONTO / SAIU</button>
+                             <button onClick={() => handleUpdateStatus(order.id, order.deliveryType === 'PICKUP' ? 'PRONTO PARA RETIRADA' : 'SAIU PARA ENTREGA')} className="col-span-2 py-4 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black uppercase rounded-xl transition-all">🔥 PRONTO / SAIU</button>
                           )}
                           {(order.status === 'PRONTO PARA RETIRADA' || order.status === 'SAIU PARA ENTREGA') && (
-                             <button onClick={() => handleUpdateStatus(order.id, 'FINALIZADO')} className="col-span-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase rounded-xl transition-all">🏁 FINALIZAR</button>
+                             <button onClick={() => handleUpdateStatus(order.id, 'FINALIZADO')} className="col-span-2 py-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase rounded-xl transition-all">🏁 FINALIZAR</button>
                           )}
-                          <button onClick={() => { setSelectedOrder(order); setShowDeleteConfirm(true); }} className="py-3 bg-red-50 text-red-500 hover:bg-red-100 text-[10px] font-black uppercase rounded-xl transition-all">Deletar</button>
-                          <button onClick={() => window.open(`https://wa.me/${order.customerPhone.replace(/\D/g,'')}`, '_blank')} className="py-3 bg-slate-100 text-slate-500 hover:bg-slate-200 text-[10px] font-black uppercase rounded-xl">📞 Chat</button>
+                          <button onClick={() => requestDelete('ORDER', order.id, `Pedido #${order.id.substring(0,6)}`)} className="py-4 bg-red-50 text-red-500 hover:bg-red-100 text-xs font-black uppercase rounded-xl transition-all">Deletar</button>
+                          <button onClick={() => window.open(`https://wa.me/${order.customerPhone.replace(/\D/g,'')}`, '_blank')} className="py-4 bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-black uppercase rounded-xl">📞 WhatsApp</button>
                         </div>
                       </div>
                     ))}
@@ -376,32 +436,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {/* PRODUTOS */}
           {activeView === 'produtos' && (
             <div className="space-y-8 animate-in fade-in">
-              {/* REF para Scroll */}
               <div ref={formTopRef}></div>
 
               {/* Formulário de Adição/Edição */}
               <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
                  <div className="flex justify-between items-center">
-                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                   <h3 className="text-2xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
                       {editingId ? '✏️ Editando Produto' : '✨ Novo Produto'}
                    </h3>
                    {editingId && (
-                     <button onClick={handleCancelEdit} className="text-red-500 text-xs font-bold uppercase hover:underline">Cancelar Edição</button>
+                     <button onClick={() => { setEditingId(null); setNewProduct({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 }); }} className="text-red-500 text-sm font-bold uppercase hover:underline">Cancelar Edição</button>
                    )}
                  </div>
 
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   <div className="space-y-1">
+                   <div className="space-y-2">
                       <label className={labelClass}>Nome do Produto</label>
                       <input value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} placeholder="Ex: X-Tudo Completo" className={inputClass} />
                    </div>
                    
-                   <div className="space-y-1">
+                   <div className="space-y-2">
                       <label className={labelClass}>Preço (R$)</label>
                       <input type="number" value={newProduct.price || ''} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} placeholder="0.00" className={inputClass} />
                    </div>
 
-                   <div className="space-y-1">
+                   <div className="space-y-2">
                       <label className={labelClass}>Categoria</label>
                       <select value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} className={inputClass}>
                         <option value="">Selecione...</option>
@@ -409,37 +468,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       </select>
                    </div>
 
-                   <div className="md:col-span-3 space-y-1">
+                   <div className="md:col-span-3 space-y-2">
                       <label className={labelClass}>Descrição Detalhada</label>
-                      <textarea rows={2} value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} placeholder="Ingredientes, modo de preparo..." className={inputClass} />
+                      <textarea rows={3} value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} placeholder="Ingredientes, modo de preparo..." className={inputClass} />
                    </div>
 
-                   <div className="md:col-span-3 space-y-1">
+                   <div className="md:col-span-3 space-y-2">
                       <label className={labelClass}>Imagem do Produto (Upload)</label>
-                      <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300">
+                      <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-xl border border-dashed border-slate-300 hover:border-emerald-400 transition-colors">
                         <input 
                           type="file" 
                           accept="image/*" 
                           onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], false)} 
-                          className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer" 
+                          className="text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer" 
                         />
-                        {isProcessingImg && <span className="text-xs text-amber-500 font-bold animate-pulse">Processando...</span>}
+                        {isProcessingImg && <span className="text-sm text-amber-500 font-bold animate-pulse">Processando...</span>}
                         {newProduct.image && (
-                          <div className="relative group">
-                            <img src={newProduct.image} className="w-16 h-16 rounded-lg object-cover border border-slate-200 shadow-sm" alt="Preview" />
-                            <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                              <span className="text-[8px] text-white font-bold">Preview</span>
-                            </div>
+                          <div className="relative group w-24 h-24">
+                            <img src={newProduct.image} className="w-full h-full rounded-xl object-cover border-2 border-white shadow-md" alt="Preview" />
                           </div>
                         )}
                       </div>
                    </div>
                  </div>
 
-                 <div className="flex justify-end pt-4 border-t border-slate-100">
+                 <div className="flex justify-end pt-6 border-t border-slate-100">
                    <button 
                       onClick={handleSaveProduct} 
-                      className={`px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 ${editingId ? 'bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700' : 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'}`}
+                      className={`px-10 py-5 rounded-xl text-sm font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${editingId ? 'bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700' : 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'}`}
                    >
                      {editingId ? '💾 Atualizar Produto' : '🚀 Adicionar Produto'}
                    </button>
@@ -449,19 +505,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               {/* Lista de Produtos */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                  {products.map(p => (
-                   <div key={p.id} className={`bg-white p-4 rounded-2xl border flex gap-4 transition-all ${editingId === p.id ? 'border-blue-500 ring-2 ring-blue-100 shadow-lg' : 'border-slate-200 shadow-sm hover:shadow-md'}`}>
-                      <div className="w-20 h-20 bg-slate-50 rounded-xl overflow-hidden shrink-0 border border-slate-100">
+                   <div key={p.id} className={`bg-white p-5 rounded-3xl border flex gap-5 transition-all ${editingId === p.id ? 'border-blue-500 ring-4 ring-blue-50 shadow-xl' : 'border-slate-200 shadow-sm hover:shadow-lg'}`}>
+                      <div className="w-24 h-24 bg-slate-50 rounded-2xl overflow-hidden shrink-0 border border-slate-100">
                         <img src={p.image || 'https://via.placeholder.com/150'} className="w-full h-full object-cover" />
                       </div>
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
                          <div>
-                           <h4 className="font-black text-slate-800 truncate text-sm">{p.name}</h4>
-                           <p className="text-emerald-600 text-xs font-black mt-1">R$ {p.price.toFixed(2)}</p>
-                           <p className="text-slate-400 text-[10px] truncate">{p.category}</p>
+                           <h4 className="font-black text-slate-800 truncate text-base">{p.name}</h4>
+                           <p className="text-emerald-600 text-sm font-black mt-1">R$ {p.price.toFixed(2)}</p>
+                           <p className="text-slate-400 text-xs truncate mt-1">{p.category}</p>
                          </div>
-                         <div className="flex gap-2 mt-3 justify-end">
-                           <button onClick={() => handleEditProductClick(p)} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase hover:bg-blue-100 transition-colors">Editar</button>
-                           <button onClick={() => { setProductToDeleteId(p.id); setShowDeleteConfirm(true); }} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-[10px] font-black uppercase hover:bg-red-100 transition-colors">Excluir</button>
+                         <div className="flex gap-3 mt-4 justify-end">
+                           <button onClick={() => handleEditProductClick(p)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase hover:bg-blue-100 transition-colors">Editar</button>
+                           <button onClick={() => requestDelete('PRODUCT', p.id, p.name)} className="px-4 py-2 bg-red-50 text-red-500 rounded-lg text-[10px] font-black uppercase hover:bg-red-100 transition-colors">Excluir</button>
                          </div>
                       </div>
                    </div>
@@ -473,15 +529,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {/* CATEGORIAS */}
           {activeView === 'categorias' && (
              <div className="space-y-8 animate-in fade-in">
-               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex gap-4">
-                 <input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Nova Categoria" className={inputClass} />
-                 <button onClick={() => { if(catName) { onAddCategory(catName); setCatName(''); } }} className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200">Adicionar</button>
+               <div ref={formTopRef}></div>
+               <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex gap-4 items-center">
+                 <div className="flex-1">
+                    <label className={labelClass}>{editingCatId ? 'Editando Categoria' : 'Nova Categoria'}</label>
+                    <input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Ex: Bebidas, Lanches" className={inputClass} />
+                 </div>
+                 <div className="flex flex-col gap-2 mt-6">
+                   <button onClick={handleSaveCategory} className={editingCatId ? editButtonClass : buttonClass}>
+                     {editingCatId ? 'Atualizar' : 'Adicionar'}
+                   </button>
+                   {editingCatId && (
+                     <button onClick={() => { setEditingCatId(null); setCatName(''); }} className="text-slate-400 text-[10px] font-black uppercase">Cancelar</button>
+                   )}
+                 </div>
                </div>
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  {categories.map(c => (
-                   <div key={c.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+                   <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
                       <span className="font-bold text-slate-700 uppercase text-sm">{c.name}</span>
-                      <button onClick={() => onRemoveCategory(c.id)} className="text-red-500 text-xs font-black hover:bg-red-50 px-2 py-1 rounded">Excluir</button>
+                      <div className="flex gap-2">
+                         <button onClick={() => handleEditCategoryClick(c)} className="bg-blue-50 text-blue-600 text-xs font-black hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">Editar</button>
+                         <button onClick={() => requestDelete('CATEGORY', c.id, c.name)} className="text-red-500 text-xs font-black hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">Excluir</button>
+                      </div>
                    </div>
                  ))}
                </div>
@@ -491,26 +561,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {/* SUBCATEGORIAS */}
           {activeView === 'subcategorias' && (
              <div className="space-y-8 animate-in fade-in">
-               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-                 <select value={subCatParent} onChange={e => setSubCatParent(e.target.value)} className={inputClass}>
-                   <option value="">Selecione a Categoria Pai</option>
-                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                 </select>
-                 <input value={subCatName} onChange={e => setSubCatName(e.target.value)} placeholder="Nome da Subcategoria" className={inputClass} />
-                 <button onClick={() => { if(subCatName && subCatParent) { onAddSubCategory(subCatParent, subCatName); setSubCatName(''); } }} className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200">Adicionar</button>
+               <div ref={formTopRef}></div>
+               <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+                 <div className="flex-1 w-full">
+                   <label className={labelClass}>Categoria Pai</label>
+                   <select value={subCatParent} onChange={e => setSubCatParent(e.target.value)} className={inputClass}>
+                     <option value="">Selecione...</option>
+                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                   </select>
+                 </div>
+                 <div className="flex-1 w-full">
+                   <label className={labelClass}>{editingSubCatId ? 'Editando Subcategoria' : 'Nova Subcategoria'}</label>
+                   <input value={subCatName} onChange={e => setSubCatName(e.target.value)} placeholder="Ex: Coca-Cola, Sucos" className={inputClass} />
+                 </div>
+                 <div className="flex flex-col gap-2">
+                    <button onClick={handleSaveSubCategory} className={editingSubCatId ? editButtonClass : buttonClass}>
+                      {editingSubCatId ? 'Atualizar' : 'Adicionar'}
+                    </button>
+                    {editingSubCatId && (
+                      <button onClick={() => { setEditingSubCatId(null); setSubCatName(''); setSubCatParent(''); }} className="text-slate-400 text-[10px] font-black uppercase text-center">Cancelar</button>
+                    )}
+                 </div>
                </div>
-               <div className="space-y-4">
+               <div className="space-y-6">
                   {categories.map(cat => {
                     const subs = subCategories.filter(s => s.categoryId === cat.id);
                     if (subs.length === 0) return null;
                     return (
-                      <div key={cat.id} className="space-y-2">
-                        <h3 className="text-emerald-600 text-xs font-black uppercase tracking-widest pl-2">{cat.name}</h3>
+                      <div key={cat.id} className="space-y-3">
+                        <h3 className="text-emerald-600 text-sm font-black uppercase tracking-widest pl-2 border-l-4 border-emerald-500">{cat.name}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                            {subs.map(s => (
                              <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
                                 <span className="text-slate-700 text-sm font-bold">{s.name}</span>
-                                <button onClick={() => onRemoveSubCategory(s.id)} className="text-red-500 text-xs font-black hover:bg-red-50 px-2 py-1 rounded">X</button>
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleEditSubCategoryClick(s)} className="bg-blue-50 text-blue-600 text-[10px] font-black hover:bg-blue-100 px-2 py-1 rounded-lg">Editar</button>
+                                  <button onClick={() => requestDelete('SUBCATEGORY', s.id, s.name)} className="text-red-500 text-[10px] font-black hover:bg-red-50 px-2 py-1 rounded-lg">X</button>
+                                </div>
                              </div>
                            ))}
                         </div>
@@ -524,36 +611,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {/* ADICIONAIS */}
           {activeView === 'adicionais' && (
              <div className="space-y-8 animate-in fade-in">
-               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                 <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest">Novo Adicional</h3>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <input value={compName} onChange={e => setCompName(e.target.value)} placeholder="Nome (Ex: Bacon)" className={inputClass} />
-                    <input type="number" value={compPrice} onChange={e => setCompPrice(Number(e.target.value))} placeholder="Preço" className={inputClass} />
-                    <div className="flex gap-2 overflow-x-auto">
-                      {categories.map(cat => (
-                        <button 
-                          key={cat.id} 
-                          onClick={() => setCompCategories(prev => prev.includes(cat.id) ? prev.filter(x => x !== cat.id) : [...prev, cat.id])}
-                          className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase whitespace-nowrap transition-all ${compCategories.includes(cat.id) ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
-                        >
-                          {cat.name}
-                        </button>
-                      ))}
+               <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
+                 <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest">Novo Adicional</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className={labelClass}>Nome</label>
+                      <input value={compName} onChange={e => setCompName(e.target.value)} placeholder="Ex: Bacon Extra" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Preço (+)</label>
+                      <input type="number" value={compPrice} onChange={e => setCompPrice(Number(e.target.value))} placeholder="0.00" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Aplicar em:</label>
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        {categories.map(cat => (
+                          <button 
+                            key={cat.id} 
+                            onClick={() => setCompCategories(prev => prev.includes(cat.id) ? prev.filter(x => x !== cat.id) : [...prev, cat.id])}
+                            className={`px-4 py-2 rounded-lg text-xs font-black uppercase whitespace-nowrap transition-all ${compCategories.includes(cat.id) ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
+                          >
+                            {cat.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                  </div>
-                 <button onClick={() => { onAddComplement(compName, compPrice, compCategories); setCompName(''); setCompPrice(0); setCompCategories([]); }} className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200">Salvar Adicional</button>
+                 <div className="flex justify-end">
+                    <button onClick={() => { onAddComplement(compName, compPrice, compCategories); setCompName(''); setCompPrice(0); setCompCategories([]); }} className={buttonClass}>Salvar Adicional</button>
+                 </div>
                </div>
 
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  {complements.map(c => (
-                   <div key={c.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+                   <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
                       <div>
-                        <p className="font-black text-slate-800">{c.name}</p>
-                        <p className="text-emerald-600 text-xs font-bold">R$ {c.price.toFixed(2)}</p>
+                        <p className="font-black text-slate-800 text-base">{c.name}</p>
+                        <p className="text-emerald-600 text-sm font-bold">R$ {c.price.toFixed(2)}</p>
                       </div>
                       <div className="flex gap-3">
-                         <button onClick={() => onToggleComplement(c.id)} className={`text-xs font-black px-2 py-1 rounded ${c.active ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>{c.active ? 'Ativo' : 'Inativo'}</button>
-                         <button onClick={() => onRemoveComplement(c.id)} className="text-red-500 text-xs font-black hover:bg-red-50 px-2 py-1 rounded">X</button>
+                         <button onClick={() => onToggleComplement(c.id)} className={`text-xs font-black px-3 py-1.5 rounded-lg transition-colors ${c.active ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>{c.active ? 'Ativo' : 'Inativo'}</button>
+                         <button onClick={() => requestDelete('COMPLEMENT', c.id, c.name)} className="text-red-500 text-xs font-black hover:bg-red-50 px-3 py-1.5 rounded-lg">X</button>
                       </div>
                    </div>
                  ))}
@@ -564,23 +662,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {/* CUPONS */}
           {activeView === 'cupons' && (
              <div className="space-y-8 animate-in fade-in">
-               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-                  <input value={cpCode} onChange={e => setCpCode(e.target.value.toUpperCase())} placeholder="CÓDIGO" className={inputClass} />
-                  <input type="number" value={cpDiscount} onChange={e => setCpDiscount(Number(e.target.value))} placeholder="Valor" className={inputClass} />
-                  <select value={cpType} onChange={e => setCpType(e.target.value as any)} className={inputClass}>
-                    <option value="PERCENT">% Porcentagem</option>
-                    <option value="FIXED">R$ Fixo</option>
-                  </select>
-                  <button onClick={() => { onAddCoupon(cpCode, cpDiscount, cpType); setCpCode(''); }} className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200">Criar Cupom</button>
+               <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-end">
+                  <div className="flex-1 w-full">
+                    <label className={labelClass}>Código do Cupom</label>
+                    <input value={cpCode} onChange={e => setCpCode(e.target.value.toUpperCase())} placeholder="Ex: NILO10" className={inputClass} />
+                  </div>
+                  <div className="flex-1 w-full">
+                    <label className={labelClass}>Valor do Desconto</label>
+                    <input type="number" value={cpDiscount} onChange={e => setCpDiscount(Number(e.target.value))} placeholder="10" className={inputClass} />
+                  </div>
+                  <div className="flex-1 w-full">
+                    <label className={labelClass}>Tipo de Desconto</label>
+                    <select value={cpType} onChange={e => setCpType(e.target.value as any)} className={inputClass}>
+                      <option value="PERCENT">% Porcentagem</option>
+                      <option value="FIXED">R$ Fixo</option>
+                    </select>
+                  </div>
+                  <button onClick={() => { onAddCoupon(cpCode, cpDiscount, cpType); setCpCode(''); }} className={buttonClass}>Criar Cupom</button>
                </div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {coupons.map(c => (
-                    <div key={c.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-                       <div>
-                         <p className="font-black text-slate-800">{c.code}</p>
-                         <p className="text-emerald-600 text-xs font-bold">{c.type === 'PERCENT' ? `${c.discount}% OFF` : `R$ ${c.discount} OFF`}</p>
+                    <div key={c.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex justify-between items-center relative overflow-hidden group">
+                       <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-100 rounded-bl-[100%] z-0 transition-transform group-hover:scale-150"></div>
+                       <div className="relative z-10">
+                         <p className="font-black text-slate-800 text-xl tracking-tight">{c.code}</p>
+                         <p className="text-emerald-600 text-sm font-black">{c.type === 'PERCENT' ? `${c.discount}% OFF` : `R$ ${c.discount} OFF`}</p>
+                         <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase mt-1 inline-block">Ativo</span>
                        </div>
-                       <button onClick={() => onRemoveCoupon(c.id)} className="text-red-500 text-xs font-black hover:bg-red-50 px-2 py-1 rounded">Excluir</button>
+                       <button onClick={() => requestDelete('COUPON', c.id, c.code)} className="relative z-10 text-red-500 text-xs font-black hover:bg-red-50 px-3 py-2 rounded-lg transition-colors">Excluir</button>
                     </div>
                   ))}
                </div>
@@ -590,19 +700,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {/* ENTREGAS (CEP) */}
           {activeView === 'entregas' && (
              <div className="space-y-8 animate-in fade-in">
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-                   <input value={zipStart} onChange={e => setZipStart(e.target.value)} placeholder="CEP Inicial (Ex: 38000000)" className={inputClass} />
-                   <input value={zipEnd} onChange={e => setZipEnd(e.target.value)} placeholder="CEP Final" className={inputClass} />
-                   <input type="number" value={zipFee} onChange={e => setZipFee(Number(e.target.value))} placeholder="Taxa R$" className={inputClass} />
-                   <button onClick={() => { onAddZipRange(zipStart, zipEnd, zipFee); setZipStart(''); setZipEnd(''); setZipFee(0); }} className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200">Salvar Faixa</button>
+                <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-end">
+                   <div className="flex-1">
+                      <label className={labelClass}>CEP Inicial</label>
+                      <input value={zipStart} onChange={e => setZipStart(e.target.value)} placeholder="38000000" className={inputClass} />
+                   </div>
+                   <div className="flex-1">
+                      <label className={labelClass}>CEP Final</label>
+                      <input value={zipEnd} onChange={e => setZipEnd(e.target.value)} placeholder="38099999" className={inputClass} />
+                   </div>
+                   <div className="flex-1">
+                      <label className={labelClass}>Taxa (R$)</label>
+                      <input type="number" value={zipFee} onChange={e => setZipFee(Number(e.target.value))} placeholder="10.00" className={inputClass} />
+                   </div>
+                   <button onClick={() => { onAddZipRange(zipStart, zipEnd, zipFee); setZipStart(''); setZipEnd(''); setZipFee(0); }} className={buttonClass}>Salvar</button>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                    {zipRanges.map(z => (
-                     <div key={z.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-                        <span className="text-slate-700 text-sm font-bold">CEP {z.start} até {z.end}</span>
-                        <div className="flex items-center gap-4">
-                           <span className="text-emerald-600 font-black">R$ {z.fee.toFixed(2)}</span>
-                           <button onClick={() => onRemoveZipRange(z.id)} className="text-red-500 text-xs font-black hover:bg-red-50 px-2 py-1 rounded">X</button>
+                     <div key={z.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <span className="text-slate-700 text-base font-bold">CEP {z.start} até {z.end}</span>
+                        <div className="flex items-center gap-6">
+                           <span className="text-emerald-600 font-black text-lg">R$ {z.fee.toFixed(2)}</span>
+                           <button onClick={() => requestDelete('ZIP', z.id)} className="text-red-500 text-xs font-black hover:bg-red-50 px-3 py-1.5 rounded-lg">X</button>
                         </div>
                      </div>
                    ))}
@@ -613,16 +732,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {/* CLIENTES */}
           {activeView === 'clientes' && (
              <div className="space-y-6 animate-in fade-in">
-                <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest">Base de Clientes</h3>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest">Base de Clientes</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                    {customers.map(c => (
-                     <div key={c.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+                     <div key={c.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
                         <div className="flex justify-between items-start">
-                           <h4 className="text-slate-900 font-black">{c.name}</h4>
-                           <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded">{c.totalOrders} pedidos</span>
+                           <h4 className="text-slate-900 font-black text-lg">{c.name}</h4>
+                           <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-3 py-1 rounded-lg">{c.totalOrders} pedidos</span>
                         </div>
-                        <p className="text-slate-500 text-xs">{c.phone}</p>
-                        <p className="text-slate-500 text-xs truncate">{c.email}</p>
+                        <p className="text-slate-500 text-sm font-medium">{c.phone}</p>
+                        <p className="text-slate-500 text-sm font-medium truncate">{c.email}</p>
                      </div>
                    ))}
                 </div>
@@ -632,24 +751,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           {/* PAGAMENTOS */}
           {activeView === 'pagamentos' && (
              <div className="space-y-8 animate-in fade-in">
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-                   <input value={payName} onChange={e => setPayName(e.target.value)} placeholder="Nome (Ex: Pix, Cartão)" className={inputClass} />
-                   <select value={payType} onChange={e => setPayType(e.target.value as any)} className={inputClass}>
-                     <option value="DELIVERY">Pagamento na Entrega</option>
-                     <option value="ONLINE">Pagamento Online (App)</option>
-                   </select>
-                   <button onClick={() => { onAddPaymentMethod(payName, payType); setPayName(''); }} className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200">Adicionar</button>
+                <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-end">
+                   <div className="flex-1">
+                      <label className={labelClass}>Nome do Método</label>
+                      <input value={payName} onChange={e => setPayName(e.target.value)} placeholder="Ex: Pix, Cartão" className={inputClass} />
+                   </div>
+                   <div className="flex-1">
+                      <label className={labelClass}>Tipo</label>
+                      <select value={payType} onChange={e => setPayType(e.target.value as any)} className={inputClass}>
+                        <option value="DELIVERY">Pagamento na Entrega</option>
+                        <option value="ONLINE">Pagamento Online (App)</option>
+                      </select>
+                   </div>
+                   <button onClick={() => { onAddPaymentMethod(payName, payType); setPayName(''); }} className={buttonClass}>Adicionar</button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    {paymentSettings.map(p => (
-                     <div key={p.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+                     <div key={p.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
                         <div>
-                          <p className="font-black text-slate-800">{p.name}</p>
-                          <p className="text-xs text-slate-400">{p.type === 'ONLINE' ? 'Online' : 'Na Entrega'}</p>
+                          <p className="font-black text-slate-800 text-lg">{p.name}</p>
+                          <p className="text-sm text-slate-400 font-bold">{p.type === 'ONLINE' ? 'Online' : 'Na Entrega'}</p>
                         </div>
                         <div className="flex gap-3 items-center">
-                           <button onClick={() => onTogglePaymentMethod(p.id)} className={`text-xs font-black px-2 py-1 rounded ${p.enabled ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>{p.enabled ? 'ON' : 'OFF'}</button>
-                           <button onClick={() => onRemovePaymentMethod(p.id)} className="text-red-500 text-xs font-black hover:bg-red-50 px-2 py-1 rounded">X</button>
+                           <button onClick={() => onTogglePaymentMethod(p.id)} className={`text-xs font-black px-3 py-1.5 rounded-lg transition-colors ${p.enabled ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>{p.enabled ? 'ON' : 'OFF'}</button>
+                           <button onClick={() => requestDelete('PAYMENT', p.id, p.name)} className="text-red-500 text-xs font-black hover:bg-red-50 px-3 py-1.5 rounded-lg">X</button>
                         </div>
                      </div>
                    ))}
@@ -657,49 +782,49 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
              </div>
           )}
 
-          {/* AJUSTES - ONDE FICA O QUIOSQUE E SOCIAIS */}
+          {/* AJUSTES */}
           {activeView === 'ajustes' && (
-             <div className="max-w-4xl space-y-10 animate-in slide-in-from-bottom-5 duration-500">
-                <section className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-8">
-                   <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
-                     <span className="w-8 h-8 bg-emerald-600 text-white rounded-lg flex items-center justify-center">🏢</span>
+             <div className="max-w-4xl space-y-12 animate-in slide-in-from-bottom-5 duration-500">
+                <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
+                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                     <span className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center text-xl">🏢</span>
                      Configurações Gerais
                    </h3>
                    
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                          <label className={labelClass}>Status da Loja</label>
                          <button 
                             onClick={onToggleStore}
-                            className={`w-full py-6 rounded-2xl flex items-center justify-center gap-4 border-2 transition-all ${isStoreOpen ? 'bg-emerald-50 border-emerald-500 text-emerald-600' : 'bg-red-50 border-red-500 text-red-500'}`}
+                            className={`w-full py-8 rounded-2xl flex items-center justify-center gap-4 border-2 transition-all ${isStoreOpen ? 'bg-emerald-50 border-emerald-500 text-emerald-600' : 'bg-red-50 border-red-500 text-red-500'}`}
                          >
-                            <div className={`w-4 h-4 rounded-full ${isStoreOpen ? 'bg-emerald-500 shadow-lg' : 'bg-red-500'}`}></div>
-                            <span className="font-black uppercase tracking-widest">{isStoreOpen ? 'Loja Aberta' : 'Loja Fechada'}</span>
+                            <div className={`w-5 h-5 rounded-full ${isStoreOpen ? 'bg-emerald-500 shadow-lg' : 'bg-red-500'}`}></div>
+                            <span className="font-black text-lg uppercase tracking-widest">{isStoreOpen ? 'Loja Aberta' : 'Loja Fechada'}</span>
                          </button>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                          <label className={labelClass}>Modo Quiosque (Totem)</label>
                          <button 
                             onClick={onToggleKioskMode}
-                            className={`w-full py-6 rounded-2xl flex items-center justify-center gap-4 border-2 transition-all ${isKioskMode ? 'bg-purple-50 border-purple-500 text-purple-600' : 'bg-slate-50 border-slate-300 text-slate-400'}`}
+                            className={`w-full py-8 rounded-2xl flex items-center justify-center gap-4 border-2 transition-all ${isKioskMode ? 'bg-purple-50 border-purple-500 text-purple-600' : 'bg-slate-50 border-slate-300 text-slate-400'}`}
                          >
-                            <span className="text-xl">{isKioskMode ? '🤖' : '📱'}</span>
-                            <span className="font-black uppercase tracking-widest">{isKioskMode ? 'Quiosque Ativado' : 'Modo Normal'}</span>
+                            <span className="text-2xl">{isKioskMode ? '🤖' : '📱'}</span>
+                            <span className="font-black text-lg uppercase tracking-widest">{isKioskMode ? 'Quiosque Ativado' : 'Modo Normal'}</span>
                          </button>
                       </div>
 
-                      <div className="space-y-4 md:col-span-2">
+                      <div className="space-y-3 md:col-span-2">
                          <label className={labelClass}>Logo da Loja (Upload)</label>
-                         <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300">
+                         <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-300 hover:border-emerald-400 transition-colors">
                             <input 
                               type="file" 
                               accept="image/*"
                               onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], true)}
-                              className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer"
+                              className="text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer"
                             />
                             {logoUrl && (
-                              <div className="relative w-16 h-16 bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                              <div className="relative w-20 h-20 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                                 <img src={logoUrl} className="w-full h-full object-contain" />
                               </div>
                             )}
@@ -707,7 +832,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       </div>
                    </div>
 
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-100">
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-slate-100">
                       <div className="space-y-2">
                         <label className={labelClass}>WhatsApp</label>
                         <input 
@@ -746,31 +871,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         </div>
       </main>
 
-      {/* MODAL DELETE CONFIRM */}
-      {showDeleteConfirm && (
+      {/* MODAL DELETE CONFIRM GENÉRICO */}
+      {deleteTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-           <div className="bg-white border border-slate-200 p-10 rounded-[40px] max-w-md w-full text-center space-y-8 shadow-2xl">
-              <div className="text-6xl">⚠️</div>
-              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{selectedOrder ? 'Deletar Pedido?' : 'Excluir Item?'}</h3>
-              <div className="flex flex-col gap-3">
+           <div className="bg-white border border-slate-200 p-10 rounded-[40px] max-w-md w-full text-center space-y-8 shadow-2xl animate-in zoom-in-95">
+              <div className="text-7xl">⚠️</div>
+              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">
+                Excluir {deleteTarget.type === 'ORDER' ? 'Pedido' : 
+                         deleteTarget.type === 'PRODUCT' ? 'Produto' :
+                         deleteTarget.type === 'CATEGORY' ? 'Categoria' : 
+                         deleteTarget.type === 'SUBCATEGORY' ? 'Subcategoria' : 'Item'}?
+              </h3>
+              {deleteTarget.name && (
+                <p className="text-lg font-bold text-slate-500">
+                  {deleteTarget.name}
+                </p>
+              )}
+              <div className="flex flex-col gap-4">
                  <button 
-                    onClick={() => {
-                      if (selectedOrder) {
-                        setDeletedIds(prev => [...prev, selectedOrder.id]);
-                        onDeleteOrder(selectedOrder.id);
-                        setSelectedOrder(null);
-                        stopAlarm();
-                      } else if (productToDeleteId) {
-                        onDeleteProduct(productToDeleteId);
-                        setProductToDeleteId(null);
-                      }
-                      setShowDeleteConfirm(false);
-                    }}
-                    className="w-full py-5 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl shadow-red-200"
+                    onClick={confirmDelete}
+                    className="w-full py-6 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-xl shadow-red-200 transition-all active:scale-95"
                  >
                     Confirmar Exclusão
                  </button>
-                 <button onClick={() => { setShowDeleteConfirm(false); setSelectedOrder(null); setProductToDeleteId(null); }} className="w-full py-4 text-slate-400 font-bold uppercase text-[10px] hover:text-slate-600">Cancelar</button>
+                 <button onClick={() => setDeleteTarget(null)} className="w-full py-4 text-slate-400 font-bold uppercase text-xs hover:text-slate-600">Cancelar</button>
               </div>
            </div>
         </div>
@@ -782,14 +906,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 const NavItem: React.FC<{ active: boolean; icon: string; label: string; onClick: () => void; badge?: number }> = ({ active, icon, label, onClick, badge }) => (
   <button 
     onClick={onClick}
-    className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group ${active ? 'bg-emerald-50 text-emerald-600 shadow-sm border border-emerald-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600 border border-transparent'}`}
+    className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group ${active ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}`}
   >
     <div className="flex items-center gap-4">
-       <span className="text-lg group-hover:scale-110 transition-transform">{icon}</span>
-       <span className="font-black uppercase tracking-widest text-[10px]">{label}</span>
+       <span className="text-xl group-hover:scale-110 transition-transform">{icon}</span>
+       <span className="font-black uppercase tracking-widest text-xs">{label}</span>
     </div>
     {badge !== undefined && (
-      <span className={`min-w-[20px] h-5 flex items-center justify-center rounded-full text-[9px] font-black px-1.5 ${active ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white animate-pulse'}`}>
+      <span className={`min-w-[24px] h-6 flex items-center justify-center rounded-full text-[10px] font-black px-2 ${active ? 'bg-white text-emerald-600' : 'bg-blue-600 text-white animate-pulse'}`}>
         {badge}
       </span>
     )}
