@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Navbar } from './components/Navbar.tsx';
 import { FoodCard } from './components/FoodCard.tsx';
@@ -188,7 +189,7 @@ const App: React.FC = () => {
             onDeleteProduct={(id) => dbService.remove('products', id)} 
             onUpdateProduct={(p) => dbService.save('products', p.id, p)} 
             onUpdateOrderStatus={(id, status) => {
-              // ATUALIZAÇÃO OTIMISTA: Atualiza o estado local IMEDIATAMENTE para que o alarme no AdminPanel pare
+              // Mantém atualização local para UX rápida, mas sem complexidade extra
               setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
               dbService.save('orders', id, { status });
             }} 
