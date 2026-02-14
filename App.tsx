@@ -92,16 +92,19 @@ const App: React.FC = () => {
       dbService.subscribe<Customer[]>('customers', setCustomers),
       dbService.subscribe<any[]>('settings', (data) => {
         if (data && data.length > 0) {
+          // Busca prioritariamente o documento 'general'
           const settings = data.find(d => d.id === 'general') || data[0];
-          if (settings.isStoreOpen !== undefined) {
-            setIsStoreOpen(settings.isStoreOpen);
+          if (settings) {
+            if (settings.isStoreOpen !== undefined) {
+              setIsStoreOpen(settings.isStoreOpen);
+            }
+            if (settings.logoUrl) setLogoUrl(settings.logoUrl);
+            setSocialLinks({ 
+              instagram: settings.instagram || '', 
+              whatsapp: settings.whatsapp || '', 
+              facebook: settings.facebook || '' 
+            });
           }
-          if (settings.logoUrl) setLogoUrl(settings.logoUrl);
-          setSocialLinks({ 
-            instagram: settings.instagram || '', 
-            whatsapp: settings.whatsapp || '', 
-            facebook: settings.facebook || '' 
-          });
         }
       })
     ];

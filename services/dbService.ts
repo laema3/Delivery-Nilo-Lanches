@@ -51,7 +51,7 @@ export const dbService = {
   },
 
   subscribe<T>(key: string, callback: (data: T) => void) {
-    // Carrega do local para resposta imediata na UI
+    // Carrega do local para resposta imediata na UI, mas não bloqueia a rede
     const localData = this.getLocal(key);
     if (localData && Array.isArray(localData) && localData.length > 0) {
       callback(localData as unknown as T);
@@ -61,25 +61,26 @@ export const dbService = {
 
     try {
       const collectionName = COLLECTION_MAP[key] || key;
+      // Snapshot em tempo real sem filtros para garantir recebimento instantâneo
       const q = query(collection(db, collectionName));
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
+        // Se o snapshot veio do servidor ou é uma mudança local, processamos
         const data = snapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id
         }));
         
-        // CRÍTICO: Atualiza o cache local e emite o callback com os dados REAIS da nuvem
-        // Isso garante que mudanças como o status da loja se propaguem instantaneamente.
+        // Atualiza cache e emite para a UI
         this.setLocal(key, data);
         callback(data as unknown as T);
       }, (error) => {
-        console.warn(`⚠️ [Sync] Erro '${key}':`, error.message);
+        console.error(`⚠️ [DB Sync Error] ${key}:`, error);
       });
 
       return unsubscribe;
     } catch (error) {
-      console.error(`❌ [Sync] Erro fatal em '${key}':`, error);
+      console.error(`❌ [DB Fatal Error] ${key}:`, error);
       return () => {};
     }
   },
@@ -105,16 +106,7 @@ export const dbService = {
     try {
       const cleanData = sanitizeData({ ...data });
       
-      // 1. Atualiza Local para feedback instantâneo no dispositivo que originou a mudança
-      const currentList = this.getLocal(key) as any[];
-      const index = currentList.findIndex(item => item.id === id);
-      const newItem = { ...cleanData, id };
-      let newList = [...currentList];
-      if (index >= 0) newList[index] = newItem;
-      else newList.push(newItem);
-      this.setLocal(key, newList);
-
-      // 2. Salva no Firestore
+      // Salva no Firestore primeiro para garantir a verdade no servidor
       if (db) {
         const collectionName = COLLECTION_MAP[key] || key;
         const docRef = doc(db, collectionName, id);
@@ -122,6 +114,16 @@ export const dbService = {
         delete (toSave as any).id;
         await setDoc(docRef, toSave, { merge: true });
       }
+
+      // Atualiza local após sucesso ou em paralelo
+      const currentList = this.getLocal(key) as any[];
+      const index = currentList.findIndex(item => item.id === id);
+      const newItem = { ...cleanData, id };
+      let newList = [...currentList];
+      if (index >= 0) newList[index] = newItem;
+      else newList.push(newItem);
+      this.setLocal(key, newList);
+      
     } catch (e: any) {
       console.error(`❌ [Save Error] '${key}':`, e);
     }
@@ -129,14 +131,13 @@ export const dbService = {
 
   async remove(key: string, id: string) {
     try {
-      const currentList = this.getLocal(key) as any[];
-      const newList = currentList.filter(item => item.id !== id);
-      this.setLocal(key, newList);
-
       if (db) {
         const collectionName = COLLECTION_MAP[key] || key;
         await deleteDoc(doc(db, collectionName, id));
       }
+      const currentList = this.getLocal(key) as any[];
+      const newList = currentList.filter(item => item.id !== id);
+      this.setLocal(key, newList);
     } catch (e) {
       console.error(`❌ [Remove Error] '${key}':`, e);
     }
