@@ -82,7 +82,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 </p>
               )}
             </div>
-            <button onClick={onClose} className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100 active:scale-95">← Continuar Comprando</button>
+            <button onClick={onClose} className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100 active:scale-95">← CONTINUAR COMPRANDO</button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 no-scrollbar bg-slate-50/50">

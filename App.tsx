@@ -166,28 +166,56 @@ const App: React.FC = () => {
     finally { setIsOrderProcessing(false); }
   };
 
-  // TELA DE APRESENTAÇÃO DO QUIOSQUE
+  // TELA DE APRESENTAÇÃO DO QUIOSQUE (MODERNA E ATRATIVA)
   if (isKioskMode && !kioskStarted && !isAdmin) {
     return (
       <div 
-        className="fixed inset-0 z-[2000] bg-slate-900 flex flex-col items-center justify-center p-8 cursor-pointer"
+        className="fixed inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center cursor-pointer select-none overflow-hidden"
         onClick={() => setKioskStarted(true)}
       >
-        <div className="w-64 h-64 bg-emerald-600 rounded-[40px] shadow-2xl shadow-emerald-900/50 flex items-center justify-center mb-16 animate-in zoom-in duration-700 border-8 border-white/10">
-          {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover rounded-[32px]" alt="Logo" /> : <span className="text-8xl">🍔</span>}
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0 z-0">
+           <img 
+             src="https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=2069" 
+             className="w-full h-full object-cover opacity-40 scale-105" 
+             alt="Background" 
+           />
+           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/40" />
         </div>
-        
-        <h1 className="text-6xl font-black text-white uppercase tracking-tighter mb-4 text-center">Nilo <span className="text-emerald-500">Lanches</span></h1>
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-xl mb-16">O sabor que você respeita</p>
 
-        <button 
-          onClick={(e) => { e.stopPropagation(); setKioskStarted(true); }}
-          className="bg-red-600 text-white text-2xl font-black py-8 px-16 rounded-[32px] shadow-[0_0_50px_rgba(220,38,38,0.6)] uppercase tracking-widest animate-pulse border-b-8 border-red-800 hover:scale-105 transition-transform"
-        >
-          Clique para fazer seu pedido
-        </button>
+        {/* Content Container */}
+        <div className="relative z-10 flex flex-col items-center gap-10 animate-in zoom-in duration-500 w-full max-w-4xl px-4">
+          
+          {/* Logo Floating Effect */}
+          <div className="w-48 h-48 sm:w-64 sm:h-64 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center p-4 border-4 border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-bounce-subtle">
+             <div className="w-full h-full rounded-full overflow-hidden bg-white shadow-inner flex items-center justify-center">
+                {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" /> : <span className="text-8xl">🍔</span>}
+             </div>
+          </div>
+          
+          <div className="text-center space-y-4">
+            <h1 className="text-6xl sm:text-8xl font-black text-white uppercase tracking-tighter drop-shadow-2xl leading-none">
+              Nilo <span className="text-emerald-500">Lanches</span>
+            </h1>
+            <p className="text-xl sm:text-3xl text-slate-300 font-black uppercase tracking-[0.4em] drop-shadow-lg">
+              Autoatendimento
+            </p>
+          </div>
 
-        <p className="absolute bottom-8 text-slate-600 font-black uppercase tracking-[0.5em] text-xs">Toque na tela para iniciar</p>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setKioskStarted(true); }}
+            className="mt-8 group relative bg-emerald-700 text-white text-2xl sm:text-4xl font-black py-8 px-16 rounded-[50px] shadow-[0_0_50px_rgba(4,120,87,0.6)] border-b-[8px] border-emerald-900 active:border-b-0 active:translate-y-2 transition-all hover:bg-emerald-600 hover:scale-105"
+          >
+            <span className="drop-shadow-md flex items-center gap-4">
+               <span>👆</span> TOQUE PARA COMEÇAR
+            </span>
+            <div className="absolute inset-0 rounded-[50px] ring-2 ring-white/20 group-hover:ring-white/40 transition-all pointer-events-none" />
+          </button>
+        </div>
+
+        <div className="absolute bottom-12 z-10 text-slate-500 font-bold text-sm uppercase tracking-widest animate-pulse">
+          Toque em qualquer lugar da tela
+        </div>
       </div>
     );
   }

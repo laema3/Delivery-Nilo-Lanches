@@ -433,10 +433,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
       {/* ÁREA PRINCIPAL + SIDEBAR DIREITA (QUANDO EM PEDIDOS) */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 relative h-screen overflow-hidden">
-        {/* CABEÇALHO - CINZA CLARO COM SOMBRA */}
-        <header className="h-24 bg-slate-100 border-b border-slate-200 px-8 flex items-center justify-between shrink-0 z-20 shadow-md shadow-slate-200/50">
-           <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-3">
-             <span className="p-2.5 bg-white text-slate-600 rounded-xl text-xl border border-slate-200 shadow-sm">
+        {/* CABEÇALHO - AGORA ESCURO PARA MATCH COM SIDEBAR */}
+        <header className="h-24 bg-slate-950 border-b border-slate-800 px-8 flex items-center justify-between shrink-0 z-20 shadow-md shadow-slate-900/50">
+           <h1 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+             <span className="p-2.5 bg-slate-800 text-slate-200 rounded-xl text-xl border border-slate-700 shadow-sm">
                {activeView === 'dashboard' ? '📊' : activeView === 'pedidos' ? '🛍️' : '⚙️'}
              </span>
              {activeView}
@@ -444,7 +444,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
            <div className="flex items-center gap-4">
              {/* BOTÃO DE ÁUDIO REMOVIDO - SOM SEMPRE ATIVO */}
-             <button onClick={onBackToSite} className="bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-slate-200">Ver Site</button>
+             <button onClick={onBackToSite} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/20">Ver Site</button>
            </div>
         </header>
 
