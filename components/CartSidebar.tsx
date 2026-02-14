@@ -49,6 +49,14 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
     }
   };
 
+  const handleCheckoutClick = () => {
+    if (!selectedPayment) {
+      alert("ESCOLHA A FORMA DE PAGAMENTO");
+      return;
+    }
+    onCheckout(selectedPayment, activeDeliveryFee, discountAmount, appliedCoupon?.code || '', deliveryType, changeValue ? Number(changeValue) : undefined);
+  };
+
   const discountAmount = useMemo(() => {
     if (!appliedCoupon) return 0;
     if (appliedCoupon.type === 'PERCENT') return (subtotal * appliedCoupon.discount) / 100;
@@ -167,9 +175,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 <div className="flex justify-between text-slate-900 text-xl pt-2 font-black border-t border-dashed border-slate-200 mt-2"><span>Total</span><span className="text-emerald-600">R$ {total.toFixed(2)}</span></div>
               </div>
               <button 
-                disabled={!selectedPayment || !isStoreOpen || isProcessing} 
-                onClick={() => onCheckout(selectedPayment, activeDeliveryFee, discountAmount, appliedCoupon?.code || '', deliveryType, changeValue ? Number(changeValue) : undefined)} 
-                className={`w-full py-5 rounded-2xl font-black uppercase text-[12px] tracking-widest transition-all shadow-xl ${(!selectedPayment || !isStoreOpen || isProcessing) ? 'bg-slate-100 text-slate-400' : 'bg-emerald-600 text-white border-b-4 border-emerald-800'}`}
+                disabled={!isStoreOpen || isProcessing} 
+                onClick={handleCheckoutClick} 
+                className={`w-full py-5 rounded-2xl font-black uppercase text-[12px] tracking-widest transition-all shadow-xl ${(!isStoreOpen || isProcessing) ? 'bg-slate-100 text-slate-400' : 'bg-emerald-600 text-white border-b-4 border-emerald-800'}`}
               >
                 {isProcessing ? 'Enviando...' : (isStoreOpen ? 'Confirmar Pedido' : 'Loja Fechada')}
               </button>
