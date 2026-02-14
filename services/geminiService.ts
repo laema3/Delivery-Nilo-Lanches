@@ -59,37 +59,36 @@ export const chatWithAssistant = async (
 
   // Regras de negócio dinâmicas
   const deliveryInfo = isLoggedIn 
-    ? `O cliente está LOGADO. A taxa de entrega para o endereço dele é R$ ${currentDeliveryFee.toFixed(2)}.`
-    : `O cliente NÃO está logado. Informe que a taxa de entrega será calculada após o login/cadastro.`;
+    ? `O cliente está LOGADO. A taxa de entrega para o endereço dele é EXATAMENTE R$ ${currentDeliveryFee.toFixed(2)}.`
+    : `O cliente NÃO está logado. Informe que a taxa de entrega varia entre R$ 5,00 e R$ 15,00 em Uberaba e será calculada após ele entrar/cadastrar.`;
 
   const systemInstruction = `
     Você é o 'Nilo', o atendente virtual da Nilo Lanches em Uberaba-MG.
     
-    HORÁRIO DE ATENDIMENTO: Todos os dias, das 18:30 às 23:50.
-    STATUS ATUAL DA LOJA: ${isStoreOpen ? 'ABERTA (Pode aceitar pedidos)' : 'FECHADA (Apenas informações, não finalize pedidos)'}.
+    HORÁRIO DE FUNCIONAMENTO: Todos os dias, das 18:30 às 23:50. Fora desse horário a cozinha está fechada.
+    STATUS ATUAL DA LOJA NO SISTEMA: ${isStoreOpen ? 'ABERTA (Recebendo pedidos!)' : 'FECHADA (Apenas tirando dúvidas, sem pedidos agora)'}.
     
-    MENU DISPONÍVEL:
+    CARDÁPIO ATUALIZADO:
     ${productsMenu}
 
-    REGRAS DE FRETE:
+    POLÍTICA DE ENTREGAS:
     ${deliveryInfo}
 
-    DIRETRIZES DE COMPORTAMENTO:
-    1. Seja amigável, use emojis (🍔, 🍟, 🥤) e fale de forma ágil.
-    2. Se o cliente quiser algo do menu, use a ferramenta 'addToCart'.
-    3. Se o cliente estiver pronto para fechar, use 'finalizeOrder'.
-    4. Nunca prometa frete grátis se não estiver confirmado no sistema.
-    5. Se a loja estiver fechada, informe educadamente mas não processe o carrinho.
+    DIRETRIZES DE ATENDIMENTO:
+    1. Seja extremamente amigável e use gírias leves de lanchonete (🍔, 🍟, 🥤, "bora comer?").
+    2. Sempre tente vender um acompanhamento (batata ou refri).
+    3. Quando o cliente escolher um lanche, use a ferramenta 'addToCart'.
+    4. Quando ele estiver pronto para finalizar, use 'finalizeOrder'.
+    5. Se a loja estiver fechada ou passar das 23:50, diga que voltamos amanhã às 18:30.
+    6. Seja conciso: não responda com textos gigantescos.
   `;
 
   try {
-    // Tratamento de histórico para o Gemini (User -> Model -> User)
     const validHistory = history.map(h => ({
       role: h.role === 'model' ? 'model' : 'user',
       parts: [{ text: h.text }]
     })).filter(h => h.parts[0].text.trim() !== "");
 
-    // Garante que o primeiro turno seja sempre do usuário
     if (validHistory.length > 0 && validHistory[0].role === 'model') {
       validHistory.shift();
     }
@@ -110,7 +109,7 @@ export const chatWithAssistant = async (
     };
   } catch (error) {
     console.error("Gemini Chat Error:", error);
-    return { text: "Ops, tive um engasgo aqui. Pode repetir?", functionCalls: null };
+    return { text: "Foi mal, deu um erro aqui no meu sistema. Pode perguntar de novo? 🍔", functionCalls: null };
   }
 };
 
@@ -123,7 +122,6 @@ export const generateProductImage = async (productName: string) => {
       config: { imageConfig: { aspectRatio: "1:1" } }
     });
     
-    // Procura a parte da imagem na resposta
     const candidates = response.candidates || [];
     if (candidates.length > 0) {
       for (const part of candidates[0].content.parts) {

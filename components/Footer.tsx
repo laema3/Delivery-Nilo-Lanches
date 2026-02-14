@@ -99,7 +99,6 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOp
           <p>© 2024 NILO LANCHES - TODOS OS DIREITOS RESERVADOS</p>
           <div className="flex gap-6">
             <button onClick={onAdminClick} className="hover:text-emerald-400 transition-colors uppercase">Acesso</button>
-            <a href="#" className="hover:text-emerald-400 transition-colors">Privacidade</a>
           </div>
         </div>
       </div>
