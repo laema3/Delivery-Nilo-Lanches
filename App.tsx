@@ -310,9 +310,9 @@ const App: React.FC = () => {
                </div>
                {activeSubCategories.length > 0 && (
                  <div className="flex justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
-                   <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 ${selectedSubCategory === 'Todos' ? 'text-emerald-700 border-b-2 border-emerald-600' : 'text-slate-500'}`}>Tudo</button>
+                   <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategory === 'Todos' ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>Tudo</button>
                    {activeSubCategories.map(sub => (
-                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 ${selectedSubCategory === sub.name ? 'text-emerald-700 border-b-2 border-emerald-600' : 'text-slate-500'}`}>{sub.name}</button>
+                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategory === sub.name ? 'bg-red-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>{sub.name}</button>
                    ))}
                  </div>
                )}
