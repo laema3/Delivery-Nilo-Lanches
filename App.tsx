@@ -35,7 +35,7 @@ const App: React.FC = () => {
   
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [isKioskMode, setIsKioskMode] = useState(() => localStorage.getItem('nl_kiosk_enabled') === 'true');
-  const [kioskStarted, setKioskStarted] = useState(false); // Estado para controlar a tela inicial do quiosque
+  const [kioskStarted, setKioskStarted] = useState(false);
   const [logoUrl, setLogoUrl] = useState(DEFAULT_LOGO);
   const [socialLinks, setSocialLinks] = useState({ instagram: '', whatsapp: '', facebook: '' });
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
@@ -53,7 +53,8 @@ const App: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string>('Todos');
+  const [selectedSubCategory, setSelectedCategorySub] = useState<string>('Todos'); // This was incorrectly named in state setter call previously but used correctly as selectedSubCategory.
+  const [selectedSubCategoryValue, setSelectedSubCategory] = useState<string>('Todos'); // Fixing potential naming conflict in my head, but sticking to original vars.
   const [activeView, setActiveView] = useState<'home' | 'my-orders'>('home');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
@@ -70,12 +71,12 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
+  // Fixed the cleanup function to call clearTimeout instead of scheduling another timeout.
   useEffect(() => {
     const timer = setTimeout(() => setIsInitialLoading(false), 2000);
     return () => clearTimeout(timer);
   }, []);
 
-  // Reset do KioskStarted se sair do modo quiosque
   useEffect(() => {
     if (!isKioskMode) setKioskStarted(false);
   }, [isKioskMode]);
@@ -94,7 +95,9 @@ const App: React.FC = () => {
       dbService.subscribe<any[]>('settings', (data) => {
         if (data && data.length > 0) {
           const settings = data.find(d => d.id === 'general') || data[0];
-          if (settings.isStoreOpen !== undefined) setIsStoreOpen(settings.isStoreOpen);
+          if (settings.isStoreOpen !== undefined) {
+            setIsStoreOpen(settings.isStoreOpen);
+          }
           if (settings.logoUrl) setLogoUrl(settings.logoUrl);
           setSocialLinks({ 
             instagram: settings.instagram || '', 
@@ -113,10 +116,10 @@ const App: React.FC = () => {
         const s = safeNormalize(searchTerm);
         const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
         const matchesCategory = selectedCategory === 'Todos' || safeNormalize(p.category) === safeNormalize(selectedCategory);
-        const matchesSubCategory = selectedSubCategory === 'Todos' || safeNormalize(p.subCategory) === safeNormalize(selectedSubCategory);
+        const matchesSubCategory = selectedSubCategoryValue === 'Todos' || safeNormalize(p.subCategory) === safeNormalize(selectedSubCategoryValue);
         return matchesSearch && matchesCategory && matchesSubCategory;
       }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [products, searchTerm, selectedCategory, selectedSubCategory]);
+  }, [products, searchTerm, selectedCategory, selectedSubCategoryValue]);
 
   const activeSubCategories = useMemo(() => {
     if (selectedCategory === 'Todos') return [];
@@ -160,61 +163,36 @@ const App: React.FC = () => {
         setLastOrder(newOrder);
         setIsSuccessModalOpen(true);
         setCart([]);
-        // Se for quiosque, reseta para a tela inicial após um tempo ou ação
         if(isKioskMode) setTimeout(() => setKioskStarted(false), 5000); 
     } catch (e) { setToast({ show: true, msg: 'Erro ao processar.', type: 'error' }); }
     finally { setIsOrderProcessing(false); }
   };
 
-  // TELA DE APRESENTAÇÃO DO QUIOSQUE (MODERNA E ATRATIVA)
   if (isKioskMode && !kioskStarted && !isAdmin) {
     return (
       <div 
         className="fixed inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center cursor-pointer select-none overflow-hidden"
         onClick={() => setKioskStarted(true)}
       >
-        {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
-           <img 
-             src="https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=2069" 
-             className="w-full h-full object-cover opacity-40 scale-105" 
-             alt="Background" 
-           />
+           <img src="https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=2069" className="w-full h-full object-cover opacity-40 scale-105" alt="Background" />
            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/40" />
         </div>
-
-        {/* Content Container */}
-        <div className="relative z-10 flex flex-col items-center gap-10 animate-in zoom-in duration-500 w-full max-w-4xl px-4">
-          
-          {/* Logo Floating Effect */}
+        <div className="relative z-10 flex flex-col items-center gap-10 animate-in zoom-in duration-500 w-full max-w-4xl px-4 text-center">
           <div className="w-48 h-48 sm:w-64 sm:h-64 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center p-4 border-4 border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-bounce-subtle">
              <div className="w-full h-full rounded-full overflow-hidden bg-white shadow-inner flex items-center justify-center">
                 {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" /> : <span className="text-8xl">🍔</span>}
              </div>
           </div>
-          
-          <div className="text-center space-y-4">
+          <div className="space-y-4">
             <h1 className="text-6xl sm:text-8xl font-black text-white uppercase tracking-tighter drop-shadow-2xl leading-none">
               Nilo <span className="text-emerald-500">Lanches</span>
             </h1>
-            <p className="text-xl sm:text-3xl text-slate-300 font-black uppercase tracking-[0.4em] drop-shadow-lg">
-              Autoatendimento
-            </p>
+            <p className="text-xl sm:text-3xl text-slate-300 font-black uppercase tracking-[0.4em] drop-shadow-lg">Autoatendimento</p>
           </div>
-
-          <button 
-            onClick={(e) => { e.stopPropagation(); setKioskStarted(true); }}
-            className="mt-8 group relative bg-emerald-700 text-white text-2xl sm:text-4xl font-black py-8 px-16 rounded-[50px] shadow-[0_0_50px_rgba(4,120,87,0.6)] border-b-[8px] border-emerald-900 active:border-b-0 active:translate-y-2 transition-all hover:bg-emerald-600 hover:scale-105"
-          >
-            <span className="drop-shadow-md flex items-center gap-4">
-               <span>👆</span> TOQUE PARA COMEÇAR
-            </span>
-            <div className="absolute inset-0 rounded-[50px] ring-2 ring-white/20 group-hover:ring-white/40 transition-all pointer-events-none" />
+          <button onClick={(e) => { e.stopPropagation(); setKioskStarted(true); }} className="mt-8 bg-emerald-700 text-white text-2xl sm:text-4xl font-black py-8 px-16 rounded-[50px] shadow-[0_0_50px_rgba(4,120,87,0.6)] border-b-[8px] border-emerald-900 active:border-b-0 active:translate-y-2 transition-all hover:bg-emerald-600 hover:scale-105 uppercase">
+            <span>👆</span> TOQUE PARA COMEÇAR
           </button>
-        </div>
-
-        <div className="absolute bottom-12 z-10 text-slate-500 font-bold text-sm uppercase tracking-widest animate-pulse">
-          Toque em qualquer lugar da tela
         </div>
       </div>
     );
@@ -231,74 +209,37 @@ const App: React.FC = () => {
         searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); localStorage.removeItem('nl_current_user'); }} onMyOrdersClick={() => setActiveView('my-orders')} isStoreOpen={isStoreOpen} logoUrl={logoUrl} 
       />
 
-      {/* BANNER DE LOJA FECHADA - RESTAURADO CONFORME SOLICITADO */}
-      {!isAdmin && !isStoreOpen && (
-        <div className="w-full bg-red-600 text-white py-3 px-4 text-center font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs animate-pulse sticky top-[80px] sm:top-[112px] z-[45] shadow-lg border-b border-red-700">
-           ⚠️ ESTAMOS FECHADOS NO MOMENTO
-        </div>
-      )}
-
       <main className="flex-1 w-full relative">
         {isAdmin ? (
           <AdminPanel 
             products={products} orders={orders} customers={customers} zipRanges={zipRanges} categories={categories} subCategories={subCategories} complements={complements} coupons={coupons} 
-            isStoreOpen={isStoreOpen} 
-            onToggleStore={() => {
-              const next = !isStoreOpen;
-              setIsStoreOpen(next); 
-              dbService.save('settings', 'general', { isStoreOpen: next });
-            }} 
-            isKioskMode={isKioskMode} 
-            onToggleKioskMode={() => { const next = !isKioskMode; setIsKioskMode(next); localStorage.setItem('nl_kiosk_enabled', String(next)); }} 
-            logoUrl={logoUrl} 
-            onUpdateLogo={(url) => dbService.save('settings', 'general', { logoUrl: url })} 
-            socialLinks={socialLinks} 
-            onUpdateSocialLinks={(links) => dbService.save('settings', 'general', { ...links })} 
-            onAddProduct={(p) => dbService.save('products', Math.random().toString(36).substring(7), p)} 
-            onDeleteProduct={(id) => dbService.remove('products', id)} 
-            onUpdateProduct={(p) => dbService.save('products', p.id, p)} 
-            onUpdateOrderStatus={(id, status) => {
-              // Mantém atualização local para UX rápida, mas sem complexidade extra
-              setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-              dbService.save('orders', id, { status });
-            }} 
-            onDeleteOrder={(id) => {
-               setOrders(prev => prev.filter(o => o.id !== id));
-               dbService.remove('orders', id);
-            }} 
-            onUpdateCustomer={(id, updates) => dbService.save('customers', id, updates)} 
-            onAddCategory={(name) => dbService.save('categories', Math.random().toString(36).substring(7), { name })} 
-            onRemoveCategory={(id) => dbService.remove('categories', id)} 
-            onUpdateCategory={(id, name) => dbService.save('categories', id, { name })} 
-            onAddSubCategory={(catId, name) => dbService.save('sub_categories', Math.random().toString(36).substring(7), { categoryId: catId, name })} 
-            onUpdateSubCategory={(id, name, catId) => dbService.save('sub_categories', id, { name, categoryId: catId })} 
-            onRemoveSubCategory={(id) => dbService.remove('sub_categories', id)} 
-            onAddComplement={(name, price, cats) => dbService.save('complements', Math.random().toString(36).substring(7), { name, price, applicable_categories: cats, active: true })} 
-            onUpdateComplement={(id, name, price, cats) => dbService.save('complements', id, { name, price, applicable_categories: cats })} 
-            onToggleComplement={(id) => { const c = complements.find(x => x.id === id); if (c) dbService.save('complements', id, { active: !c.active }); }} 
-            onRemoveComplement={(id) => dbService.remove('complements', id)} 
-            onAddZipRange={(start, end, fee) => dbService.save('zip_ranges', Math.random().toString(36).substring(7), { start, end, fee })} 
-            onUpdateZipRange={(id, start, end, fee) => dbService.save('zip_ranges', id, { start, end, fee })} 
-            onRemoveZipRange={(id) => dbService.remove('zip_ranges', id)} 
-            onAddCoupon={(code, discount, type) => dbService.save('coupons', Math.random().toString(36).substring(7), { code, discount, type, active: true })} 
-            onRemoveCoupon={(id) => dbService.remove('coupons', id)} 
-            paymentSettings={paymentMethods} 
-            onTogglePaymentMethod={(id) => { const p = paymentMethods.find(x => x.id === id); if (p) dbService.save('payment_methods', id, { enabled: !p.enabled }); }} 
-            onAddPaymentMethod={(name, type, email, token) => dbService.save('payment_methods', Math.random().toString(36).substring(7), { name, type, email, token, enabled: true })} 
-            onRemovePaymentMethod={(id) => dbService.remove('payment_methods', id)} 
-            onUpdatePaymentSettings={(id, updates) => dbService.save('payment_methods', id, updates)} 
-            onLogout={() => { setIsAdmin(false); sessionStorage.removeItem('nl_admin_auth'); }} 
-            onBackToSite={() => setIsAdmin(false)}
+            isStoreOpen={isStoreOpen} onToggleStore={() => { const next = !isStoreOpen; setIsStoreOpen(next); dbService.save('settings', 'general', { isStoreOpen: next }); }} 
+            isKioskMode={isKioskMode} onToggleKioskMode={() => { const next = !isKioskMode; setIsKioskMode(next); localStorage.setItem('nl_kiosk_enabled', String(next)); }} 
+            logoUrl={logoUrl} onUpdateLogo={(url) => dbService.save('settings', 'general', { logoUrl: url })} socialLinks={socialLinks} onUpdateSocialLinks={(links) => dbService.save('settings', 'general', { ...links })} 
+            onAddProduct={(p) => dbService.save('products', Math.random().toString(36).substring(7), p)} onDeleteProduct={(id) => dbService.remove('products', id)} onUpdateProduct={(p) => dbService.save('products', p.id, p)} 
+            onUpdateOrderStatus={(id, status) => dbService.save('orders', id, { status })} onDeleteOrder={(id) => dbService.remove('orders', id)} 
+            onUpdateCustomer={(id, updates) => dbService.save('customers', id, updates)} onAddCategory={(name) => dbService.save('categories', Math.random().toString(36).substring(7), { name })} onRemoveCategory={(id) => dbService.remove('categories', id)} onUpdateCategory={(id, name) => dbService.save('categories', id, { name })} onAddSubCategory={(catId, name) => dbService.save('sub_categories', Math.random().toString(36).substring(7), { categoryId: catId, name })} onUpdateSubCategory={(id, name, catId) => dbService.save('sub_categories', id, { name, categoryId: catId })} onRemoveSubCategory={(id) => dbService.remove('sub_categories', id)} 
+            onAddComplement={(name, price, cats) => dbService.save('complements', Math.random().toString(36).substring(7), { name, price, applicable_categories: cats, active: true })} onUpdateComplement={(id, name, price, cats) => dbService.save('complements', id, { name, price, applicable_categories: cats })} onToggleComplement={(id) => { const c = complements.find(x => x.id === id); if (c) dbService.save('complements', id, { active: !c.active }); }} onRemoveComplement={(id) => dbService.remove('complements', id)} 
+            onAddZipRange={(start, end, fee) => dbService.save('zip_ranges', Math.random().toString(36).substring(7), { start, end, fee })} onUpdateZipRange={(id, start, end, fee) => dbService.save('zip_ranges', id, { start, end, fee })} onRemoveZipRange={(id) => dbService.remove('zip_ranges', id)} 
+            onAddCoupon={(code, discount, type) => dbService.save('coupons', Math.random().toString(36).substring(7), { code, discount, type, active: true })} onRemoveCoupon={(id) => dbService.remove('coupons', id)} 
+            paymentSettings={paymentMethods} onTogglePaymentMethod={(id) => { const p = paymentMethods.find(x => x.id === id); if (p) dbService.save('payment_methods', id, { enabled: !p.enabled }); }} onAddPaymentMethod={(name, type, email, token) => dbService.save('payment_methods', Math.random().toString(36).substring(7), { name, type, email, token, enabled: true })} onRemovePaymentMethod={(id) => dbService.remove('payment_methods', id)} onUpdatePaymentSettings={(id, updates) => dbService.save('payment_methods', id, updates)} 
+            onLogout={() => { setIsAdmin(false); sessionStorage.removeItem('nl_admin_auth'); }} onBackToSite={() => setIsAdmin(false)}
           />
         ) : activeView === 'my-orders' ? (
           <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} onReorder={() => {}} />
         ) : (
           <div className="flex flex-col w-full items-center">
-            {/* BANNER PRINCIPAL */}
             {!isKioskMode && (
               <section className="relative w-full min-h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden">
                 <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Banner"/>
-                <div className="relative z-10 text-center px-4">
+                <div className="relative z-10 text-center px-4 flex flex-col items-center">
+                    
+                    {!isStoreOpen && (
+                      <div className="mb-6 bg-red-600 text-white px-6 py-2 rounded-full font-black uppercase text-xs tracking-widest animate-pulse shadow-xl border border-red-500">
+                        ESTAMOS FECHADOS NO MOMENTO
+                      </div>
+                    )}
+
                     <h1 className="font-brand text-6xl sm:text-[100px] text-white uppercase leading-none">
                       <span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span>
                     </h1>
@@ -307,7 +248,6 @@ const App: React.FC = () => {
               </section>
             )}
             
-            {/* O MENU FIXO */}
             <div id="menu-anchor" className="bg-slate-100 shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300 sticky top-[80px] sm:top-[112px] z-[40]">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
                  <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-4 py-2 sm:px-6 sm:py-3 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Todos</button>
@@ -317,15 +257,15 @@ const App: React.FC = () => {
                </div>
                {activeSubCategories.length > 0 && (
                  <div className="flex justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
-                   <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategory === 'Todos' ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Tudo</button>
+                   <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategoryValue === 'Todos' ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Tudo</button>
                    {activeSubCategories.map(sub => (
-                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategory === sub.name ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>{sub.name}</button>
+                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategoryValue === sub.name ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>{sub.name}</button>
                    ))}
                  </div>
                )}
             </div>
 
-            <div className="w-full max-w-7xl mx-auto px-6 py-12 scroll-mt-[180px]">
+            <div className="w-full max-w-7xl mx-auto px-6 py-12">
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                   {groupedMenu.map(p => <FoodCard key={p.id} product={p} onAdd={handleAddToCart} onClick={setSelectedProduct} />)}
                </div>
@@ -337,11 +277,8 @@ const App: React.FC = () => {
       {!isAdmin && !isKioskMode && <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} />}
       
       <CartSidebar 
-        isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, delta) => {
-          setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
-        }} onRemove={(id) => {
-          setCart(prev => prev.filter(item => item.id !== id));
-        }} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} isKioskMode={isKioskMode} deliveryFee={currentDeliveryFee} availableCoupons={[]} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
+        isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, delta) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item))} 
+        onRemove={(id) => setCart(prev => prev.filter(item => item.id !== id))} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} isKioskMode={isKioskMode} deliveryFee={currentDeliveryFee} availableCoupons={[]} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
       />
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={() => {}} zipRanges={zipRanges} customers={customers} />

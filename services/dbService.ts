@@ -25,9 +25,9 @@ const COLLECTION_MAP: Record<string, string> = {
   'coupons': 'coupons'
 };
 
-// Remove valores undefined para evitar erros no Firestore
 const sanitizeData = (data: any) => {
-  return JSON.parse(JSON.stringify(data));
+  const clean = JSON.parse(JSON.stringify(data));
+  return clean;
 };
 
 export const dbService = {
@@ -40,7 +40,6 @@ export const dbService = {
       const item = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
       return item ? JSON.parse(item) : [];
     } catch (e) {
-      console.error("Erro ao ler localStorage:", e);
       return [];
     }
   },
@@ -48,15 +47,15 @@ export const dbService = {
   setLocal(key: string, data: any) {
     try {
       localStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(data));
-    } catch (e) {
-      console.error("Erro ao salvar localStorage:", e);
-    }
+    } catch (e) {}
   },
 
   subscribe<T>(key: string, callback: (data: T) => void) {
-    // 1. Carrega local imediatamente
+    // Carrega do local para resposta imediata na UI
     const localData = this.getLocal(key);
-    if (localData && localData.length > 0) callback(localData as T);
+    if (localData && localData.length > 0) {
+      callback(localData as unknown as T);
+    }
 
     if (!db) return () => {};
 
@@ -69,11 +68,12 @@ export const dbService = {
           ...doc.data(),
           id: doc.id
         }));
-        // Atualiza cache local
+        
+        // CRÍTICO: Atualiza o cache local e emite o callback com os dados REAIS da nuvem
         this.setLocal(key, data);
         callback(data as unknown as T);
       }, (error) => {
-        console.warn(`⚠️ [Sync] Erro na leitura '${key}':`, error.message);
+        console.warn(`⚠️ [Sync] Erro '${key}':`, error.message);
       });
 
       return unsubscribe;
@@ -93,9 +93,7 @@ export const dbService = {
           this.setLocal(key, data);
           return data as unknown as T;
         }
-      } catch (e) {
-        // Silencioso, usa local
-      }
+      } catch (e) {}
     }
     return (this.getLocal(key) as unknown as T) || defaultValue;
   },
@@ -104,49 +102,44 @@ export const dbService = {
     if (!id) return;
 
     try {
-      // 1. Sanitização
       const cleanData = sanitizeData({ ...data });
-      delete cleanData.id; 
-
-      // 2. Salva Local (Garantia de Offline)
+      // Não removemos o ID aqui para garantir consistência no merge
+      
+      // 1. Atualiza Local para feedback instantâneo
       const currentList = this.getLocal(key) as any[];
       const index = currentList.findIndex(item => item.id === id);
       const newItem = { ...cleanData, id };
-      
-      let newList = index >= 0 ? [...currentList] : [...currentList, newItem];
+      let newList = [...currentList];
       if (index >= 0) newList[index] = newItem;
+      else newList.push(newItem);
       this.setLocal(key, newList);
 
-      // 3. Salva Nuvem (Firebase)
+      // 2. Salva no Firestore
       if (db) {
         const collectionName = COLLECTION_MAP[key] || key;
-        // Importante: setDoc é await, mas se falhar pegamos no catch
-        await setDoc(doc(db, collectionName, id), cleanData, { merge: true });
-        console.log(`✅ [Cloud] Salvo: ${key}/${id}`);
-      } else {
-        console.warn("⚠️ [Cloud] Firebase não conectado. Salvo apenas localmente.");
+        const docRef = doc(db, collectionName, id);
+        // Removemos o campo id antes de enviar para o Firestore para manter o doc limpo
+        const toSave = { ...cleanData };
+        delete toSave.id;
+        await setDoc(docRef, toSave, { merge: true });
       }
     } catch (e: any) {
-      console.error(`❌ [Save Error] Erro ao salvar '${key}':`, e);
-      // NÃO lançamos o erro. O app segue assumindo que salvou localmente.
-      // Isso evita tela de erro pro usuário final.
+      console.error(`❌ [Save Error] '${key}':`, e);
     }
   },
 
   async remove(key: string, id: string) {
     try {
-      // 1. Remove Local
       const currentList = this.getLocal(key) as any[];
       const newList = currentList.filter(item => item.id !== id);
       this.setLocal(key, newList);
 
-      // 2. Remove Nuvem
       if (db) {
         const collectionName = COLLECTION_MAP[key] || key;
         await deleteDoc(doc(db, collectionName, id));
       }
     } catch (e) {
-      console.error(`❌ [Remove Error] Erro ao deletar '${key}':`, e);
+      console.error(`❌ [Remove Error] '${key}':`, e);
     }
   },
 
