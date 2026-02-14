@@ -41,8 +41,8 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
     const userMsg = input;
     setInput('');
     
-    // Capturamos o histórico atual antes da atualização do estado para a API
-    const historyForApi = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+    // Capturamos o histórico atual
+    const historyForApi = messages.map(m => ({ role: m.role, text: m.text }));
     
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);

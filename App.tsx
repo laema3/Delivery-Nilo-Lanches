@@ -231,6 +231,13 @@ const App: React.FC = () => {
         searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); localStorage.removeItem('nl_current_user'); }} onMyOrdersClick={() => setActiveView('my-orders')} isStoreOpen={isStoreOpen} logoUrl={logoUrl} 
       />
 
+      {/* BANNER DE LOJA FECHADA - RESTAURADO CONFORME SOLICITADO */}
+      {!isAdmin && !isStoreOpen && (
+        <div className="w-full bg-red-600 text-white py-3 px-4 text-center font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs animate-pulse sticky top-[80px] sm:top-[112px] z-[45] shadow-lg border-b border-red-700">
+           ⚠️ ESTAMOS FECHADOS NO MOMENTO
+        </div>
+      )}
+
       <main className="flex-1 w-full relative">
         {isAdmin ? (
           <AdminPanel 

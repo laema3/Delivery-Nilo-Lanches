@@ -76,10 +76,12 @@ export const chatWithAssistant = async (
     `;
 
     // Filtra histórico: Gemini EXIGE que comece com 'user' e alterne papéis.
-    let validHistory = history.map(h => ({
-      role: h.role === 'model' ? 'model' : 'user',
-      parts: Array.isArray(h.parts) ? h.parts : [{ text: String(h.text || h.parts) }]
-    }));
+    let validHistory = history
+      .map(h => ({
+        role: h.role === 'model' ? 'model' : 'user',
+        parts: Array.isArray(h.parts) ? h.parts : [{ text: String(h.text || h.parts) }]
+      }))
+      .filter(h => h.parts[0].text.trim() !== "");
 
     // Remove mensagens iniciais do 'model' pois o chat deve começar com 'user'
     while (validHistory.length > 0 && validHistory[0].role === 'model') {

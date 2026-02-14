@@ -433,17 +433,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
       {/* ÁREA PRINCIPAL + SIDEBAR DIREITA (QUANDO EM PEDIDOS) */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 relative h-screen overflow-hidden">
-        {/* CABEÇALHO - AGORA ESCURO PARA MATCH COM SIDEBAR */}
+        {/* CABEÇALHO - AGORA COM BOTÃO DE STATUS DA LOJA */}
         <header className="h-24 bg-slate-950 border-b border-slate-800 px-8 flex items-center justify-between shrink-0 z-20 shadow-md shadow-slate-900/50">
-           <h1 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
-             <span className="p-2.5 bg-slate-800 text-slate-200 rounded-xl text-xl border border-slate-700 shadow-sm">
-               {activeView === 'dashboard' ? '📊' : activeView === 'pedidos' ? '🛍️' : '⚙️'}
-             </span>
-             {activeView}
-           </h1>
+           <div className="flex items-center gap-6">
+              <h1 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+                <span className="p-2.5 bg-slate-800 text-slate-200 rounded-xl text-xl border border-slate-700 shadow-sm">
+                  {activeView === 'dashboard' ? '📊' : activeView === 'pedidos' ? '🛍️' : '⚙️'}
+                </span>
+                {activeView}
+              </h1>
+
+              {/* BOTÃO RÁPIDO PARA ABRIR/FECHAR LOJA (SOLICITADO) */}
+              <button 
+                onClick={onToggleStore}
+                className={`hidden md:flex items-center gap-3 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                  isStoreOpen 
+                  ? 'bg-emerald-600/10 border-emerald-500 text-emerald-500 hover:bg-emerald-600/20' 
+                  : 'bg-red-600/10 border-red-500 text-red-500 hover:bg-red-600/20'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isStoreOpen ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                {isStoreOpen ? 'LOJA ABERTA' : 'LOJA FECHADA'}
+              </button>
+           </div>
 
            <div className="flex items-center gap-4">
-             {/* BOTÃO DE ÁUDIO REMOVIDO - SOM SEMPRE ATIVO */}
              <button onClick={onBackToSite} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/20">Ver Site</button>
            </div>
         </header>
@@ -479,7 +493,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             {/* PEDIDOS - LISTAGEM */}
             {activeView === 'pedidos' && (
               <div className="animate-in fade-in duration-500">
-                 {/* Alinhado à esquerda como solicitado */}
                  <div className="grid grid-cols-1 gap-8 w-full max-w-4xl mr-auto">
                     {orders
                       .filter(o => (activeOrderTab === 'TODOS' || o.status === activeOrderTab) && !deletedIds.includes(o.id))
@@ -500,7 +513,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                <div className="flex flex-wrap items-center gap-3">
                                  <span className="text-2xl font-black text-slate-800">#{order.id.substring(0,6)}</span>
                                  
-                                 {/* SELETOR DE STATUS DIRETO NO CARD */}
                                  <div className="relative z-10">
                                    <select
                                      value={order.status}
@@ -508,7 +520,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                      onChange={(e) => {
                                         const newStatus = e.target.value as OrderStatus;
                                         onUpdateOrderStatus(order.id, newStatus);
-                                        // Se tirou de 'NOVO', para o alarme
                                         if (order.status === 'NOVO' && newStatus !== 'NOVO') {
                                           stopAlarm();
                                         }
@@ -565,7 +576,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                             </div>
                           </div>
 
-                          {/* AÇÕES RAPIDAS */}
                           <div className="w-full md:w-16 bg-slate-50 border-l border-slate-200 flex flex-col items-center justify-center gap-4 py-4">
                              <button onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${order.customerPhone.replace(/\D/g,'')}`, '_blank'); }} className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-emerald-50 text-emerald-600 shadow-sm" title="WhatsApp">📞</button>
                              <button onClick={(e) => { e.stopPropagation(); handlePrintOrder(order); }} className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 shadow-sm" title="Imprimir Cupom">🖨️</button>
@@ -577,12 +587,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               </div>
             )}
 
-            {/* OUTRAS VIEWS (PRODUTOS, ETC) */}
             {activeView === 'produtos' && (
               <div className="space-y-8 animate-in fade-in">
                 <div ref={formTopRef}></div>
-
-                {/* Formulário de Adição/Edição */}
                 <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
                    <div className="flex justify-between items-center">
                      <h3 className="text-2xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
@@ -598,12 +605,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         <label className={labelClass}>Nome do Produto</label>
                         <input value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} placeholder="Ex: X-Tudo Completo" className={inputClass} />
                      </div>
-                     
                      <div className="space-y-2">
                         <label className={labelClass}>Preço (R$)</label>
                         <input type="number" value={newProduct.price || ''} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} placeholder="0.00" className={inputClass} />
                      </div>
-
                      <div className="space-y-2">
                         <label className={labelClass}>Categoria</label>
                         <select value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} className={inputClass}>
@@ -611,21 +616,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                      </div>
-
                      <div className="md:col-span-3 space-y-2">
                         <label className={labelClass}>Descrição Detalhada</label>
                         <textarea rows={3} value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} placeholder="Ingredientes, modo de preparo..." className={inputClass} />
                      </div>
-
                      <div className="md:col-span-3 space-y-2">
                         <label className={labelClass}>Imagem do Produto (Upload)</label>
                         <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-xl border border-dashed border-slate-300 hover:border-emerald-400 transition-colors">
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], false)} 
-                            className="text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer" 
-                          />
+                          <input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], false)} className="text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer" />
                           {isProcessingImg && <span className="text-sm text-amber-500 font-bold animate-pulse">Processando...</span>}
                           {newProduct.image && (
                             <div className="relative group w-24 h-24">
@@ -637,16 +635,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                    </div>
 
                    <div className="flex justify-end pt-6 border-t border-slate-100">
-                     <button 
-                        onClick={handleSaveProduct} 
-                        className={`px-10 py-5 rounded-xl text-sm font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${editingId ? 'bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700' : 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'}`}
-                     >
-                       {editingId ? '💾 Atualizar Produto' : '🚀 Adicionar Produto'}
-                     </button>
+                     <button onClick={handleSaveProduct} className={`px-10 py-5 rounded-xl text-sm font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${editingId ? 'bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700' : 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'}`}>{editingId ? '💾 Atualizar Produto' : '🚀 Adicionar Produto'}</button>
                    </div>
                 </div>
 
-                {/* Lista de Produtos */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                    {products.map(p => (
                      <div key={p.id} className={`bg-white p-5 rounded-3xl border flex gap-5 transition-all ${editingId === p.id ? 'border-blue-500 ring-4 ring-blue-50 shadow-xl' : 'border-slate-200 shadow-sm hover:shadow-lg'}`}>
@@ -670,7 +662,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               </div>
             )}
 
-            {/* CATEGORIAS */}
             {activeView === 'categorias' && (
                <div className="space-y-8 animate-in fade-in">
                  <div ref={formTopRef}></div>
@@ -680,9 +671,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       <input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Ex: Bebidas, Lanches" className={inputClass} />
                    </div>
                    <div className="flex flex-col gap-2 mt-6">
-                     <button onClick={handleSaveCategory} className={editingCatId ? editButtonClass : buttonClass}>
-                       {editingCatId ? 'Atualizar' : 'Adicionar'}
-                     </button>
+                     <button onClick={handleSaveCategory} className={editingCatId ? editButtonClass : buttonClass}>{editingCatId ? 'Atualizar' : 'Adicionar'}</button>
                      {editingCatId && (
                        <button onClick={() => { setEditingCatId(null); setCatName(''); }} className="text-slate-400 text-[10px] font-black uppercase">Cancelar</button>
                      )}
@@ -702,7 +691,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                </div>
             )}
 
-            {/* SUBCATEGORIAS */}
             {activeView === 'subcategorias' && (
                <div className="space-y-8 animate-in fade-in">
                  <div ref={formTopRef}></div>
@@ -719,9 +707,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      <input value={subCatName} onChange={e => setSubCatName(e.target.value)} placeholder="Ex: Coca-Cola, Sucos" className={inputClass} />
                    </div>
                    <div className="flex flex-col gap-2">
-                      <button onClick={handleSaveSubCategory} className={editingSubCatId ? editButtonClass : buttonClass}>
-                        {editingSubCatId ? 'Atualizar' : 'Adicionar'}
-                      </button>
+                      <button onClick={handleSaveSubCategory} className={editingSubCatId ? editButtonClass : buttonClass}>{editingSubCatId ? 'Atualizar' : 'Adicionar'}</button>
                       {editingSubCatId && (
                         <button onClick={() => { setEditingSubCatId(null); setSubCatName(''); setSubCatParent(''); }} className="text-slate-400 text-[10px] font-black uppercase text-center">Cancelar</button>
                       )}
@@ -752,7 +738,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                </div>
             )}
 
-            {/* ADICIONAIS */}
             {activeView === 'adicionais' && (
                <div className="space-y-8 animate-in fade-in">
                  <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
@@ -770,13 +755,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         <label className={labelClass}>Aplicar em:</label>
                         <div className="flex gap-2 overflow-x-auto pb-2">
                           {categories.map(cat => (
-                            <button 
-                              key={cat.id} 
-                              onClick={() => setCompCategories(prev => prev.includes(cat.id) ? prev.filter(x => x !== cat.id) : [...prev, cat.id])}
-                              className={`px-4 py-2 rounded-lg text-xs font-black uppercase whitespace-nowrap transition-all ${compCategories.includes(cat.id) ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
-                            >
-                              {cat.name}
-                            </button>
+                            <button key={cat.id} onClick={() => setCompCategories(prev => prev.includes(cat.id) ? prev.filter(x => x !== cat.id) : [...prev, cat.id])} className={`px-4 py-2 rounded-lg text-xs font-black uppercase whitespace-nowrap transition-all ${compCategories.includes(cat.id) ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>{cat.name}</button>
                           ))}
                         </div>
                       </div>
@@ -785,7 +764,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                       <button onClick={() => { onAddComplement(compName, compPrice, compCategories); setCompName(''); setCompPrice(0); setCompCategories([]); }} className={buttonClass}>Salvar Adicional</button>
                    </div>
                  </div>
-
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                    {complements.map(c => (
                      <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
@@ -803,7 +781,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                </div>
             )}
 
-            {/* CUPONS */}
             {activeView === 'cupons' && (
                <div className="space-y-8 animate-in fade-in">
                  <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-end">
@@ -824,7 +801,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     </div>
                     <button onClick={() => { onAddCoupon(cpCode, cpDiscount, cpType); setCpCode(''); }} className={buttonClass}>Criar Cupom</button>
                  </div>
-                 
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {coupons.map(c => (
                       <div key={c.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex justify-between items-center relative overflow-hidden group">
@@ -841,7 +817,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                </div>
             )}
 
-            {/* ENTREGAS (CEP) */}
             {activeView === 'entregas' && (
                <div className="space-y-8 animate-in fade-in">
                   <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-end">
@@ -873,7 +848,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                </div>
             )}
 
-            {/* CLIENTES */}
             {activeView === 'clientes' && (
                <div className="space-y-6 animate-in fade-in">
                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest">Base de Clientes</h3>
@@ -892,7 +866,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                </div>
             )}
 
-            {/* PAGAMENTOS */}
             {activeView === 'pagamentos' && (
                <div className="space-y-8 animate-in fade-in">
                   <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-end">
@@ -926,7 +899,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                </div>
             )}
 
-            {/* AJUSTES */}
             {activeView === 'ajustes' && (
                <div className="max-w-4xl space-y-12 animate-in slide-in-from-bottom-5 duration-500">
                   <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
@@ -938,10 +910,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
                            <label className={labelClass}>Status da Loja</label>
-                           <button 
-                              onClick={onToggleStore}
-                              className={`w-full py-8 rounded-2xl flex items-center justify-center gap-4 border-2 transition-all ${isStoreOpen ? 'bg-emerald-50 border-emerald-500 text-emerald-600' : 'bg-red-50 border-red-500 text-red-500'}`}
-                           >
+                           <button onClick={onToggleStore} className={`w-full py-8 rounded-2xl flex items-center justify-center gap-4 border-2 transition-all ${isStoreOpen ? 'bg-emerald-50 border-emerald-500 text-emerald-600' : 'bg-red-50 border-red-500 text-red-500'}`}>
                               <div className={`w-5 h-5 rounded-full ${isStoreOpen ? 'bg-emerald-500 shadow-lg' : 'bg-red-500'}`}></div>
                               <span className="font-black text-lg uppercase tracking-widest">{isStoreOpen ? 'Loja Aberta' : 'Loja Fechada'}</span>
                            </button>
@@ -949,10 +918,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
                         <div className="space-y-3">
                            <label className={labelClass}>Modo Quiosque (Totem)</label>
-                           <button 
-                              onClick={onToggleKioskMode}
-                              className={`w-full py-8 rounded-2xl flex items-center justify-center gap-4 border-2 transition-all ${isKioskMode ? 'bg-purple-50 border-purple-500 text-purple-600' : 'bg-slate-50 border-slate-300 text-slate-400'}`}
-                           >
+                           <button onClick={onToggleKioskMode} className={`w-full py-8 rounded-2xl flex items-center justify-center gap-4 border-2 transition-all ${isKioskMode ? 'bg-purple-50 border-purple-500 text-purple-600' : 'bg-slate-50 border-slate-300 text-slate-400'}`}>
                               <span className="text-2xl">{isKioskMode ? '🤖' : '📱'}</span>
                               <span className="font-black text-lg uppercase tracking-widest">{isKioskMode ? 'Quiosque Ativado' : 'Modo Normal'}</span>
                            </button>
@@ -961,12 +927,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         <div className="space-y-3 md:col-span-2">
                            <label className={labelClass}>Logo da Loja (Upload)</label>
                            <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-300 hover:border-emerald-400 transition-colors">
-                              <input 
-                                type="file" 
-                                accept="image/*"
-                                onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], true)}
-                                className="text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer"
-                              />
+                              <input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], true)} className="text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer" />
                               {logoUrl && (
                                 <div className="relative w-20 h-20 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                                   <img src={logoUrl} className="w-full h-full object-contain" />
@@ -979,33 +940,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-slate-100">
                         <div className="space-y-2">
                           <label className={labelClass}>WhatsApp</label>
-                          <input 
-                            value={localWhatsapp} 
-                            onChange={(e) => setLocalWhatsapp(e.target.value)} 
-                            onBlur={() => onUpdateSocialLinks({ ...socialLinks, whatsapp: localWhatsapp })}
-                            placeholder="Ex: 553499..." 
-                            className={inputClass} 
-                          />
+                          <input value={localWhatsapp} onChange={(e) => setLocalWhatsapp(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, whatsapp: localWhatsapp })} placeholder="Ex: 553499..." className={inputClass} />
                         </div>
                         <div className="space-y-2">
                           <label className={labelClass}>Instagram (URL)</label>
-                          <input 
-                            value={localInstagram} 
-                            onChange={(e) => setLocalInstagram(e.target.value)} 
-                            onBlur={() => onUpdateSocialLinks({ ...socialLinks, instagram: localInstagram })}
-                            placeholder="https://inst..." 
-                            className={inputClass} 
-                          />
+                          <input value={localInstagram} onChange={(e) => setLocalInstagram(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, instagram: localInstagram })} placeholder="https://inst..." className={inputClass} />
                         </div>
                         <div className="space-y-2">
                           <label className={labelClass}>Facebook (URL)</label>
-                          <input 
-                            value={localFacebook} 
-                            onChange={(e) => setLocalFacebook(e.target.value)} 
-                            onBlur={() => onUpdateSocialLinks({ ...socialLinks, facebook: localFacebook })}
-                            placeholder="https://face..." 
-                            className={inputClass} 
-                          />
+                          <input value={localFacebook} onChange={(e) => setLocalFacebook(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, facebook: localFacebook })} placeholder="https://face..." className={inputClass} />
                         </div>
                      </div>
                   </section>
@@ -1014,7 +957,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
           </div>
 
-          {/* SIDEBAR DIREITA (APENAS NA ABA PEDIDOS) - CONTROLLER DE AÇÕES E FILTROS */}
           {activeView === 'pedidos' && (
              <aside className="w-64 bg-white border-l border-slate-200 p-6 overflow-y-auto hidden lg:flex flex-col gap-2 shrink-0 z-20 shadow-[-5px_0_20px_-10px_rgba(0,0,0,0.05)]">
                <div className={`text-xs font-black uppercase tracking-widest mb-4 border-b pb-2 ${selectedOrderId ? 'text-emerald-600 border-emerald-100' : 'text-slate-400 border-slate-100'}`}>
@@ -1023,17 +965,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                </div>
 
                {ORDER_STATUSES.map(status => (
-                 <button 
-                   key={status}
-                   onClick={() => handleRightSidebarClick(status)}
-                   disabled={selectedOrderId !== null && status === 'TODOS'}
-                   className={`w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border 
-                     ${selectedOrderId 
-                        ? (status === 'TODOS' ? 'opacity-20 cursor-not-allowed border-transparent' : 'bg-white border-slate-200 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-700 hover:scale-105 shadow-sm')
-                        : (activeOrderTab === status ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100 hover:text-slate-700')
-                     }
-                   `}
-                 >
+                 <button key={status} onClick={() => handleRightSidebarClick(status)} disabled={selectedOrderId !== null && status === 'TODOS'} className={`w-full text-left px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${selectedOrderId ? (status === 'TODOS' ? 'opacity-20 cursor-not-allowed border-transparent' : 'bg-white border-slate-200 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-700 hover:scale-105 shadow-sm') : (activeOrderTab === status ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100 hover:text-slate-700')}`}>
                    {status} 
                    {status !== 'TODOS' && !selectedOrderId && (
                      <span className={`ml-2 px-1.5 py-0.5 rounded text-[9px] ${activeOrderTab === status ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>
@@ -1045,9 +977,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                ))}
                
                {selectedOrderId && (
-                  <button onClick={() => setSelectedOrderId(null)} className="mt-4 text-[9px] font-black uppercase text-red-400 hover:text-red-600">
-                    Cancelar Seleção X
-                  </button>
+                  <button onClick={() => setSelectedOrderId(null)} className="mt-4 text-[9px] font-black uppercase text-red-400 hover:text-red-600">Cancelar Seleção X</button>
                )}
              </aside>
           )}
@@ -1055,29 +985,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         </div>
       </main>
 
-      {/* MODAL DELETE CONFIRM GENÉRICO */}
       {deleteTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
            <div className="bg-white border border-slate-200 p-10 rounded-[40px] max-w-md w-full text-center space-y-8 shadow-2xl animate-in zoom-in-95">
               <div className="text-7xl">⚠️</div>
-              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">
-                Excluir {deleteTarget.type === 'ORDER' ? 'Pedido' : 
-                         deleteTarget.type === 'PRODUCT' ? 'Produto' :
-                         deleteTarget.type === 'CATEGORY' ? 'Categoria' : 
-                         deleteTarget.type === 'SUBCATEGORY' ? 'Subcategoria' : 'Item'}?
-              </h3>
-              {deleteTarget.name && (
-                <p className="text-lg font-bold text-slate-500">
-                  {deleteTarget.name}
-                </p>
-              )}
+              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Excluir {deleteTarget.type === 'ORDER' ? 'Pedido' : deleteTarget.type === 'PRODUCT' ? 'Produto' : deleteTarget.type === 'CATEGORY' ? 'Categoria' : deleteTarget.type === 'SUBCATEGORY' ? 'Subcategoria' : 'Item'}?</h3>
+              {deleteTarget.name && (<p className="text-lg font-bold text-slate-500">{deleteTarget.name}</p>)}
               <div className="flex flex-col gap-4">
-                 <button 
-                    onClick={confirmDelete}
-                    className="w-full py-6 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-xl shadow-red-200 transition-all active:scale-95"
-                 >
-                    Confirmar Exclusão
-                 </button>
+                 <button onClick={confirmDelete} className="w-full py-6 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-xl shadow-red-200 transition-all active:scale-95">Confirmar Exclusão</button>
                  <button onClick={() => setDeleteTarget(null)} className="w-full py-4 text-slate-400 font-bold uppercase text-xs hover:text-slate-600">Cancelar</button>
               </div>
            </div>
@@ -1088,18 +1003,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 };
 
 const NavItem: React.FC<{ active: boolean; icon: string; label: string; onClick: () => void; badge?: number }> = ({ active, icon, label, onClick, badge }) => (
-  <button 
-    onClick={onClick}
-    className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group ${active ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}`}
-  >
+  <button onClick={onClick} className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group ${active ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}`}>
     <div className="flex items-center gap-4">
        <span className="text-xl group-hover:scale-110 transition-transform">{icon}</span>
        <span className="font-black uppercase tracking-widest text-xs">{label}</span>
     </div>
     {badge !== undefined && (
-      <span className={`min-w-[24px] h-6 flex items-center justify-center rounded-full text-[10px] font-black px-2 ${active ? 'bg-white text-emerald-600' : 'bg-blue-600 text-white animate-pulse'}`}>
-        {badge}
-      </span>
+      <span className={`min-w-[24px] h-6 flex items-center justify-center rounded-full text-[10px] font-black px-2 ${active ? 'bg-white text-emerald-600' : 'bg-blue-600 text-white animate-pulse'}`}>{badge}</span>
     )}
   </button>
 );
