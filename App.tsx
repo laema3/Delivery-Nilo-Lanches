@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Navbar } from './components/Navbar.tsx';
 import { FoodCard } from './components/FoodCard.tsx';
 import { CartSidebar } from './components/CartSidebar.tsx';
@@ -63,6 +63,8 @@ const App: React.FC = () => {
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
   const [isOrderProcessing, setIsOrderProcessing] = useState(false);
 
+  const kioskAdminTimer = useRef<any>(null);
+
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
     try {
       const saved = localStorage.getItem('nl_current_user');
@@ -92,12 +94,9 @@ const App: React.FC = () => {
       dbService.subscribe<Customer[]>('customers', setCustomers),
       dbService.subscribe<any[]>('settings', (data) => {
         if (data && data.length > 0) {
-          // Busca prioritariamente o documento 'general'
           const settings = data.find(d => d.id === 'general') || data[0];
           if (settings) {
-            if (settings.isStoreOpen !== undefined) {
-              setIsStoreOpen(settings.isStoreOpen);
-            }
+            if (settings.isStoreOpen !== undefined) setIsStoreOpen(settings.isStoreOpen);
             if (settings.logoUrl) setLogoUrl(settings.logoUrl);
             setSocialLinks({ 
               instagram: settings.instagram || '', 
@@ -110,6 +109,16 @@ const App: React.FC = () => {
     ];
     return () => unsubs.forEach(u => u && u());
   }, []);
+
+  const handleKioskAdminDown = () => {
+    kioskAdminTimer.current = setTimeout(() => {
+      setIsAdminLoginOpen(true);
+    }, 3000); // 3 segundos segurando o logo para entrar no admin
+  };
+
+  const handleKioskAdminUp = () => {
+    if (kioskAdminTimer.current) clearTimeout(kioskAdminTimer.current);
+  };
 
   const groupedMenu = useMemo(() => {
     if (!products) return [];
@@ -180,7 +189,13 @@ const App: React.FC = () => {
            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/40" />
         </div>
         <div className="relative z-10 flex flex-col items-center gap-10 animate-in zoom-in duration-500 w-full max-w-4xl px-4 text-center">
-          <div className="w-48 h-48 sm:w-64 sm:h-64 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center p-4 border-4 border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-bounce-subtle">
+          <div 
+            className="w-48 h-48 sm:w-64 sm:h-64 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center p-4 border-4 border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-bounce-subtle"
+            onMouseDown={handleKioskAdminDown}
+            onMouseUp={handleKioskAdminUp}
+            onTouchStart={handleKioskAdminDown}
+            onTouchEnd={handleKioskAdminUp}
+          >
              <div className="w-full h-full rounded-full overflow-hidden bg-white shadow-inner flex items-center justify-center">
                 {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" /> : <span className="text-8xl">🍔</span>}
              </div>
@@ -195,6 +210,7 @@ const App: React.FC = () => {
             <span>👆</span> TOQUE PARA COMEÇAR
           </button>
         </div>
+        <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdmin(true); sessionStorage.setItem('nl_admin_auth', 'true'); }} />
       </div>
     );
   }

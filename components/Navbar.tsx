@@ -105,10 +105,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {!isAdmin && !isKioskMode && (
+            {/* BOTÃO ADMIN - Agora visível no mobile */}
+            {!isAdmin && (
               <button 
                 onClick={onToggleAdmin}
-                className="hidden md:flex p-3 text-slate-400 hover:text-emerald-600 bg-slate-50 rounded-2xl transition-all"
+                className="flex p-3 text-slate-400 hover:text-emerald-600 bg-slate-50 rounded-2xl transition-all active:scale-95"
                 title="Acesso Administrativo"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
