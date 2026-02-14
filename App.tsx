@@ -35,6 +35,7 @@ const App: React.FC = () => {
   
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [isKioskMode, setIsKioskMode] = useState(() => localStorage.getItem('nl_kiosk_enabled') === 'true');
+  const [kioskStarted, setKioskStarted] = useState(false); // Estado para controlar a tela inicial do quiosque
   const [logoUrl, setLogoUrl] = useState(DEFAULT_LOGO);
   const [socialLinks, setSocialLinks] = useState({ instagram: '', whatsapp: '', facebook: '' });
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
@@ -73,6 +74,11 @@ const App: React.FC = () => {
     const timer = setTimeout(() => setIsInitialLoading(false), 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Reset do KioskStarted se sair do modo quiosque
+  useEffect(() => {
+    if (!isKioskMode) setKioskStarted(false);
+  }, [isKioskMode]);
 
   useEffect(() => {
     const unsubs = [
@@ -154,9 +160,37 @@ const App: React.FC = () => {
         setLastOrder(newOrder);
         setIsSuccessModalOpen(true);
         setCart([]);
+        // Se for quiosque, reseta para a tela inicial após um tempo ou ação
+        if(isKioskMode) setTimeout(() => setKioskStarted(false), 5000); 
     } catch (e) { setToast({ show: true, msg: 'Erro ao processar.', type: 'error' }); }
     finally { setIsOrderProcessing(false); }
   };
+
+  // TELA DE APRESENTAÇÃO DO QUIOSQUE
+  if (isKioskMode && !kioskStarted && !isAdmin) {
+    return (
+      <div 
+        className="fixed inset-0 z-[2000] bg-slate-900 flex flex-col items-center justify-center p-8 cursor-pointer"
+        onClick={() => setKioskStarted(true)}
+      >
+        <div className="w-64 h-64 bg-emerald-600 rounded-[40px] shadow-2xl shadow-emerald-900/50 flex items-center justify-center mb-16 animate-in zoom-in duration-700 border-8 border-white/10">
+          {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover rounded-[32px]" alt="Logo" /> : <span className="text-8xl">🍔</span>}
+        </div>
+        
+        <h1 className="text-6xl font-black text-white uppercase tracking-tighter mb-4 text-center">Nilo <span className="text-emerald-500">Lanches</span></h1>
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-xl mb-16">O sabor que você respeita</p>
+
+        <button 
+          onClick={(e) => { e.stopPropagation(); setKioskStarted(true); }}
+          className="bg-red-600 text-white text-2xl font-black py-8 px-16 rounded-[32px] shadow-[0_0_50px_rgba(220,38,38,0.6)] uppercase tracking-widest animate-pulse border-b-8 border-red-800 hover:scale-105 transition-transform"
+        >
+          Clique para fazer seu pedido
+        </button>
+
+        <p className="absolute bottom-8 text-slate-600 font-black uppercase tracking-[0.5em] text-xs">Toque na tela para iniciar</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col w-full relative">
