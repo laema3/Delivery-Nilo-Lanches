@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { chatWithAssistant } from '../services/geminiService.ts';
-import { Product, CartItem, Customer } from '../types.ts';
+import { Product, CartItem, Customer, Complement } from '../types.ts';
 
 interface Message {
   role: 'user' | 'model';
@@ -15,15 +15,17 @@ interface ChatBotProps {
   whatsappNumber?: string;
   isStoreOpen: boolean;
   currentUser: Customer | null;
-  onAddToCart?: (product: Product, quantity: number) => void;
+  onAddToCart?: (product: Product, quantity: number, comps?: Complement[]) => void;
   onClearCart?: () => void;
 }
 
-export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, whatsappNumber, isStoreOpen, currentUser, onAddToCart, onClearCart }) => {
+export const ChatBot: React.FC<ChatBotProps> = ({ 
+  products, cart, deliveryFee, whatsappNumber, isStoreOpen, currentUser, onAddToCart, onClearCart 
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'Fala aí! Sou o Nilo, seu assistente de lanches. 🍔 Pronto para a melhor experiência de Uberaba? O que vai ser hoje?' }
+    { role: 'model', text: 'E aí! Sou o Nilo. 🍔 Pronto para o melhor lanche da sua vida? O que vai ser hoje?' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -38,67 +40,71 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userMsg = input;
+    const userText = input;
     setInput('');
-    
-    // Capturamos o histórico atual
-    const historyForApi = messages.map(m => ({ role: m.role, text: m.text }));
-    
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setMessages(prev => [...prev, { role: 'user', text: userText }]);
     setIsLoading(true);
 
     try {
-      const response = await chatWithAssistant(userMsg, historyForApi, products, isStoreOpen, deliveryFee, !!currentUser);
-      
+      const history = messages.map(m => ({ role: m.role, text: m.text }));
+      const response = await chatWithAssistant(
+        userText, 
+        history, 
+        products, 
+        isStoreOpen, 
+        deliveryFee, 
+        !!currentUser
+      );
+
+      // Processa chamadas de função (Tools)
       if (response.functionCalls) {
         for (const call of response.functionCalls) {
           if (call.name === 'addToCart' && onAddToCart) {
-            const args = call.args as any;
-            const searchName = (args.productName || '').toLowerCase();
-            const qty = Number(args.quantity) || 1;
-
-            const foundProduct = products.find(p => 
-              p.name.toLowerCase() === searchName ||
-              p.name.toLowerCase().includes(searchName) ||
-              searchName.includes(p.name.toLowerCase())
+            const { productName, quantity } = call.args as any;
+            const found = products.find(p => 
+              p.name.toLowerCase().includes(productName.toLowerCase()) ||
+              productName.toLowerCase().includes(p.name.toLowerCase())
             );
 
-            if (foundProduct) {
-              onAddToCart(foundProduct, qty);
-              const subtotalAtual = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0) + (foundProduct.price * qty);
-              let feedback = `✅ Adicionado: *${foundProduct.name}* (${qty}x).\n💰 Subtotal: R$ ${subtotalAtual.toFixed(2)}`;
-              
-              if (currentUser && deliveryFee >= 0) {
-                feedback += `\n🛵 Entrega: R$ ${deliveryFee.toFixed(2)}\n💵 Total: R$ ${(subtotalAtual + deliveryFee).toFixed(2)}`;
-              }
-              setMessages(prev => [...prev, { role: 'model', text: feedback }]);
+            if (found) {
+              onAddToCart(found, quantity || 1);
+              setMessages(prev => [...prev, { 
+                role: 'model', 
+                text: `✅ Adicionei **${quantity}x ${found.name}** ao seu carrinho! Quer algo para acompanhar? 🍟🥤` 
+              }]);
             } else {
-              setMessages(prev => [...prev, { role: 'model', text: `Não encontrei "${args.productName}" no menu. Pode conferir o nome?` }]);
+              setMessages(prev => [...prev, { 
+                role: 'model', 
+                text: `Humm, não achei o "${productName}" no menu. Pode confirmar o nome pra mim?` 
+              }]);
             }
           }
 
           if (call.name === 'finalizeOrder') {
-            const args = call.args as any;
             if (cart.length === 0) {
-              setMessages(prev => [...prev, { role: 'model', text: "Seu carrinho está vazio! Escolha um lanche primeiro! 🍔" }]);
+              setMessages(prev => [...prev, { 
+                role: 'model', 
+                text: "Seu carrinho está vazio! Escolha uma delícia do menu primeiro. 🍔" 
+              }]);
               continue;
             }
 
-            const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-            const finalFee = args.isDelivery ? (deliveryFee || 0) : 0; 
-            const totalFinal = subtotal + finalFee;
-            const itemsList = cart.map(item => `▪️ ${item.quantity}x *${item.name}*`).join('\n');
+            const args = call.args as any;
+            const subtotal = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+            const total = subtotal + (args.isDelivery ? deliveryFee : 0);
             
-            const whatsappText = `🍔 *NOVO PEDIDO NILO LANCHES*\n--------------------------------\n👤 *Cliente:* ${args.customerName}\n📍 *Tipo:* ${args.isDelivery ? '🚀 Entrega' : '🏪 Retirada'}\n🏠 *Endereço:* ${args.isDelivery ? (args.address || 'N/A') : 'RETIRADA'}\n💳 *Pagamento:* ${args.paymentMethod}\n--------------------------------\n*ITENS:*\n${itemsList}\n--------------------------------\n💰 *TOTAL: R$ ${totalFinal.toFixed(2)}*`;
+            const summary = cart.map(i => `▪️ ${i.quantity}x ${i.name}`).join('\n');
+            const waText = `🍔 *PEDIDO NILO LANCHES*\n\n*Cliente:* ${args.customerName}\n*Tipo:* ${args.isDelivery ? '🚀 Entrega' : '🏪 Retirada'}\n*Endereço:* ${args.isDelivery ? args.deliveryAddress : 'BALCÃO'}\n*Pagamento:* ${args.paymentMethod}\n\n*ITENS:*\n${summary}\n\n*TOTAL: R$ ${total.toFixed(2)}*`;
             
-            const officialPhone = (whatsappNumber || '5534991183728').replace(/\D/g, '');
-            setMessages(prev => [...prev, { role: 'model', text: `🎯 *Pedido quase pronto!* Levando você para o WhatsApp...` }]);
-
+            const phone = (whatsappNumber || '5534991183728').replace(/\D/g, '');
+            
+            setMessages(prev => [...prev, { role: 'model', text: "🎯 Tudo pronto! Estou te levando para o WhatsApp para confirmar..." }]);
+            
             setTimeout(() => {
-              window.open(`https://wa.me/${officialPhone}?text=${encodeURIComponent(whatsappText)}`, '_blank');
+              window.open(`https://wa.me/${phone}?text=${encodeURIComponent(waText)}`, '_blank');
               if (onClearCart) onClearCart();
               setIsOpen(false);
-            }, 2500);
+            }, 2000);
           }
         }
       }
@@ -107,7 +113,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
         setMessages(prev => [...prev, { role: 'model', text: response.text }]);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', text: "Tive um problema na conexão. Pode tentar de novo?" }]);
+      setMessages(prev => [...prev, { role: 'model', text: "Tive um probleminha técnico. Pode repetir?" }]);
     } finally {
       setIsLoading(false);
     }
@@ -116,21 +122,19 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
   return (
     <div className={`fixed z-[100] flex flex-col items-end ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-6 right-6'}`}>
       {isOpen && (
-        <div className="w-full h-full sm:w-[400px] sm:h-[600px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-emerald-600 p-5 flex items-center justify-between shrink-0 shadow-md z-10">
+        <div className="w-full h-full sm:w-[400px] sm:max-h-[600px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-emerald-600 p-5 flex items-center justify-between shrink-0 shadow-md">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-2xl border-2 border-emerald-500 relative overflow-hidden shadow-inner">
-                🤖
-              </div>
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl shadow-inner">🤖</div>
               <div>
-                <h3 className="text-white font-black text-sm uppercase tracking-widest">Nilo Assistente</h3>
-                <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
-                   <span className={`w-1.5 h-1.5 rounded-full ${isStoreOpen ? 'bg-emerald-300 animate-pulse' : 'bg-red-400'}`}></span> 
-                   {isStoreOpen ? 'Online' : 'Agendando'}
+                <h3 className="text-white font-black text-xs uppercase tracking-widest">Nilo Assistente</h3>
+                <p className="text-emerald-100 text-[9px] font-bold uppercase flex items-center gap-1.5">
+                   <span className={`w-1.5 h-1.5 rounded-full ${isStoreOpen ? 'bg-emerald-300 animate-pulse' : 'bg-red-400'}`}></span>
+                   {isStoreOpen ? 'Online Agora' : 'Loja Fechada'}
                 </p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded-full transition-colors font-bold">✕</button>
+            <button onClick={() => setIsOpen(false)} className="text-white p-2 hover:bg-white/20 rounded-full transition-colors font-bold">✕</button>
           </div>
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50 no-scrollbar overscroll-contain">
@@ -143,7 +147,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
                 }`}>
                   {m.text.split('\n').map((line, lIdx) => (
                     <p key={lIdx} className={lIdx > 0 ? "mt-1" : ""}>
-                      {line.split('*').map((part, idx) => idx % 2 === 1 ? <strong key={idx} className="font-black">{part}</strong> : part)}
+                      {line.split('**').map((part, idx) => idx % 2 === 1 ? <strong key={idx} className="font-black text-emerald-800">{part}</strong> : part)}
                     </p>
                   ))}
                 </div>
@@ -157,7 +161,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
                     <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
                     <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                   </div>
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nilo está conferindo...</span>
+                  <span className="text-[9px] font-black uppercase text-slate-400">Nilo está conferindo...</span>
                 </div>
               </div>
             )}
@@ -168,10 +172,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Fale com o Nilo..." 
-              className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all placeholder:text-slate-400"
+              className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-3.5 text-sm font-bold outline-none transition-all"
             />
-            <button disabled={isLoading || !input.trim()} className="bg-emerald-600 disabled:bg-slate-300 text-white w-14 h-14 flex items-center justify-center rounded-xl shadow-lg active:scale-90 transition-all">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <button disabled={isLoading || !input.trim()} className="bg-emerald-600 disabled:bg-slate-300 text-white w-12 h-12 flex items-center justify-center rounded-xl shadow-lg transition-all active:scale-90">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
             </button>
@@ -182,7 +186,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
       {!isOpen && (
         <button 
           onClick={() => setIsOpen(true)}
-          className="group w-16 h-16 bg-emerald-600 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 border-4 border-white relative"
+          className="group w-16 h-16 bg-emerald-600 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 border-4 border-white relative active:scale-90"
         >
           <span className="text-3xl">💬</span>
           {cart.length > 0 && <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-[10px] font-black border-2 border-white rounded-full flex items-center justify-center animate-bounce">{cart.length}</span>}
