@@ -46,7 +46,6 @@ export const chatWithAssistant = async (
   try {
     const productsList = allProducts.map(p => `- ${p.name}: R$ ${p.price.toFixed(2)} (${p.description})`).join("\n");
     
-    // Improved logic for delivery fee explanation
     let deliveryStatusInstruction = "";
     if (isLoggedIn) {
       if (currentDeliveryFee > 0) {
@@ -63,11 +62,7 @@ export const chatWithAssistant = async (
 
       REGRAS CRÍTICAS DE TAXA DE ENTREGA:
       1. STATUS ATUAL: ${deliveryStatusInstruction}
-      2. PROIBIÇÃO DE HALLUCINAÇÃO: Se o valor informado for R$ ${currentDeliveryFee.toFixed(2)} e o cliente estiver logado, esse é o único valor real.
-      3. Se o cliente perguntar a taxa e não estiver logado, peça para ele fazer login ou diga que o sistema calcula no final. NUNCA prometa frete grátis se ele não estiver logado.
-
-      CÁLCULO TOTAL:
-      - Sempre apresente a soma: (Subtotal dos Lanches) + (Taxa de Entrega informada) = Total.
+      2. Se o cliente perguntar a taxa e não estiver logado, peça para ele fazer login ou diga que o sistema calcula no final. NUNCA prometa frete grátis se ele não estiver logado.
 
       REGRAS DE CARDÁPIO:
       - Use apenas os nomes oficiais:
@@ -75,15 +70,21 @@ export const chatWithAssistant = async (
 
       FINALIZAÇÃO:
       - Explique que o pedido será enviado para o WhatsApp oficial para confirmação humana.
-      - A loja está ${isStoreOpen ? 'ABERTA' : 'FECHADA'}. Se fechada, avise que a produção inicia às 18:30.
+      - A loja está ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
 
-      PERSONALIDADE: Amigável, usa emojis 🍔🍟, mas é um assistente de vendas sério com os números.
+      PERSONALIDADE: Amigável, usa emojis 🍔🍟, mas é um assistente sério com os números.
     `;
 
-    const validHistory = history.map(h => ({
-      role: h.role,
+    // Filtra histórico: Gemini EXIGE que comece com 'user' e alterne papéis.
+    let validHistory = history.map(h => ({
+      role: h.role === 'model' ? 'model' : 'user',
       parts: Array.isArray(h.parts) ? h.parts : [{ text: String(h.text || h.parts) }]
     }));
+
+    // Remove mensagens iniciais do 'model' pois o chat deve começar com 'user'
+    while (validHistory.length > 0 && validHistory[0].role === 'model') {
+      validHistory.shift();
+    }
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview", 
@@ -91,7 +92,7 @@ export const chatWithAssistant = async (
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartTool, finalizeOrderTool] }],
-        temperature: 0.1, 
+        temperature: 0.2, 
       }
     });
 
@@ -102,7 +103,7 @@ export const chatWithAssistant = async (
 
   } catch (error) {
     console.error("Erro Chat IA:", error);
-    return { text: "Tive um probleminha técnico nos cálculos. Pode repetir o que deseja?", functionCalls: null };
+    return { text: "Tive um probleminha técnico. Pode repetir o que deseja?", functionCalls: null };
   }
 };
 

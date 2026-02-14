@@ -40,108 +40,77 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, w
 
     const userMsg = input;
     setInput('');
+    
+    // Capturamos o histórico atual antes da atualização do estado para a API
+    const historyForApi = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+    
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
 
-    const history = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
-    
-    // Passing !!currentUser to let the AI know if the fee is "Real" or "Unknown"
-    const response = await chatWithAssistant(userMsg, history, products, isStoreOpen, deliveryFee, !!currentUser);
-    
-    let finalText = response.text;
+    try {
+      const response = await chatWithAssistant(userMsg, historyForApi, products, isStoreOpen, deliveryFee, !!currentUser);
+      
+      if (response.functionCalls) {
+        for (const call of response.functionCalls) {
+          if (call.name === 'addToCart' && onAddToCart) {
+            const args = call.args as any;
+            const searchName = (args.productName || '').toLowerCase();
+            const qty = Number(args.quantity) || 1;
 
-    if (response.functionCalls) {
-      for (const call of response.functionCalls) {
-        
-        // 1. ADICIONAR AO CARRINHO
-        if (call.name === 'addToCart' && onAddToCart) {
-          const args = call.args as any;
-          const searchName = (args.productName || '').toLowerCase();
-          const qty = Number(args.quantity) || 1;
+            const foundProduct = products.find(p => 
+              p.name.toLowerCase() === searchName ||
+              p.name.toLowerCase().includes(searchName) ||
+              searchName.includes(p.name.toLowerCase())
+            );
 
-          const foundProduct = products.find(p => 
-            p.name.toLowerCase() === searchName ||
-            p.name.toLowerCase().includes(searchName) ||
-            searchName.includes(p.name.toLowerCase())
-          );
-
-          if (foundProduct) {
-            onAddToCart(foundProduct, qty);
-            
-            const subtotalAtual = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0) + (foundProduct.price * qty);
-            
-            let feedback = `✅ Adicionado: *${foundProduct.name}* (${qty}x).\n💰 Subtotal: R$ ${subtotalAtual.toFixed(2)}`;
-            
-            if (currentUser && deliveryFee >= 0) {
-              feedback += `\n🛵 Taxa de entrega: R$ ${deliveryFee.toFixed(2)}\n💵 Total com entrega: R$ ${(subtotalAtual + deliveryFee).toFixed(2)}`;
-            } else if (!currentUser) {
-              feedback += `\n\n💡 *Dica:* Entre na sua conta para calcularmos a entrega exata para você!`;
+            if (foundProduct) {
+              onAddToCart(foundProduct, qty);
+              const subtotalAtual = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0) + (foundProduct.price * qty);
+              let feedback = `✅ Adicionado: *${foundProduct.name}* (${qty}x).\n💰 Subtotal: R$ ${subtotalAtual.toFixed(2)}`;
+              
+              if (currentUser && deliveryFee >= 0) {
+                feedback += `\n🛵 Entrega: R$ ${deliveryFee.toFixed(2)}\n💵 Total: R$ ${(subtotalAtual + deliveryFee).toFixed(2)}`;
+              }
+              setMessages(prev => [...prev, { role: 'model', text: feedback }]);
+            } else {
+              setMessages(prev => [...prev, { role: 'model', text: `Não encontrei "${args.productName}" no menu. Pode conferir o nome?` }]);
             }
-
-            if (!isStoreOpen) {
-              feedback += `\n\n🕒 *Agendado:* Produção inicia às 18:30!`;
-            }
-
-            setMessages(prev => [...prev, { role: 'model', text: feedback }]);
-          } else {
-            setMessages(prev => [...prev, { role: 'model', text: `Não encontrei o item "${args.productName}" no cardápio. Pode confirmar o nome?` }]);
-          }
-        }
-
-        // 2. FINALIZAR PEDIDO
-        if (call.name === 'finalizeOrder') {
-          const args = call.args as any;
-          
-          if (cart.length === 0) {
-            setMessages(prev => [...prev, { role: 'model', text: "Putz! Seu carrinho está vazio. Escolha um lanche primeiro! 🍔" }]);
-            continue;
           }
 
-          const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-          const finalFee = args.isDelivery ? (deliveryFee || 0) : 0; 
-          const totalFinal = subtotal + finalFee;
+          if (call.name === 'finalizeOrder') {
+            const args = call.args as any;
+            if (cart.length === 0) {
+              setMessages(prev => [...prev, { role: 'model', text: "Seu carrinho está vazio! Escolha um lanche primeiro! 🍔" }]);
+              continue;
+            }
 
-          const itemsList = cart.map(item => `▪️ ${item.quantity}x *${item.name}*`).join('\n');
-          const headerStatus = !isStoreOpen ? '📝 *PEDIDO AGENDADO (Abertura 18:30)*' : '🍔 *NOVO PEDIDO NILO LANCHES*';
-          
-          const whatsappText = `${headerStatus}
---------------------------------
-👤 *Cliente:* ${args.customerName}
-📍 *Tipo:* ${args.isDelivery ? '🚀 Entrega' : '🏪 Retirada'}
-🏠 *Endereço:* ${args.isDelivery ? (args.address || 'N/A') : 'RETIRADA NO BALCÃO'}
-💳 *Pagamento:* ${args.paymentMethod}
---------------------------------
-*ITENS:*
-${itemsList}
---------------------------------
-💵 *Subtotal:* R$ ${subtotal.toFixed(2)}
-🛵 *Taxa de Entrega:* R$ ${finalFee.toFixed(2)}
-💰 *TOTAL: R$ ${totalFinal.toFixed(2)}*
---------------------------------
-_Gerado por Nilo Assistente Virtual_`;
-          
-          const officialPhone = (whatsappNumber || '5534991183728').replace(/\D/g, '');
-          const url = `https://wa.me/${officialPhone}?text=${encodeURIComponent(whatsappText)}`;
-          
-          setMessages(prev => [...prev, { 
-            role: 'model', 
-            text: `🎯 *Tudo pronto!* \n\nTotal Final: *R$ ${totalFinal.toFixed(2)}*.\n\nEstou te levando para o WhatsApp para confirmar seu pedido! 🚀` 
-          }]);
+            const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            const finalFee = args.isDelivery ? (deliveryFee || 0) : 0; 
+            const totalFinal = subtotal + finalFee;
+            const itemsList = cart.map(item => `▪️ ${item.quantity}x *${item.name}*`).join('\n');
+            
+            const whatsappText = `🍔 *NOVO PEDIDO NILO LANCHES*\n--------------------------------\n👤 *Cliente:* ${args.customerName}\n📍 *Tipo:* ${args.isDelivery ? '🚀 Entrega' : '🏪 Retirada'}\n🏠 *Endereço:* ${args.isDelivery ? (args.address || 'N/A') : 'RETIRADA'}\n💳 *Pagamento:* ${args.paymentMethod}\n--------------------------------\n*ITENS:*\n${itemsList}\n--------------------------------\n💰 *TOTAL: R$ ${totalFinal.toFixed(2)}*`;
+            
+            const officialPhone = (whatsappNumber || '5534991183728').replace(/\D/g, '');
+            setMessages(prev => [...prev, { role: 'model', text: `🎯 *Pedido quase pronto!* Levando você para o WhatsApp...` }]);
 
-          setTimeout(() => {
-            window.open(url, '_blank');
-            if (onClearCart) onClearCart();
-            setIsOpen(false);
-          }, 3500);
+            setTimeout(() => {
+              window.open(`https://wa.me/${officialPhone}?text=${encodeURIComponent(whatsappText)}`, '_blank');
+              if (onClearCart) onClearCart();
+              setIsOpen(false);
+            }, 2500);
+          }
         }
       }
-    }
 
-    if (finalText) {
-      setMessages(prev => [...prev, { role: 'model', text: finalText }]);
+      if (response.text) {
+        setMessages(prev => [...prev, { role: 'model', text: response.text }]);
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'model', text: "Tive um problema na conexão. Pode tentar de novo?" }]);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -198,7 +167,7 @@ _Gerado por Nilo Assistente Virtual_`;
             <input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite sua mensagem..." 
+              placeholder="Fale com o Nilo..." 
               className="flex-1 bg-slate-100 border-2 border-transparent focus:border-emerald-500 rounded-xl px-5 py-4 text-sm font-bold outline-none transition-all placeholder:text-slate-400"
             />
             <button disabled={isLoading || !input.trim()} className="bg-emerald-600 disabled:bg-slate-300 text-white w-14 h-14 flex items-center justify-center rounded-xl shadow-lg active:scale-90 transition-all">
