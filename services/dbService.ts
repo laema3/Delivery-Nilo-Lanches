@@ -53,7 +53,7 @@ export const dbService = {
   subscribe<T>(key: string, callback: (data: T) => void) {
     // Carrega do local para resposta imediata na UI
     const localData = this.getLocal(key);
-    if (localData && localData.length > 0) {
+    if (localData && Array.isArray(localData) && localData.length > 0) {
       callback(localData as unknown as T);
     }
 
@@ -70,6 +70,7 @@ export const dbService = {
         }));
         
         // CRÍTICO: Atualiza o cache local e emite o callback com os dados REAIS da nuvem
+        // Isso garante que mudanças como o status da loja se propaguem instantaneamente.
         this.setLocal(key, data);
         callback(data as unknown as T);
       }, (error) => {
@@ -103,9 +104,8 @@ export const dbService = {
 
     try {
       const cleanData = sanitizeData({ ...data });
-      // Não removemos o ID aqui para garantir consistência no merge
       
-      // 1. Atualiza Local para feedback instantâneo
+      // 1. Atualiza Local para feedback instantâneo no dispositivo que originou a mudança
       const currentList = this.getLocal(key) as any[];
       const index = currentList.findIndex(item => item.id === id);
       const newItem = { ...cleanData, id };
@@ -118,9 +118,8 @@ export const dbService = {
       if (db) {
         const collectionName = COLLECTION_MAP[key] || key;
         const docRef = doc(db, collectionName, id);
-        // Removemos o campo id antes de enviar para o Firestore para manter o doc limpo
         const toSave = { ...cleanData };
-        delete toSave.id;
+        delete (toSave as any).id;
         await setDoc(docRef, toSave, { merge: true });
       }
     } catch (e: any) {
