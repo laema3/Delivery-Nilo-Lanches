@@ -50,6 +50,7 @@ export const chatWithAssistant = async (
   currentDeliveryFee: number,
   isLoggedIn: boolean
 ) => {
+  // Use a fresh instance with the required process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // Lista de produtos formatada para a IA
@@ -84,18 +85,36 @@ export const chatWithAssistant = async (
   `;
 
   try {
-    const validHistory = history.map(h => ({
-      role: h.role === 'model' ? 'model' : 'user',
-      parts: [{ text: h.text }]
-    })).filter(h => h.parts[0].text.trim() !== "");
+    // Convert history to the format expected by the SDK, filtering out empty turns
+    let validHistory = history
+      .filter(h => h.text && h.text.trim() !== "")
+      .map(h => ({
+        role: h.role === 'model' ? 'model' : 'user',
+        parts: [{ text: h.text }]
+      }));
 
+    // Gemini requires the first message to be from the 'user'
     if (validHistory.length > 0 && validHistory[0].role === 'model') {
       validHistory.shift();
     }
 
+    // Ensure alternating roles (user, model, user, model...)
+    const alternatingHistory = [];
+    for (const entry of validHistory) {
+      if (alternatingHistory.length === 0 || alternatingHistory[alternatingHistory.length - 1].role !== entry.role) {
+        alternatingHistory.push(entry);
+      }
+    }
+
+    // The current message will be the final 'user' part. 
+    // If the last entry in history is also 'user', we should remove it to prevent consecutive user roles.
+    if (alternatingHistory.length > 0 && alternatingHistory[alternatingHistory.length - 1].role === 'user') {
+      alternatingHistory.pop();
+    }
+
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
+      contents: [...alternatingHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartFunction, finalizeOrderFunction] }],
@@ -108,8 +127,12 @@ export const chatWithAssistant = async (
       functionCalls: response.functionCalls || null
     };
   } catch (error) {
-    console.error("Gemini Chat Error:", error);
-    return { text: "Foi mal, deu um erro aqui no meu sistema. Pode perguntar de novo? 🍔", functionCalls: null };
+    console.error("Gemini Chat Error Details:", error);
+    // Return a structured error response instead of throwing to avoid UI crashes
+    return { 
+      text: "Foi mal, deu um erro aqui no meu sistema. Pode perguntar de novo? 🍔", 
+      functionCalls: null 
+    };
   }
 };
 
@@ -132,6 +155,7 @@ export const generateProductImage = async (productName: string) => {
     }
     return null;
   } catch (e) {
+    console.error("Image Generation Error:", e);
     return null;
   }
 };

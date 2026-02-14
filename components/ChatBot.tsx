@@ -42,21 +42,27 @@ export const ChatBot: React.FC<ChatBotProps> = ({
 
     const userText = input;
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userText }]);
+    
+    // Capture current history and append user message
+    const currentMessages = [...messages];
+    const newUserMessage: Message = { role: 'user', text: userText };
+    setMessages(prev => [...prev, newUserMessage]);
     setIsLoading(true);
 
     try {
-      const history = messages.map(m => ({ role: m.role, text: m.text }));
       const response = await chatWithAssistant(
         userText, 
-        history, 
+        currentMessages, 
         products, 
         isStoreOpen, 
         deliveryFee, 
         !!currentUser
       );
 
-      // Processa chamadas de função (Tools)
+      let assistantResponseText = response.text || "";
+      let modelAddedMessages: Message[] = [];
+
+      // Process tool calls
       if (response.functionCalls) {
         for (const call of response.functionCalls) {
           if (call.name === 'addToCart' && onAddToCart) {
@@ -68,24 +74,24 @@ export const ChatBot: React.FC<ChatBotProps> = ({
 
             if (found) {
               onAddToCart(found, quantity || 1);
-              setMessages(prev => [...prev, { 
+              modelAddedMessages.push({ 
                 role: 'model', 
                 text: `✅ Adicionei **${quantity}x ${found.name}** ao seu carrinho! Quer algo para acompanhar? 🍟🥤` 
-              }]);
+              });
             } else {
-              setMessages(prev => [...prev, { 
+              modelAddedMessages.push({ 
                 role: 'model', 
                 text: `Humm, não achei o "${productName}" no menu. Pode confirmar o nome pra mim?` 
-              }]);
+              });
             }
           }
 
           if (call.name === 'finalizeOrder') {
             if (cart.length === 0) {
-              setMessages(prev => [...prev, { 
+              modelAddedMessages.push({ 
                 role: 'model', 
                 text: "Seu carrinho está vazio! Escolha uma delícia do menu primeiro. 🍔" 
-              }]);
+              });
               continue;
             }
 
@@ -98,7 +104,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
             
             const phone = (whatsappNumber || '5534991183728').replace(/\D/g, '');
             
-            setMessages(prev => [...prev, { role: 'model', text: "🎯 Tudo pronto! Estou te levando para o WhatsApp para confirmar..." }]);
+            modelAddedMessages.push({ role: 'model', text: "🎯 Tudo pronto! Estou te levando para o WhatsApp para confirmar..." });
             
             setTimeout(() => {
               window.open(`https://wa.me/${phone}?text=${encodeURIComponent(waText)}`, '_blank');
@@ -109,11 +115,19 @@ export const ChatBot: React.FC<ChatBotProps> = ({
         }
       }
 
-      if (response.text) {
-        setMessages(prev => [...prev, { role: 'model', text: response.text }]);
-      }
+      // Combine text response and tool-based messages to maintain state consistency
+      const finalAssistantText = assistantResponseText || (modelAddedMessages.length > 0 ? "" : "Como posso ajudar? 🍔");
+      
+      const responseMessages: Message[] = [];
+      if (finalAssistantText) responseMessages.push({ role: 'model', text: finalAssistantText });
+      
+      // If there are tool call feedbacks, add them as part of the same turn or subsequent messages
+      // Note: We combine multiple model messages into the list; the service will handle the alternating logic in the next turn
+      setMessages(prev => [...prev, ...responseMessages, ...modelAddedMessages]);
+
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', text: "Tive um probleminha técnico. Pode repetir?" }]);
+      console.error("ChatBot Error:", err);
+      setMessages(prev => [...prev, { role: 'model', text: "Tive um probleminha técnico. Pode repetir? 🍔" }]);
     } finally {
       setIsLoading(false);
     }
