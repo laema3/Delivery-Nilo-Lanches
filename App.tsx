@@ -13,6 +13,7 @@ import { Footer } from './components/Footer.tsx';
 import { CustomerOrders } from './components/CustomerOrders.tsx';
 import { Toast } from './components/Toast.tsx';
 import { ProductLoader } from './components/ProductLoader.tsx';
+import { InstallBanner } from './components/InstallBanner.tsx';
 import { dbService } from './services/dbService.ts';
 import { Product, CartItem, Order, Customer, ZipRange, PaymentSettings, CategoryItem, SubCategoryItem, Complement, DeliveryType, Coupon } from './types.ts';
 import { DEFAULT_LOGO } from './constants.tsx';
@@ -369,6 +370,7 @@ const App: React.FC = () => {
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
       }} isKioskMode={isKioskMode} />
       {!isAdmin && !isKioskMode && <ChatBot products={products} cart={cart} deliveryFee={currentDeliveryFee} whatsappNumber={socialLinks.whatsapp} isStoreOpen={isStoreOpen} currentUser={currentUser} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
+      {!isAdmin && !isKioskMode && <InstallBanner logoUrl={logoUrl} />}
     </div>
   );
 };
