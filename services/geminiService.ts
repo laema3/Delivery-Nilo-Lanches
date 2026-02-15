@@ -35,7 +35,8 @@ const finalizeOrderFunction: FunctionDeclaration = {
     properties: {
       customerName: { type: Type.STRING },
       paymentMethod: { type: Type.STRING, description: "Dinheiro, Cartão ou Pix." },
-      isDelivery: { type: Type.BOOLEAN, description: "True para entrega, False para retirada." }
+      isDelivery: { type: Type.BOOLEAN, description: "True para entrega, False para retirada." },
+      deliveryAddress: { type: Type.STRING, description: "Endereço de entrega completo." }
     },
     required: ["customerName", "paymentMethod", "isDelivery"]
   }
@@ -49,39 +50,44 @@ export const chatWithAssistant = async (
   currentDeliveryFee: number,
   isLoggedIn: boolean
 ) => {
+  // Inicialização garantida com process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const productsMenu = allProducts.map(p => 
-    `- ${p.name}: R$ ${p.price.toFixed(2)} (${p.description})`
+    `- ${p.name}: R$ ${p.price.toFixed(2)} | Descrição: ${p.description}`
   ).join("\n");
 
   const deliveryInfo = isLoggedIn 
-    ? `O cliente está LOGADO. A taxa de entrega confirmada é R$ ${currentDeliveryFee.toFixed(2)}.`
-    : `O cliente NÃO está logado. Informe que a taxa em Uberaba varia de R$ 5,00 a R$ 15,00 e será calculada no login.`;
+    ? `O cliente está LOGADO. A taxa de entrega é R$ ${currentDeliveryFee.toFixed(2)}.`
+    : `O cliente NÃO está logado. Informe que a entrega em Uberaba varia de R$ 5 a R$ 15.`;
 
   const systemInstruction = `
-    Você é o 'Nilo', assistente virtual da Nilo Lanches (Uberaba-MG).
+    Você é o 'Nilo', assistente da Nilo Lanches em Uberaba-MG.
     
-    REGRAS DE OURO:
-    1. HORÁRIO: 18:30 às 23:50. Fora disso, diga que voltamos amanhã às 18:30.
-    2. STATUS: A loja está ${isStoreOpen ? 'ABERTA' : 'FECHADA agora'}.
-    3. CARDÁPIO: ${productsMenu}
-    4. FRETE: ${deliveryInfo}
-    5. PERSONALIDADE: Amigável, ágil e usa emojis (🍔🍟🥤).
+    DIRETRIZES:
+    - HORÁRIO: 18:30 às 23:50 (fechamos às 23:50 rigorosamente).
+    - STATUS LOJA: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
+    - PRODUTOS: ${productsMenu}
+    - TAXA: ${deliveryInfo}
     
-    AÇÕES:
-    - Se o cliente escolher um lanche, use 'addToCart'.
-    - Se ele quiser fechar a conta, use 'finalizeOrder'.
-    - Sempre confirme se ele quer adicionar batata ou refri.
-    - Se a loja estiver fechada, não use tools de pedido, apenas converse.
+    COMPORTAMENTO:
+    1. Seja rápido e amigável 🍔.
+    2. Se o cliente quiser um lanche, use a ferramenta 'addToCart'.
+    3. Se ele quiser pagar ou finalizar, use 'finalizeOrder'.
+    4. Se a loja estiver fechada, diga que voltamos amanhã às 18:30.
+    5. Nunca invente lanches que não estão na lista acima.
   `;
 
   try {
-    const validHistory = history.map(h => ({
-      role: h.role === 'model' ? 'model' : 'user',
-      parts: [{ text: h.text }]
-    })).filter(h => h.parts[0].text.trim() !== "");
+    // Filtro rigoroso de histórico para a API
+    const validHistory = history
+      .map(h => ({
+        role: h.role === 'model' ? 'model' : 'user',
+        parts: [{ text: h.text || "" }]
+      }))
+      .filter(h => h.parts[0].text.length > 0);
 
+    // O primeiro turno da conversa DEVE ser sempre 'user'
     if (validHistory.length > 0 && validHistory[0].role === 'model') {
       validHistory.shift();
     }
@@ -92,16 +98,21 @@ export const chatWithAssistant = async (
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartFunction, finalizeOrderFunction] }],
-        temperature: 0.3,
+        temperature: 0.4,
       }
     });
 
+    if (!response) throw new Error("Sem resposta da API");
+
     return {
-      text: response.text || "",
+      text: response.text || "Entendido! O que mais posso fazer por você?",
       functionCalls: response.functionCalls || null
     };
   } catch (error) {
-    console.error("Gemini Error:", error);
-    return { text: "Foi mal, meu sistema deu um soluço! Pode repetir? 🍔", functionCalls: null };
+    console.error("Gemini Mobile Error:", error);
+    return { 
+      text: "Foi mal, tive um pequeno soluço aqui no sistema! 🍔 Pode tentar falar comigo de novo?", 
+      functionCalls: null 
+    };
   }
 };
