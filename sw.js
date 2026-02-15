@@ -30,34 +30,16 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // CRÍTICO: Não cachear chamadas do Firebase/Firestore ou do Google Gemini
+  // Isso garante que os dados em tempo real sempre venham da rede, não do cache local
   if (event.request.url.includes('firestore.googleapis.com') || 
       event.request.url.includes('generativelanguage.googleapis.com')) {
-    return;
+    return; // Deixa o navegador/SDK lidar com a rede diretamente
   }
 
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
-    })
-  );
-});
-
-// Listener para cliques na notificação
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const urlToOpen = event.notification.data?.url || '/';
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (var i = 0; i < windowClients.length; i++) {
-        var client = windowClients[i];
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
     })
   );
 });

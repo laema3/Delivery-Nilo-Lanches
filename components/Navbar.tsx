@@ -105,7 +105,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {/* BOTÃO ADMIN - Apenas visível no Desktop */}
+            {/* BOTÃO ADMIN - Escondido no Mobile (hidden), visível no Desktop (md:flex) */}
             {!isAdmin && (
               <button 
                 onClick={onToggleAdmin}

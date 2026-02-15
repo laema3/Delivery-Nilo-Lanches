@@ -14,7 +14,6 @@ import { CustomerOrders } from './components/CustomerOrders.tsx';
 import { Toast } from './components/Toast.tsx';
 import { ProductLoader } from './components/ProductLoader.tsx';
 import { dbService } from './services/dbService.ts';
-import { notificationService } from './services/notificationService.ts';
 import { Product, CartItem, Order, Customer, ZipRange, PaymentSettings, CategoryItem, SubCategoryItem, Complement, DeliveryType, Coupon } from './types.ts';
 import { DEFAULT_LOGO } from './constants.tsx';
 
@@ -44,9 +43,6 @@ const App: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   
-  // Ref para rastrear status anterior dos pedidos
-  const prevOrdersStatus = useRef<Record<string, string>>({});
-
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const savedCart = localStorage.getItem('nl_cart_v1');
@@ -64,8 +60,11 @@ const App: React.FC = () => {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
-  const [toast, setToast] = useState({ show: false, msg: '', text: '', type: 'success' as 'success' | 'error' });
+  const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
   const [isOrderProcessing, setIsOrderProcessing] = useState(false);
+
+  const kioskAdminTimer = useRef<any>(null);
+  const previousOrdersRef = useRef<Order[]>([]);
 
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
     try {
@@ -73,36 +72,6 @@ const App: React.FC = () => {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
-
-  const currentDeliveryFee = useMemo(() => {
-    if (!currentUser || !currentUser.zipCode) return 0;
-    const numZip = parseInt(currentUser.zipCode.replace(/\D/g, ''));
-    const range = zipRanges.find(r => {
-      const start = parseInt(r.start.replace(/\D/g, ''));
-      const end = parseInt(r.end.replace(/\D/g, ''));
-      return numZip >= start && numZip <= end;
-    });
-    return range ? range.fee : 0;
-  }, [currentUser, zipRanges]);
-
-  const activeSubCategories = useMemo(() => {
-    if (selectedCategory === 'Todos') return [];
-    const cat = categories.find(c => c.name === selectedCategory);
-    if (!cat) return [];
-    return subCategories.filter(s => s.categoryId === cat.id);
-  }, [selectedCategory, categories, subCategories]);
-
-  const groupedMenu = useMemo(() => {
-    return products.filter(p => {
-      const normSearch = safeNormalize(searchTerm);
-      const matchesSearch = normSearch === "" || 
-                           safeNormalize(p.name).includes(normSearch) || 
-                           safeNormalize(p.description).includes(normSearch);
-      const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
-      const matchesSubCategory = selectedSubCategoryValue === 'Todos' || p.subCategory === selectedSubCategoryValue;
-      return matchesSearch && matchesCategory && matchesSubCategory;
-    });
-  }, [products, searchTerm, selectedCategory, selectedSubCategoryValue]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsInitialLoading(false), 2000);
@@ -113,20 +82,22 @@ const App: React.FC = () => {
     const unsubs = [
       dbService.subscribe<Product[]>('products', setProducts),
       dbService.subscribe<Order[]>('orders', (newOrders) => {
-        if (currentUser && !isAdmin) {
+        // Lógica de Notificação de Status para o Cliente
+        if (currentUser && previousOrdersRef.current.length > 0) {
           newOrders.forEach(order => {
             if (order.customerId === currentUser.email) {
-              const prevStatus = prevOrdersStatus.current[order.id];
-              if (prevStatus && prevStatus !== order.status) {
-                notificationService.sendNotification(
-                  `🍔 Nilo Lanches: Pedido #${order.id.substring(0,4)}`,
-                  `Seu pedido está agora em: ${order.status}`
-                );
+              const prevOrder = previousOrdersRef.current.find(o => o.id === order.id);
+              if (prevOrder && prevOrder.status !== order.status) {
+                setToast({ 
+                  show: true, 
+                  msg: `Status atualizado: Seu pedido #${order.id.substring(0,4)} agora está ${order.status}!`, 
+                  type: 'success' 
+                });
               }
-              prevOrdersStatus.current[order.id] = order.status;
             }
           });
         }
+        previousOrdersRef.current = newOrders;
         setOrders(newOrders);
       }),
       dbService.subscribe<CategoryItem[]>('categories', (data) => setCategories([...data].sort((a, b) => a.name.localeCompare(b.name)))),
@@ -152,13 +123,52 @@ const App: React.FC = () => {
       })
     ];
     return () => unsubs.forEach(u => u && u());
-  }, [currentUser, isAdmin]);
+  }, [currentUser?.email]);
+
+  const handleKioskAdminDown = () => {
+    kioskAdminTimer.current = setTimeout(() => {
+      setIsAdminLoginOpen(true);
+    }, 3000); 
+  };
+
+  const handleKioskAdminUp = () => {
+    if (kioskAdminTimer.current) clearTimeout(kioskAdminTimer.current);
+  };
+
+  const groupedMenu = useMemo(() => {
+    if (!products) return [];
+    return [...products].filter(p => {
+        const s = safeNormalize(searchTerm);
+        const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
+        const matchesCategory = selectedCategory === 'Todos' || safeNormalize(p.category) === safeNormalize(selectedCategory);
+        const matchesSubCategory = selectedSubCategoryValue === 'Todos' || safeNormalize(p.subCategory) === safeNormalize(selectedSubCategoryValue);
+        return matchesSearch && matchesCategory && matchesSubCategory;
+      }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, searchTerm, selectedCategory, selectedSubCategoryValue]);
+
+  const activeSubCategories = useMemo(() => {
+    if (selectedCategory === 'Todos') return [];
+    const currentCat = categories.find(c => safeNormalize(c.name) === safeNormalize(selectedCategory));
+    if (!currentCat) return [];
+    return subCategories.filter(s => s.categoryId === currentCat.id);
+  }, [selectedCategory, categories, subCategories]);
+
+  const currentDeliveryFee = useMemo(() => {
+    if (!currentUser?.zipCode || zipRanges.length === 0) return 0;
+    const cleanZip = parseInt(currentUser.zipCode.replace(/\D/g, ''));
+    const range = zipRanges.find(z => {
+      const start = parseInt(z.start.replace(/\D/g, ''));
+      const end = parseInt(z.end.replace(/\D/g, ''));
+      return cleanZip >= start && cleanZip <= end;
+    });
+    return range ? range.fee : 0;
+  }, [currentUser, zipRanges]);
 
   const handleAddToCart = (product: Product, quantity: number, comps?: Complement[]) => {
     const compsPrice = comps?.reduce((acc, c) => acc + (c.price || 0), 0) || 0;
     const finalPrice = product.price + compsPrice;
     setCart(prev => [...prev, { ...product, price: finalPrice, quantity, selectedComplements: comps }]);
-    setToast({ show: true, msg: `${quantity}x ${product.name} no carrinho!`, text: '', type: 'success' });
+    setToast({ show: true, msg: `${quantity}x ${product.name} no carrinho!`, type: 'success' });
     setIsCartOpen(true);
   };
 
@@ -174,15 +184,51 @@ const App: React.FC = () => {
           customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
           items: [...cart], total, deliveryFee: fee, deliveryType: isKioskMode ? 'PICKUP' : deliveryType, status: 'NOVO', paymentMethod, createdAt: new Date().toISOString(), pointsEarned: Math.floor(total), changeFor: changeFor || 0, discountValue: discount || 0, couponCode: couponCode || ''
         };
-        
         await dbService.save('orders', orderId, newOrder);
         setLastOrder(newOrder);
         setIsSuccessModalOpen(true);
         setCart([]);
         if(isKioskMode) setTimeout(() => setKioskStarted(false), 5000); 
-    } catch (e) { setToast({ show: true, msg: 'Erro ao processar.', text: '', type: 'error' }); }
+    } catch (e) { setToast({ show: true, msg: 'Erro ao processar.', type: 'error' }); }
     finally { setIsOrderProcessing(false); }
   };
+
+  if (isKioskMode && !kioskStarted && !isAdmin) {
+    return (
+      <div 
+        className="fixed inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center cursor-pointer select-none overflow-hidden"
+        onClick={() => setKioskStarted(true)}
+      >
+        <div className="absolute inset-0 z-0">
+           <img src="https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=2069" className="w-full h-full object-cover opacity-40 scale-105" alt="Background" />
+           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/40" />
+        </div>
+        <div className="relative z-10 flex flex-col items-center gap-10 animate-in zoom-in duration-500 w-full max-w-4xl px-4 text-center">
+          <div 
+            className="w-48 h-48 sm:w-64 sm:h-64 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center p-4 border-4 border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-bounce-subtle"
+            onMouseDown={handleKioskAdminDown}
+            onMouseUp={handleKioskAdminUp}
+            onTouchStart={handleKioskAdminDown}
+            onTouchEnd={handleKioskAdminUp}
+          >
+             <div className="w-full h-full rounded-full overflow-hidden bg-white shadow-inner flex items-center justify-center">
+                {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" /> : <span className="text-8xl">🍔</span>}
+             </div>
+          </div>
+          <div className="space-y-4">
+            <h1 className="text-6xl sm:text-8xl font-black text-white uppercase tracking-tighter drop-shadow-2xl leading-none">
+              Nilo <span className="text-emerald-500">Lanches</span>
+            </h1>
+            <p className="text-xl sm:text-3xl text-slate-300 font-black uppercase tracking-[0.4em] drop-shadow-lg">Autoatendimento</p>
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); setKioskStarted(true); }} className="mt-8 bg-emerald-700 text-white text-2xl sm:text-4xl font-black py-8 px-16 rounded-[50px] shadow-[0_0_50px_rgba(4,120,87,0.6)] border-b-[8px] border-emerald-900 active:border-b-0 active:translate-y-2 transition-all hover:bg-emerald-600 hover:scale-105 uppercase">
+            <span>👆</span> TOQUE PARA COMEÇAR
+          </button>
+        </div>
+        <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdmin(true); sessionStorage.setItem('nl_admin_auth', 'true'); }} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col w-full relative">
@@ -205,7 +251,7 @@ const App: React.FC = () => {
             onAddProduct={(p) => dbService.save('products', Math.random().toString(36).substring(7), p)} onDeleteProduct={(id) => dbService.remove('products', id)} onUpdateProduct={(p) => dbService.save('products', p.id, p)} 
             onUpdateOrderStatus={(id, status) => dbService.save('orders', id, { status })} onDeleteOrder={(id) => dbService.remove('orders', id)} 
             onUpdateCustomer={(id, updates) => dbService.save('customers', id, updates)} onAddCategory={(name) => dbService.save('categories', Math.random().toString(36).substring(7), { name })} onRemoveCategory={(id) => dbService.remove('categories', id)} onUpdateCategory={(id, name) => dbService.save('categories', id, { name })} onAddSubCategory={(catId, name) => dbService.save('sub_categories', Math.random().toString(36).substring(7), { categoryId: catId, name })} onUpdateSubCategory={(id, name, catId) => dbService.save('sub_categories', id, { name, categoryId: catId })} onRemoveSubCategory={(id) => dbService.remove('sub_categories', id)} 
-            onAddComplement={(name, price, cats) => dbService.save('complements', Math.random().toString(36).substring(7), { name, price, applicable_categories: cats, active: true })} onUpdateComplement={(id, name, price, cats) => dbService.save('complements', id, { name, price, applicable_categories: cats })} onToggleComplement={(id) => { const c = complements.find(x => x.id === id); if (c) dbService.save('complements', id, { active: !c.active }); }} onRemoveComplement={(id) => dbService.remove('complements', id)} 
+            onAddComplement={(name, price, cats) => dbService.save('complements', Math.random().toString(36).substring(7), { name, price, applicable_categories: cats, active: true })} onUpdateComplement={(id) => dbService.remove('complements', id)} onToggleComplement={(id) => { const c = complements.find(x => x.id === id); if (c) dbService.save('complements', id, { active: !c.active }); }} onRemoveComplement={(id) => dbService.remove('complements', id)} 
             onAddZipRange={(start, end, fee) => dbService.save('zip_ranges', Math.random().toString(36).substring(7), { start, end, fee })} onUpdateZipRange={(id, start, end, fee) => dbService.save('zip_ranges', id, { start, end, fee })} onRemoveZipRange={(id) => dbService.remove('zip_ranges', id)} 
             onAddCoupon={(code, discount, type) => dbService.save('coupons', Math.random().toString(36).substring(7), { code, discount, type, active: true })} onRemoveCoupon={(id) => dbService.remove('coupons', id)} 
             paymentSettings={paymentMethods} onTogglePaymentMethod={(id) => { const p = paymentMethods.find(x => x.id === id); if (p) dbService.save('payment_methods', id, { enabled: !p.enabled }); }} onAddPaymentMethod={(name, type, email, token) => dbService.save('payment_methods', Math.random().toString(36).substring(7), { name, type, email, token, enabled: true })} onRemovePaymentMethod={(id) => dbService.remove('payment_methods', id)} onUpdatePaymentSettings={(id, updates) => dbService.save('payment_methods', id, updates)} 
@@ -215,20 +261,24 @@ const App: React.FC = () => {
           <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} onReorder={() => {}} />
         ) : (
           <div className="flex flex-col w-full items-center">
-            <section className="relative w-full min-h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden">
+            {!isKioskMode && (
+              <section className="relative w-full min-h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden">
                 <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Banner"/>
                 <div className="relative z-10 text-center px-4 flex flex-col items-center">
+                    
                     {!isStoreOpen && (
                       <div className="mb-6 bg-red-600 text-white px-6 py-2 rounded-full font-black uppercase text-xs tracking-widest animate-pulse shadow-xl border border-red-500">
                         ESTAMOS FECHADOS NO MOMENTO
                       </div>
                     )}
+
                     <h1 className="font-brand text-6xl sm:text-[100px] text-white uppercase leading-none">
                       <span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span>
                     </h1>
                     <button onClick={() => document.getElementById('menu-anchor')?.scrollIntoView({behavior:'smooth'})} className="mt-8 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-brand text-xl border-b-4 border-emerald-800 shadow-xl transition-all active:scale-95 uppercase tracking-widest">Ver Cardápio</button>
                 </div>
               </section>
+            )}
             
             <div id="menu-anchor" className="bg-slate-100 shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300 sticky top-[80px] sm:top-[112px] z-[40]">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">

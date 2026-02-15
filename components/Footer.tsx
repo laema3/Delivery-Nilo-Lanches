@@ -64,10 +64,6 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOp
                 <span className="text-emerald-400 text-lg">💬</span>
                 <span>(34) 9 9118-3728 (WhatsApp)</span>
               </li>
-              <li className="flex items-center gap-3">
-                <span className="text-emerald-400 text-lg">✉️</span>
-                <span>contato@nilolanches.com.br</span>
-              </li>
             </ul>
           </div>
 
@@ -98,6 +94,7 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOp
         <div className="mt-16 pt-8 border-t border-emerald-900/50 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
           <p>© 2024 NILO LANCHES - TODOS OS DIREITOS RESERVADOS</p>
           <div className="flex gap-6">
+            {/* Apenas a palavra acesso no rodapé */}
             <button onClick={onAdminClick} className="hover:text-emerald-400 transition-colors uppercase">Acesso</button>
           </div>
         </div>

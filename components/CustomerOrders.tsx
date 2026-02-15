@@ -1,7 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Order, OrderStatus } from '../types.ts';
-import { notificationService } from '../services/notificationService.ts';
 
 interface CustomerOrdersProps {
   orders: Order[];
@@ -10,19 +9,6 @@ interface CustomerOrdersProps {
 }
 
 export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, onReorder }) => {
-  const [notifPermission, setNotifPermission] = useState<string>(Notification.permission);
-
-  const handleRequestNotif = async () => {
-    const granted = await notificationService.requestPermission();
-    setNotifPermission(granted ? 'granted' : 'denied');
-    if (granted) {
-      alert('✅ Notificações ativadas com sucesso! Você receberá um aviso assim que seu pedido for atualizado.');
-      notificationService.sendNotification('🚀 Sucesso!', 'As notificações estão funcionando!');
-    } else {
-      alert('❌ Não foi possível ativar as notificações. Verifique se o seu navegador não as bloqueou nas configurações do site.');
-    }
-  };
-
   const getStatusStyle = (status: OrderStatus) => {
     switch (status) {
       case 'NOVO': return 'bg-blue-100 text-blue-600';
@@ -37,27 +23,16 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in text-left">
-      <div className="flex items-center justify-between mb-10 gap-4 flex-wrap">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div>
-            <h2 className="text-3xl font-black text-emerald-600 tracking-tight uppercase">Meus Pedidos</h2>
-            <p className="text-slate-500 font-bold text-sm">Histórico de suas delícias</p>
-          </div>
+      <div className="flex items-center gap-4 mb-10">
+        <button onClick={onBack} className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div>
+          <h2 className="text-3xl font-black text-emerald-600 tracking-tight uppercase">Meus Pedidos</h2>
+          <p className="text-slate-500 font-bold text-sm">Histórico de suas delícias</p>
         </div>
-
-        {notifPermission !== 'granted' && (
-          <button 
-            onClick={handleRequestNotif}
-            className="flex items-center gap-2 px-5 py-3 bg-amber-50 border-2 border-amber-200 text-amber-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all"
-          >
-            🔔 Ativar Notificações
-          </button>
-        )}
       </div>
 
       {orders.length === 0 ? (

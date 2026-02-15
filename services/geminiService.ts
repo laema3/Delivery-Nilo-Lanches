@@ -19,7 +19,7 @@ const addToCartFunction: FunctionDeclaration = {
       },
       observation: { 
         type: Type.STRING, 
-        description: "Observações opcionais (ex: sem cebola, mal passado)." 
+        description: "Observações opcionais (ex: sem cebola)." 
       }
     },
     required: ["productName", "quantity"]
@@ -35,8 +35,8 @@ const finalizeOrderFunction: FunctionDeclaration = {
     properties: {
       customerName: { type: Type.STRING },
       deliveryAddress: { type: Type.STRING, description: "Endereço completo de entrega." },
-      paymentMethod: { type: Type.STRING, description: "Forma de pagamento escolhida pelo cliente." },
-      isDelivery: { type: Type.BOOLEAN, description: "True para entrega, False para retirada no balcão." }
+      paymentMethod: { type: Type.STRING, description: "Forma de pagamento escolhida." },
+      isDelivery: { type: Type.BOOLEAN, description: "True para entrega, False para retirada." }
     },
     required: ["customerName", "paymentMethod", "isDelivery"]
   }
@@ -50,7 +50,6 @@ export const chatWithAssistant = async (
   currentDeliveryFee: number,
   isLoggedIn: boolean
 ) => {
-  // Use a fresh instance with the required process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // Lista de produtos formatada para a IA
@@ -58,63 +57,44 @@ export const chatWithAssistant = async (
     `- ${p.name}: R$ ${p.price.toFixed(2)} | Descrição: ${p.description} | Categoria: ${p.category}`
   ).join("\n");
 
-  // Regras de negócio dinâmicas
   const deliveryInfo = isLoggedIn 
-    ? `O cliente está LOGADO. A taxa de entrega para o endereço dele é EXATAMENTE R$ ${currentDeliveryFee.toFixed(2)}.`
-    : `O cliente NÃO está logado. Informe que a taxa de entrega varia entre R$ 5,00 e R$ 15,00 em Uberaba e será calculada após ele entrar/cadastrar.`;
+    ? `O cliente está LOGADO. A taxa de entrega para o endereço dele é R$ ${currentDeliveryFee.toFixed(2)}.`
+    : `O cliente NÃO está logado. Informe que a taxa de entrega será calculada após o login/cadastro (varia de R$ 5 a R$ 15 em Uberaba).`;
 
   const systemInstruction = `
-    Você é o 'Nilo', o atendente virtual da Nilo Lanches em Uberaba-MG.
+    Você é o 'Nilo', assistente da Nilo Lanches em Uberaba-MG.
     
-    HORÁRIO DE FUNCIONAMENTO: Todos os dias, das 18:30 às 23:50. Fora desse horário a cozinha está fechada.
-    STATUS ATUAL DA LOJA NO SISTEMA: ${isStoreOpen ? 'ABERTA (Recebendo pedidos!)' : 'FECHADA (Apenas tirando dúvidas, sem pedidos agora)'}.
+    HORÁRIO: 18:30 às 23:50 (Cozinha fecha às 23:50 em ponto!).
+    STATUS ATUAL: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
     
-    CARDÁPIO ATUALIZADO:
+    MENU:
     ${productsMenu}
 
-    POLÍTICA DE ENTREGAS:
+    ENTREGA:
     ${deliveryInfo}
 
-    DIRETRIZES DE ATENDIMENTO:
-    1. Seja extremamente amigável e use gírias leves de lanchonete (🍔, 🍟, 🥤, "bora comer?").
-    2. Sempre tente vender um acompanhamento (batata ou refri).
-    3. Quando o cliente escolher um lanche, use a ferramenta 'addToCart'.
-    4. Quando ele estiver pronto para finalizar, use 'finalizeOrder'.
-    5. Se a loja estiver fechada ou passar das 23:50, diga que voltamos amanhã às 18:30.
-    6. Seja conciso: não responda com textos gigantescos.
+    COMPORTAMENTO:
+    1. Seja amigável e use emojis 🍔 Fries 🍟 Soda 🥤.
+    2. Sempre use 'addToCart' se o cliente pedir comida.
+    3. Use 'finalizeOrder' se ele estiver pronto para fechar.
+    4. Se a loja estiver FECHADA, informe educadamente que voltamos às 18:30.
+    5. Não invente produtos que não estão no menu.
   `;
 
   try {
-    // Convert history to the format expected by the SDK, filtering out empty turns
-    let validHistory = history
-      .filter(h => h.text && h.text.trim() !== "")
-      .map(h => ({
-        role: h.role === 'model' ? 'model' : 'user',
-        parts: [{ text: h.text }]
-      }));
+    const validHistory = history.map(h => ({
+      role: h.role === 'model' ? 'model' : 'user',
+      parts: [{ text: h.text }]
+    })).filter(h => h.parts[0].text.trim() !== "");
 
-    // Gemini requires the first message to be from the 'user'
+    // Turno inicial deve ser user
     if (validHistory.length > 0 && validHistory[0].role === 'model') {
       validHistory.shift();
     }
 
-    // Ensure alternating roles (user, model, user, model...)
-    const alternatingHistory = [];
-    for (const entry of validHistory) {
-      if (alternatingHistory.length === 0 || alternatingHistory[alternatingHistory.length - 1].role !== entry.role) {
-        alternatingHistory.push(entry);
-      }
-    }
-
-    // The current message will be the final 'user' part. 
-    // If the last entry in history is also 'user', we should remove it to prevent consecutive user roles.
-    if (alternatingHistory.length > 0 && alternatingHistory[alternatingHistory.length - 1].role === 'user') {
-      alternatingHistory.pop();
-    }
-
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [...alternatingHistory, { role: 'user', parts: [{ text: message }] }],
+      contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartFunction, finalizeOrderFunction] }],
@@ -127,35 +107,7 @@ export const chatWithAssistant = async (
       functionCalls: response.functionCalls || null
     };
   } catch (error) {
-    console.error("Gemini Chat Error Details:", error);
-    // Return a structured error response instead of throwing to avoid UI crashes
-    return { 
-      text: "Foi mal, deu um erro aqui no meu sistema. Pode perguntar de novo? 🍔", 
-      functionCalls: null 
-    };
-  }
-};
-
-export const generateProductImage = async (productName: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: `Professional food photography of ${productName}, studio lighting, appetizing burger style, 4k.` }] },
-      config: { imageConfig: { aspectRatio: "1:1" } }
-    });
-    
-    const candidates = response.candidates || [];
-    if (candidates.length > 0) {
-      for (const part of candidates[0].content.parts) {
-        if (part.inlineData?.data) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
-      }
-    }
-    return null;
-  } catch (e) {
-    console.error("Image Generation Error:", e);
-    return null;
+    console.error("Gemini Chat Error:", error);
+    return { text: "Ops, tive um probleminha. Pode repetir? 🍔", functionCalls: null };
   }
 };
