@@ -72,7 +72,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {isStoreOpen ? 'Aberto' : 'Fechado'}
                 </span>
                 <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">● LIVE</span>
-                {isKioskMode && <span className="text-[7px] font-black bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded uppercase tracking-widest">QUIOSQUE</span>}
               </div>
             </div>
           </div>
@@ -97,19 +96,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex flex-col items-end mr-1">
                 <div className="flex items-center gap-1">
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Olá,</span>
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                 </div>
-                <span className="text-xs font-black text-emerald-600 uppercase tracking-tight leading-none truncate max-w-[80px] sm:max-w-[120px]">
+                <span className="text-xs font-black text-emerald-600 uppercase tracking-tight leading-none truncate max-w-[80px]">
                   {currentUser.name.split(' ')[0]}
                 </span>
               </div>
             )}
 
-            {/* BOTÃO ADMIN - Escondido no Mobile (hidden), visível no Desktop (md:flex) */}
+            {/* BOTÃO ADMIN - Apenas Desktop */}
             {!isAdmin && (
               <button 
                 onClick={onToggleAdmin}
-                className="hidden md:flex p-3 text-slate-400 hover:text-emerald-600 bg-slate-50 rounded-2xl transition-all active:scale-95"
+                className="hidden md:flex p-3 text-slate-400 hover:text-emerald-600 bg-slate-50 rounded-2xl transition-all"
                 title="Acesso Administrativo"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -119,11 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {!isAdmin && currentUser && !isKioskMode && (
-              <button 
-                onClick={onMyOrdersClick} 
-                className="p-3 text-white hover:bg-blue-700 transition-all bg-blue-600 rounded-2xl shadow-lg border border-blue-500" 
-                title="Meus Pedidos"
-              >
+              <button onClick={onMyOrdersClick} className="p-3 text-white bg-blue-600 rounded-2xl shadow-lg border border-blue-500">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
@@ -132,24 +127,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {!isAdmin && !isKioskMode && (
               currentUser ? (
-                <button 
-                  onClick={onLogout} 
-                  className="p-3 text-white hover:bg-red-700 bg-red-600 border border-red-500 rounded-2xl transition-colors shadow-lg"
-                  title="Sair da Conta"
-                >
+                <button onClick={onLogout} className="p-3 text-white bg-red-600 border border-red-500 rounded-2xl shadow-lg">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7" />
                   </svg>
                 </button>
               ) : (
-                <button onClick={onAuthClick} className="px-5 py-3 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-100 active:scale-95 transition-all">
+                <button onClick={onAuthClick} className="px-5 py-3 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg">
                   Entrar
                 </button>
               )
             )}
             
             {!isAdmin && (
-              <button onClick={onCartClick} className="relative p-3 text-white bg-emerald-600 rounded-2xl shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-90 transition-all">
+              <button onClick={onCartClick} className="relative p-3 text-white bg-emerald-600 rounded-2xl shadow-xl shadow-emerald-100 active:scale-90 transition-all">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>

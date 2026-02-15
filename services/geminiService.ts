@@ -31,11 +31,10 @@ const finalizeOrderFunction: FunctionDeclaration = {
   name: "finalizeOrder",
   parameters: {
     type: Type.OBJECT,
-    description: "Finaliza o pedido atual e prepara para envio via WhatsApp.",
+    description: "Finaliza o pedido atual e redireciona para o fechamento.",
     properties: {
       customerName: { type: Type.STRING },
-      deliveryAddress: { type: Type.STRING, description: "Endereço completo de entrega." },
-      paymentMethod: { type: Type.STRING, description: "Forma de pagamento escolhida." },
+      paymentMethod: { type: Type.STRING, description: "Dinheiro, Cartão ou Pix." },
       isDelivery: { type: Type.BOOLEAN, description: "True para entrega, False para retirada." }
     },
     required: ["customerName", "paymentMethod", "isDelivery"]
@@ -52,33 +51,29 @@ export const chatWithAssistant = async (
 ) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  // Lista de produtos formatada para a IA
   const productsMenu = allProducts.map(p => 
-    `- ${p.name}: R$ ${p.price.toFixed(2)} | Descrição: ${p.description} | Categoria: ${p.category}`
+    `- ${p.name}: R$ ${p.price.toFixed(2)} (${p.description})`
   ).join("\n");
 
   const deliveryInfo = isLoggedIn 
-    ? `O cliente está LOGADO. A taxa de entrega para o endereço dele é R$ ${currentDeliveryFee.toFixed(2)}.`
-    : `O cliente NÃO está logado. Informe que a taxa de entrega será calculada após o login/cadastro (varia de R$ 5 a R$ 15 em Uberaba).`;
+    ? `O cliente está LOGADO. A taxa de entrega confirmada é R$ ${currentDeliveryFee.toFixed(2)}.`
+    : `O cliente NÃO está logado. Informe que a taxa em Uberaba varia de R$ 5,00 a R$ 15,00 e será calculada no login.`;
 
   const systemInstruction = `
-    Você é o 'Nilo', assistente da Nilo Lanches em Uberaba-MG.
+    Você é o 'Nilo', assistente virtual da Nilo Lanches (Uberaba-MG).
     
-    HORÁRIO: 18:30 às 23:50 (Cozinha fecha às 23:50 em ponto!).
-    STATUS ATUAL: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
+    REGRAS DE OURO:
+    1. HORÁRIO: 18:30 às 23:50. Fora disso, diga que voltamos amanhã às 18:30.
+    2. STATUS: A loja está ${isStoreOpen ? 'ABERTA' : 'FECHADA agora'}.
+    3. CARDÁPIO: ${productsMenu}
+    4. FRETE: ${deliveryInfo}
+    5. PERSONALIDADE: Amigável, ágil e usa emojis (🍔🍟🥤).
     
-    MENU:
-    ${productsMenu}
-
-    ENTREGA:
-    ${deliveryInfo}
-
-    COMPORTAMENTO:
-    1. Seja amigável e use emojis 🍔 Fries 🍟 Soda 🥤.
-    2. Sempre use 'addToCart' se o cliente pedir comida.
-    3. Use 'finalizeOrder' se ele estiver pronto para fechar.
-    4. Se a loja estiver FECHADA, informe educadamente que voltamos às 18:30.
-    5. Não invente produtos que não estão no menu.
+    AÇÕES:
+    - Se o cliente escolher um lanche, use 'addToCart'.
+    - Se ele quiser fechar a conta, use 'finalizeOrder'.
+    - Sempre confirme se ele quer adicionar batata ou refri.
+    - Se a loja estiver fechada, não use tools de pedido, apenas converse.
   `;
 
   try {
@@ -87,7 +82,6 @@ export const chatWithAssistant = async (
       parts: [{ text: h.text }]
     })).filter(h => h.parts[0].text.trim() !== "");
 
-    // Turno inicial deve ser user
     if (validHistory.length > 0 && validHistory[0].role === 'model') {
       validHistory.shift();
     }
@@ -107,7 +101,7 @@ export const chatWithAssistant = async (
       functionCalls: response.functionCalls || null
     };
   } catch (error) {
-    console.error("Gemini Chat Error:", error);
-    return { text: "Ops, tive um probleminha. Pode repetir? 🍔", functionCalls: null };
+    console.error("Gemini Error:", error);
+    return { text: "Foi mal, meu sistema deu um soluço! Pode repetir? 🍔", functionCalls: null };
   }
 };
