@@ -16,7 +16,10 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
     const granted = await notificationService.requestPermission();
     setNotifPermission(granted ? 'granted' : 'denied');
     if (granted) {
-      notificationService.sendNotification('🚀 Notificações Ativas!', 'Agora você será avisado quando seu lanche mudar de status.');
+      alert('✅ Notificações ativadas com sucesso! Você receberá um aviso assim que seu pedido for atualizado.');
+      notificationService.sendNotification('🚀 Sucesso!', 'As notificações estão funcionando!');
+    } else {
+      alert('❌ Não foi possível ativar as notificações. Verifique se o seu navegador não as bloqueou nas configurações do site.');
     }
   };
 

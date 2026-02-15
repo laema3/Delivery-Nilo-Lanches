@@ -1,27 +1,17 @@
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
-import './index.css'; // <--- ESTA LINHA É CRUCIAL PARA O VISUAL (TAILWIND)
+import './index.css';
 
-// Tratamento de Service Worker
+// Tratamento de Service Worker - Habilitado para todos os ambientes para testes de notificações
 const handleServiceWorker = () => {
-  const isSandbox = 
-    window.location.hostname.includes('usercontent.goog') || 
-    window.location.hostname.includes('ai.studio') ||
-    window.location.hostname === 'localhost';
-
-  if (isSandbox) {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        for (let registration of registrations) registration.unregister();
-      }).catch(() => {});
-    }
-    return;
-  }
-
-  if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+  if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      // Tenta registrar o SW independente do hostname para garantir que notificações funcionem no preview
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('✅ [SW] Registrado com sucesso:', reg.scope))
+        .catch(err => console.warn('⚠️ [SW] Erro ao registrar:', err));
     });
   }
 };

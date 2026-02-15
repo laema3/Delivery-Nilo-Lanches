@@ -44,7 +44,7 @@ const App: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   
-  // Ref para rastrear status anterior dos pedidos e evitar notificações duplicadas ou iniciais
+  // Ref para rastrear status anterior dos pedidos
   const prevOrdersStatus = useRef<Record<string, string>>({});
 
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -67,8 +67,6 @@ const App: React.FC = () => {
   const [toast, setToast] = useState({ show: false, msg: '', text: '', type: 'success' as 'success' | 'error' });
   const [isOrderProcessing, setIsOrderProcessing] = useState(false);
 
-  const kioskAdminTimer = useRef<any>(null);
-
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
     try {
       const saved = localStorage.getItem('nl_current_user');
@@ -76,7 +74,6 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
-  // Cálculo da taxa de entrega atual baseada no CEP do usuário
   const currentDeliveryFee = useMemo(() => {
     if (!currentUser || !currentUser.zipCode) return 0;
     const numZip = parseInt(currentUser.zipCode.replace(/\D/g, ''));
@@ -88,7 +85,6 @@ const App: React.FC = () => {
     return range ? range.fee : 0;
   }, [currentUser, zipRanges]);
 
-  // Subcategorias filtradas pela categoria selecionada
   const activeSubCategories = useMemo(() => {
     if (selectedCategory === 'Todos') return [];
     const cat = categories.find(c => c.name === selectedCategory);
@@ -96,7 +92,6 @@ const App: React.FC = () => {
     return subCategories.filter(s => s.categoryId === cat.id);
   }, [selectedCategory, categories, subCategories]);
 
-  // Cardápio filtrado por busca, categoria e subcategoria
   const groupedMenu = useMemo(() => {
     return products.filter(p => {
       const normSearch = safeNormalize(searchTerm);
@@ -118,15 +113,14 @@ const App: React.FC = () => {
     const unsubs = [
       dbService.subscribe<Product[]>('products', setProducts),
       dbService.subscribe<Order[]>('orders', (newOrders) => {
-        // Lógica de Notificação de Status
         if (currentUser && !isAdmin) {
           newOrders.forEach(order => {
             if (order.customerId === currentUser.email) {
               const prevStatus = prevOrdersStatus.current[order.id];
               if (prevStatus && prevStatus !== order.status) {
                 notificationService.sendNotification(
-                  `🍔 Pedido #${order.id.substring(0,4)} Atualizado!`,
-                  `O status do seu lanche mudou para: ${order.status}`
+                  `🍔 Nilo Lanches: Pedido #${order.id.substring(0,4)}`,
+                  `Seu pedido está agora em: ${order.status}`
                 );
               }
               prevOrdersStatus.current[order.id] = order.status;
@@ -181,9 +175,6 @@ const App: React.FC = () => {
           items: [...cart], total, deliveryFee: fee, deliveryType: isKioskMode ? 'PICKUP' : deliveryType, status: 'NOVO', paymentMethod, createdAt: new Date().toISOString(), pointsEarned: Math.floor(total), changeFor: changeFor || 0, discountValue: discount || 0, couponCode: couponCode || ''
         };
         
-        // Antes de salvar, pedimos permissão de notificação se for o primeiro pedido
-        if (!isKioskMode) await notificationService.requestPermission();
-
         await dbService.save('orders', orderId, newOrder);
         setLastOrder(newOrder);
         setIsSuccessModalOpen(true);
@@ -224,7 +215,6 @@ const App: React.FC = () => {
           <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} onReorder={() => {}} />
         ) : (
           <div className="flex flex-col w-full items-center">
-            {/* ... banner content ... */}
             <section className="relative w-full min-h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden">
                 <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Banner"/>
                 <div className="relative z-10 text-center px-4 flex flex-col items-center">
