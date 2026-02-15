@@ -77,6 +77,52 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
+  // Efeito para Sincronizar Ícones do PWA com a Logomarca
+  useEffect(() => {
+    if (logoUrl) {
+      // 1. Atualiza Favicon
+      const favicon = document.getElementById('app-favicon') as HTMLLinkElement;
+      if (favicon) favicon.href = logoUrl;
+
+      // 2. Atualiza Apple Touch Icon (iOS)
+      const appleIcon = document.getElementById('app-apple-touch-icon') as HTMLLinkElement;
+      if (appleIcon) appleIcon.href = logoUrl;
+
+      // 3. Atualiza Manifest Dinamicamente (Experimental mas funcional para Android)
+      try {
+        const manifest = {
+          "short_name": "Nilo Lanches",
+          "name": "Nilo Lanches Delivery",
+          "start_url": "/",
+          "display": "standalone",
+          "theme_color": "#008000",
+          "background_color": "#ffffff",
+          "icons": [
+            {
+              "src": logoUrl,
+              "sizes": "192x192",
+              "type": "image/png",
+              "purpose": "any maskable"
+            },
+            {
+              "src": logoUrl,
+              "sizes": "512x512",
+              "type": "image/png",
+              "purpose": "any maskable"
+            }
+          ]
+        };
+        const stringManifest = JSON.stringify(manifest);
+        const blob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if (manifestLink) manifestLink.setAttribute('href', manifestURL);
+      } catch (e) {
+        console.warn("Manifest update failed:", e);
+      }
+    }
+  }, [logoUrl]);
+
   useEffect(() => {
     const timer = setTimeout(() => setIsInitialLoading(false), 2000);
     return () => clearTimeout(timer);
