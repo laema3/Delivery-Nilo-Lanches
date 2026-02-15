@@ -4,7 +4,7 @@ import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, Orde
 import { compressImage } from '../services/imageService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v5.4 (Full Restore)";
+const APP_VERSION = "v5.5 (Marketing Tools)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -21,8 +21,22 @@ interface AdminPanelProps {
   onToggleKioskMode: () => void;
   logoUrl: string;
   onUpdateLogo: (url: string) => void;
-  socialLinks: { instagram?: string; whatsapp?: string; facebook?: string; };
-  onUpdateSocialLinks: (links: { instagram?: string; whatsapp?: string; facebook?: string }) => void;
+  socialLinks: { 
+    instagram?: string; 
+    whatsapp?: string; 
+    facebook?: string;
+    googleTagId?: string;
+    facebookPixelId?: string;
+    instagramPixelId?: string;
+  };
+  onUpdateSocialLinks: (links: { 
+    instagram?: string; 
+    whatsapp?: string; 
+    facebook?: string;
+    googleTagId?: string;
+    facebookPixelId?: string;
+    instagramPixelId?: string;
+  }) => void;
   onAddProduct: (p: Partial<Product>) => Promise<void>;
   onDeleteProduct: (id: string) => void;
   onUpdateProduct: (p: Product) => void;
@@ -62,7 +76,6 @@ type DeleteTarget = {
 };
 
 export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
-  // Fix: Added 'onUpdateCustomer' to the destructured props
   const { 
     products, orders, customers, zipRanges, categories, subCategories, complements, coupons, isStoreOpen, onToggleStore, isKioskMode, onToggleKioskMode,
     logoUrl, onUpdateLogo, socialLinks, onUpdateSocialLinks, onAddProduct, onDeleteProduct, onUpdateProduct, 
@@ -93,7 +106,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const [compName, setCompName] = useState('');
   const [compPrice, setCompPrice] = useState<number>(0);
-  const [compCategories, setCompCategories] = useState<string[]>([]);
 
   const [cpCode, setCpCode] = useState('');
   const [cpDiscount, setCpDiscount] = useState<number>(0);
@@ -111,6 +123,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [localInstagram, setLocalInstagram] = useState(socialLinks?.instagram || '');
   const [localWhatsapp, setLocalWhatsapp] = useState(socialLinks?.whatsapp || '');
   const [localFacebook, setLocalFacebook] = useState(socialLinks?.facebook || '');
+  const [localGoogleTag, setLocalGoogleTag] = useState(socialLinks?.googleTagId || '');
+  const [localFacebookPixel, setLocalFacebookPixel] = useState(socialLinks?.facebookPixelId || '');
+  const [localInstagramPixel, setLocalInstagramPixel] = useState(socialLinks?.instagramPixelId || '');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const formTopRef = useRef<HTMLDivElement>(null);
@@ -119,6 +134,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     setLocalInstagram(socialLinks?.instagram || '');
     setLocalWhatsapp(socialLinks?.whatsapp || '');
     setLocalFacebook(socialLinks?.facebook || '');
+    setLocalGoogleTag(socialLinks?.googleTagId || '');
+    setLocalFacebookPixel(socialLinks?.facebookPixelId || '');
+    setLocalInstagramPixel(socialLinks?.instagramPixelId || '');
   }, [socialLinks]);
 
   useEffect(() => {
@@ -896,7 +914,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                            <input value={localFacebook} onChange={e => setLocalFacebook(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, facebook: localFacebook })} placeholder="https://facebook.com/nilo..." className={inputClass} />
                         </div>
                      </div>
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">As alterações nas redes sociais são salvas automaticamente ao sair do campo.</p>
+                  </section>
+
+                  {/* NOVA SEÇÃO: Marketing e Rastreamento */}
+                  <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
+                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                       <span className="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center text-xl">📈</span>
+                       Marketing e Rastreamento
+                     </h3>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-1">
+                           <label className={labelClass}>ID Google Tag (Analytics)</label>
+                           <input value={localGoogleTag} onChange={e => setLocalGoogleTag(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, googleTagId: localGoogleTag })} placeholder="G-XXXXXXXX" className={inputClass} />
+                        </div>
+                        <div className="space-y-1">
+                           <label className={labelClass}>ID Facebook Pixel</label>
+                           <input value={localFacebookPixel} onChange={e => setLocalFacebookPixel(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, facebookPixelId: localFacebookPixel })} placeholder="123456789" className={inputClass} />
+                        </div>
+                        <div className="space-y-1">
+                           <label className={labelClass}>ID Instagram Tag</label>
+                           <input value={localInstagramPixel} onChange={e => setLocalInstagramPixel(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, instagramPixelId: localInstagramPixel })} placeholder="Apenas ID numérico" className={inputClass} />
+                        </div>
+                     </div>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Estes códigos permitem rastrear acessos e conversões no seu site.</p>
                   </section>
                </div>
             )}

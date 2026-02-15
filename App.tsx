@@ -37,7 +37,10 @@ const App: React.FC = () => {
   const [isKioskMode, setIsKioskMode] = useState(() => localStorage.getItem('nl_kiosk_enabled') === 'true');
   const [kioskStarted, setKioskStarted] = useState(false);
   const [logoUrl, setLogoUrl] = useState(DEFAULT_LOGO);
-  const [socialLinks, setSocialLinks] = useState({ instagram: '', whatsapp: '', facebook: '' });
+  const [socialLinks, setSocialLinks] = useState({ 
+    instagram: '', whatsapp: '', facebook: '', 
+    googleTagId: '', facebookPixelId: '', instagramPixelId: '' 
+  });
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -78,11 +81,52 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Injeção de Tags de Marketing (Google e Facebook)
+  useEffect(() => {
+    // Google Tag (Analytics)
+    if (socialLinks.googleTagId && !window.location.hostname.includes('localhost')) {
+      const script1 = document.createElement('script');
+      script1.async = true;
+      script1.src = `https://www.googletagmanager.com/gtag/js?id=${socialLinks.googleTagId}`;
+      document.head.appendChild(script1);
+
+      const script2 = document.createElement('script');
+      script2.innerHTML = `
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '${socialLinks.googleTagId}');
+      `;
+      document.head.appendChild(script2);
+    }
+
+    // Facebook Pixel
+    if (socialLinks.facebookPixelId && !window.location.hostname.includes('localhost')) {
+      const script = document.createElement('script');
+      script.innerHTML = `
+        !function(f,b,e,v,n,t,s)
+        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window, document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', '${socialLinks.facebookPixelId}');
+        fbq('track', 'PageView');
+      `;
+      document.head.appendChild(script);
+      
+      const noscript = document.createElement('noscript');
+      noscript.innerHTML = `<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${socialLinks.facebookPixelId}&ev=PageView&noscript=1" />`;
+      document.head.appendChild(noscript);
+    }
+  }, [socialLinks.googleTagId, socialLinks.facebookPixelId]);
+
   useEffect(() => {
     const unsubs = [
       dbService.subscribe<Product[]>('products', setProducts),
       dbService.subscribe<Order[]>('orders', (newOrders) => {
-        // Lógica de Notificação de Status para o Cliente
         if (currentUser && previousOrdersRef.current.length > 0) {
           newOrders.forEach(order => {
             if (order.customerId === currentUser.email) {
@@ -90,7 +134,7 @@ const App: React.FC = () => {
               if (prevOrder && prevOrder.status !== order.status) {
                 setToast({ 
                   show: true, 
-                  msg: `Status atualizado: Seu pedido #${order.id.substring(0,4)} agora está ${order.status}!`, 
+                  msg: `Seu pedido #${order.id.substring(0,4)} agora está ${order.status}!`, 
                   type: 'success' 
                 });
               }
@@ -116,7 +160,10 @@ const App: React.FC = () => {
             setSocialLinks({ 
               instagram: settings.instagram || '', 
               whatsapp: settings.whatsapp || '', 
-              facebook: settings.facebook || '' 
+              facebook: settings.facebook || '',
+              googleTagId: settings.googleTagId || '',
+              facebookPixelId: settings.facebookPixelId || '',
+              instagramPixelId: settings.instagramPixelId || ''
             });
           }
         }
