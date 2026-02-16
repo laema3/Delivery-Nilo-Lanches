@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Order, OrderStatus } from '../types.ts';
+import { TrackingModal } from './TrackingModal.tsx';
 
 interface CustomerOrdersProps {
   orders: Order[];
@@ -9,6 +10,8 @@ interface CustomerOrdersProps {
 }
 
 export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, onReorder }) => {
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
+
   const getStatusStyle = (status: OrderStatus) => {
     switch (status) {
       case 'NOVO': return 'bg-blue-100 text-blue-600';
@@ -57,6 +60,16 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
                     <span className="text-[10px] font-bold text-slate-400">{new Date(order.createdAt).toLocaleDateString()}</span>
                   </div>
                   
+                  {order.status === 'SAIU PARA ENTREGA' && order.deliveryType === 'DELIVERY' && (
+                    <button 
+                      onClick={() => setTrackingOrder(order)}
+                      className="w-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 p-4 rounded-2xl flex items-center justify-center gap-3 transition-all animate-pulse border border-emerald-200"
+                    >
+                      <span className="text-xl">🛵</span>
+                      <span className="text-xs font-black uppercase tracking-widest">Acompanhar Entrega no Mapa</span>
+                    </button>
+                  )}
+
                   <div className="space-y-2">
                     {order.items.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between">
@@ -97,6 +110,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
           ))}
         </div>
       )}
+
+      {trackingOrder && <TrackingModal order={trackingOrder} onClose={() => setTrackingOrder(null)} />}
     </div>
   );
 };

@@ -22,7 +22,7 @@ interface ChatBotProps {
 export const ChatBot: React.FC<ChatBotProps> = ({ 
   products, cart, deliveryFee, whatsappNumber, isStoreOpen, currentUser, onAddToCart, onClearCart 
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', text: 'E aí! Sou o Nilo. 🍔 Pronto para o melhor lanche da sua vida? O que vai ser hoje?' }
@@ -41,22 +41,22 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     if (!input.trim() || isLoading) return;
 
     const userText = input;
+    const currentHistory = [...messages]; // Captura o histórico ANTES da atualização para evitar duplicidade
+    
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userText }]);
     setIsLoading(true);
 
     try {
-      const history = messages.map(m => ({ role: m.role, text: m.text }));
       const response = await chatWithAssistant(
         userText, 
-        history, 
+        currentHistory, 
         products, 
         isStoreOpen, 
         deliveryFee, 
         !!currentUser
       );
 
-      // Processa chamadas de função (Tools)
       if (response.functionCalls) {
         for (const call of response.functionCalls) {
           if (call.name === 'addToCart' && onAddToCart) {
@@ -98,13 +98,13 @@ export const ChatBot: React.FC<ChatBotProps> = ({
             
             const phone = (whatsappNumber || '5534991183728').replace(/\D/g, '');
             
-            setMessages(prev => [...prev, { role: 'model', text: "🎯 Tudo pronto! Estou te levando para o WhatsApp para confirmar..." }]);
+            setMessages(prev => [...prev, { role: 'model', text: "🎯 Tudo pronto! Clique no botão do WhatsApp que vai aparecer para confirmar..." }]);
             
             setTimeout(() => {
               window.open(`https://wa.me/${phone}?text=${encodeURIComponent(waText)}`, '_blank');
               if (onClearCart) onClearCart();
-              setIsOpen(false);
-            }, 2000);
+              setOpen(false);
+            }, 1500);
           }
         }
       }
@@ -120,7 +120,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
   };
 
   return (
-    <div className={`fixed z-[100] flex flex-col items-end ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-6 right-6'}`}>
+    <div className={`fixed z-[300] flex flex-col items-end transition-all duration-300 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-28 sm:bottom-6 right-6'}`}>
       {isOpen && (
         <div className="w-full h-full sm:w-[400px] sm:max-h-[600px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
           <div className="bg-emerald-600 p-5 flex items-center justify-between shrink-0 shadow-md">
@@ -134,7 +134,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
                 </p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-white p-2 hover:bg-white/20 rounded-full transition-colors font-bold">✕</button>
+            <button onClick={() => setOpen(false)} className="text-white p-2 hover:bg-white/20 rounded-full transition-colors font-bold">✕</button>
           </div>
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50 no-scrollbar overscroll-contain">
@@ -167,7 +167,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
             )}
           </div>
 
-          <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2 pb-8 sm:pb-4">
+          <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2 pb-10 sm:pb-4">
             <input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -185,7 +185,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
 
       {!isOpen && (
         <button 
-          onClick={() => setIsOpen(true)}
+          onClick={() => setOpen(true)}
           className="group w-16 h-16 bg-emerald-600 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 border-4 border-white relative active:scale-90"
         >
           <span className="text-3xl">💬</span>

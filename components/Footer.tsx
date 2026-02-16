@@ -4,6 +4,7 @@ import React from 'react';
 interface FooterProps {
   logoUrl?: string;
   onAdminClick?: () => void;
+  onMotoboyClick?: () => void; // NOVO
   isStoreOpen?: boolean;
   socialLinks?: {
     instagram?: string;
@@ -12,16 +13,14 @@ interface FooterProps {
   };
 }
 
-export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOpen = true, socialLinks }) => {
+export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, onMotoboyClick, isStoreOpen = true, socialLinks }) => {
   const whatsappNumber = socialLinks?.whatsapp || '5534991183728';
   const whatsappUrl = whatsappNumber.startsWith('http') ? whatsappNumber : `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`;
 
   return (
     <footer className="bg-emerald-950 text-emerald-100/60 py-8 md:py-16 border-t border-emerald-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Esconde o grid principal no Mobile, mostra apenas no Desktop (md) */}
         <div className="hidden md:grid grid-cols-3 gap-12 mb-12">
-          {/* Brand */}
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center overflow-hidden">
@@ -35,13 +34,11 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOp
             </div>
           </div>
 
-          {/* Atendimento */}
           <div className="space-y-4">
             <h3 className="text-white font-black text-sm uppercase tracking-widest">Atendimento</h3>
             <p className="text-sm">Av. Lucas Borges, 317 - Uberaba MG<br/>(34) 9 9118-3728</p>
           </div>
 
-          {/* Horários */}
           <div className="space-y-4">
             <h3 className="text-white font-black text-sm uppercase tracking-widest">Horários</h3>
             <p className="text-sm">Todos os dias: 18:30 - 23:50</p>
@@ -51,15 +48,22 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, isStoreOp
           </div>
         </div>
 
-        {/* Linha de Copyright / Acesso - No mobile centraliza e deixa minimalista */}
         <div className="pt-4 md:pt-8 border-t border-emerald-900/50 flex flex-col md:flex-row justify-between items-center text-[10px] font-bold uppercase tracking-widest text-emerald-800 gap-4">
           <p className="hidden md:block">© 2024 NILO LANCHES - UBERABA-MG</p>
-          <button 
-            onClick={onAdminClick} 
-            className="hover:text-emerald-400 transition-colors uppercase tracking-[0.3em] font-black text-emerald-700 md:text-emerald-800"
-          >
-            Acesso
-          </button>
+          <div className="flex gap-6">
+            <button 
+              onClick={onMotoboyClick} 
+              className="hover:text-emerald-400 transition-colors uppercase tracking-[0.3em] font-black text-emerald-700 md:text-emerald-800"
+            >
+              Portal Entregador
+            </button>
+            <button 
+              onClick={onAdminClick} 
+              className="hover:text-emerald-400 transition-colors uppercase tracking-[0.3em] font-black text-emerald-700 md:text-emerald-800"
+            >
+              Acesso Admin
+            </button>
+          </div>
         </div>
       </div>
     </footer>

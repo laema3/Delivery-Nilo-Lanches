@@ -39,6 +39,12 @@ export interface CartItem extends Product {
 export type OrderStatus = 'NOVO' | 'PREPARANDO' | 'PRONTO PARA RETIRADA' | 'SAIU PARA ENTREGA' | 'FINALIZADO' | 'CANCELADO';
 export type DeliveryType = 'DELIVERY' | 'PICKUP';
 
+export interface OrderLocation {
+  lat: number;
+  lng: number;
+  timestamp: number;
+}
+
 export interface Order {
   id: string;
   customerId: string;
@@ -56,6 +62,7 @@ export interface Order {
   changeFor?: number;
   status: OrderStatus;
   createdAt: string;
+  currentLocation?: OrderLocation; // NOVO: Localização em tempo real do motoboy
 }
 
 export interface Customer {

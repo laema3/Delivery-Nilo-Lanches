@@ -50,7 +50,7 @@ export const chatWithAssistant = async (
   currentDeliveryFee: number,
   isLoggedIn: boolean
 ) => {
-  // Inicialização garantida com process.env.API_KEY
+  // Fix: Initializing GoogleGenAI using strictly process.env.API_KEY as per mandatory guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const productsMenu = allProducts.map(p => 
@@ -65,7 +65,7 @@ export const chatWithAssistant = async (
     Você é o 'Nilo', assistente da Nilo Lanches em Uberaba-MG.
     
     DIRETRIZES:
-    - HORÁRIO: 18:30 às 23:50 (fechamos às 23:50 rigorosamente).
+    - HORÁRIO: 18:30 às 23:50.
     - STATUS LOJA: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
     - PRODUTOS: ${productsMenu}
     - TAXA: ${deliveryInfo}
@@ -76,20 +76,36 @@ export const chatWithAssistant = async (
     3. Se ele quiser pagar ou finalizar, use 'finalizeOrder'.
     4. Se a loja estiver fechada, diga que voltamos amanhã às 18:30.
     5. Nunca invente lanches que não estão na lista acima.
+    6. Se o cliente perguntar de rastreio, diga que em breve teremos acompanhamento em tempo real no mapa!
   `;
 
   try {
-    // Filtro rigoroso de histórico para a API
-    const validHistory = history
-      .map(h => ({
-        role: h.role === 'model' ? 'model' : 'user',
-        parts: [{ text: h.text || "" }]
-      }))
-      .filter(h => h.parts[0].text.length > 0);
+    // Limpeza rigorosa para garantir alternância de turnos: USER -> MODEL -> USER -> MODEL
+    let validHistory: any[] = [];
+    let lastRole = '';
 
-    // O primeiro turno da conversa DEVE ser sempre 'user'
+    const processedHistory = history.map(h => ({
+      role: h.role === 'model' ? 'model' : 'user',
+      parts: [{ text: h.text || "Entendi, vou verificar." }] // Garante que nunca haja partes vazias
+    }));
+
+    for (const turn of processedHistory) {
+      if (turn.role !== lastRole) {
+        validHistory.push(turn);
+        lastRole = turn.role;
+      }
+    }
+
+    // A conversa DEVE começar com 'user'
     if (validHistory.length > 0 && validHistory[0].role === 'model') {
       validHistory.shift();
+    }
+
+    // Se após o shift o histórico ficou vazio ou o último turno é 'user', 
+    // a API vai aceitar o novo turno 'user' que estamos enviando agora.
+    if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === 'user') {
+        // Remove o último turno se for USER, pois vamos adicionar o novo USER agora
+        validHistory.pop();
     }
 
     const response = await ai.models.generateContent({
@@ -104,12 +120,13 @@ export const chatWithAssistant = async (
 
     if (!response) throw new Error("Sem resposta da API");
 
+    // Fix: Access response.text as a property, not a method, as per guidelines.
     return {
       text: response.text || "Entendido! O que mais posso fazer por você?",
       functionCalls: response.functionCalls || null
     };
   } catch (error) {
-    console.error("Gemini Mobile Error:", error);
+    console.error("Gemini Critical Error:", error);
     return { 
       text: "Foi mal, tive um pequeno soluço aqui no sistema! 🍔 Pode tentar falar comigo de novo?", 
       functionCalls: null 

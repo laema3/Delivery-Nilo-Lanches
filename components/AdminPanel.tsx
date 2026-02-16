@@ -988,3 +988,5 @@ const NavItem: React.FC<{ active: boolean; icon: string; label: string; onClick:
     {badge !== undefined && <span className={`min-w-[24px] h-6 flex items-center justify-center rounded-full text-[10px] font-black px-2 ${active ? 'bg-white text-emerald-600' : 'bg-blue-600 text-white animate-pulse'}`}>{badge}</span>}
   </button>
 );
+
+);

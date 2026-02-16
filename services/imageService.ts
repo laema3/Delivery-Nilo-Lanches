@@ -1,9 +1,9 @@
 
 /**
- * Redimensiona e comprime uma imagem (base64 ou URL) para garantir que caiba no limite do Firestore (1MB).
- * Converte obrigatoriamente para JPEG para máxima economia de espaço.
+ * Redimensiona e comprime uma imagem para economizar espaço no Firestore.
+ * Ajustado para garantir que o site não atinja o limite de armazenamento.
  */
-export const compressImage = (base64Str: string, maxWidth = 800, maxHeight = 800, quality = 0.6): Promise<string> => {
+export const compressImage = (base64Str: string, maxWidth = 700, maxHeight = 700, quality = 0.5): Promise<string> => {
   return new Promise((resolve) => {
     if (!base64Str) return resolve("");
     
@@ -45,9 +45,9 @@ export const compressImage = (base64Str: string, maxWidth = 800, maxHeight = 800
         
         let compressedBase64 = canvas.toDataURL('image/jpeg', quality);
         
-        // Se ainda for muito grande (raro em JPEG), reduz qualidade agressivamente
-        if (compressedBase64.length > 850000) {
-          compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
+        // Se ainda for muito grande para o Firestore, comprime mais
+        if (compressedBase64.length > 600000) {
+          compressedBase64 = canvas.toDataURL('image/jpeg', 0.3);
         }
         
         resolve(compressedBase64);

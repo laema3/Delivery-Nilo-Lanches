@@ -11,6 +11,7 @@ import { OrderSuccessModal } from './components/OrderSuccessModal.tsx';
 import { ChatBot } from './components/ChatBot.tsx';
 import { Footer } from './components/Footer.tsx';
 import { CustomerOrders } from './components/CustomerOrders.tsx';
+import { MotoboyPortal } from './components/MotoboyPortal.tsx'; // NOVO
 import { Toast } from './components/Toast.tsx';
 import { ProductLoader } from './components/ProductLoader.tsx';
 import { InstallBanner } from './components/InstallBanner.tsx';
@@ -58,7 +59,7 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [selectedSubCategoryValue, setSelectedSubCategory] = useState<string>('Todos'); 
-  const [activeView, setActiveView] = useState<'home' | 'my-orders'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'my-orders' | 'motoboy'>('home'); // ATUALIZADO
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
@@ -88,7 +89,7 @@ const App: React.FC = () => {
       const appleIcon = document.getElementById('app-apple-touch-icon') as HTMLLinkElement;
       if (appleIcon) appleIcon.href = logoUrl;
 
-      // 3. Atualiza Manifest Dinamicamente (Experimental mas funcional para Android)
+      // 3. Atualiza Manifest Dinamicamente
       try {
         const manifest = {
           "short_name": "Nilo Lanches",
@@ -127,48 +128,6 @@ const App: React.FC = () => {
     const timer = setTimeout(() => setIsInitialLoading(false), 2000);
     return () => clearTimeout(timer);
   }, []);
-
-  // Injeção de Tags de Marketing (Google e Facebook)
-  useEffect(() => {
-    // Google Tag (Analytics)
-    if (socialLinks.googleTagId && !window.location.hostname.includes('localhost')) {
-      const script1 = document.createElement('script');
-      script1.async = true;
-      script1.src = `https://www.googletagmanager.com/gtag/js?id=${socialLinks.googleTagId}`;
-      document.head.appendChild(script1);
-
-      const script2 = document.createElement('script');
-      script2.innerHTML = `
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', '${socialLinks.googleTagId}');
-      `;
-      document.head.appendChild(script2);
-    }
-
-    // Facebook Pixel
-    if (socialLinks.facebookPixelId && !window.location.hostname.includes('localhost')) {
-      const script = document.createElement('script');
-      script.innerHTML = `
-        !function(f,b,e,v,n,t,s)
-        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-        n.queue=[];t=b.createElement(e);t.async=!0;
-        t.src=v;s=b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t,s)}(window, document,'script',
-        'https://connect.facebook.net/en_US/fbevents.js');
-        fbq('init', '${socialLinks.facebookPixelId}');
-        fbq('track', 'PageView');
-      `;
-      document.head.appendChild(script);
-      
-      const noscript = document.createElement('noscript');
-      noscript.innerHTML = `<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${socialLinks.facebookPixelId}&ev=PageView&noscript=1" />`;
-      document.head.appendChild(noscript);
-    }
-  }, [socialLinks.googleTagId, socialLinks.facebookPixelId]);
 
   useEffect(() => {
     const unsubs = [
@@ -353,6 +312,8 @@ const App: React.FC = () => {
           />
         ) : activeView === 'my-orders' ? (
           <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} onReorder={() => {}} />
+        ) : activeView === 'motoboy' ? ( // NOVO
+          <MotoboyPortal orders={orders} onBack={() => setActiveView('home')} />
         ) : (
           <div className="flex flex-col w-full items-center">
             {!isKioskMode && (
@@ -400,7 +361,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {!isAdmin && !isKioskMode && <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} />}
+      {!isAdmin && !isKioskMode && <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} onMotoboyClick={() => setActiveView('motoboy')} />}
       
       <CartSidebar 
         isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, delta) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item))} 
