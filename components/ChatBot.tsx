@@ -36,11 +36,22 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     }
   }, [messages, isLoading, isOpen]);
 
+  // Prevenir que o scroll do fundo se mova quando o chat estiver aberto no mobile
+  useEffect(() => {
+    if (isOpen && window.innerWidth < 640) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isOpen]);
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    const trimmedInput = input.trim();
+    if (!trimmedInput || isLoading) return;
 
-    const userText = input;
+    const userText = trimmedInput;
     const currentHistory = [...messages]; 
     
     setInput('');
@@ -98,13 +109,13 @@ export const ChatBot: React.FC<ChatBotProps> = ({
             
             const phone = (whatsappNumber || '5534991183728').replace(/\D/g, '');
             
-            setMessages(prev => [...prev, { role: 'model', text: "🎯 Tudo pronto! Clique no botão do WhatsApp que vai aparecer para confirmar..." }]);
+            setMessages(prev => [...prev, { role: 'model', text: "🎯 Tudo pronto! Clique no botão do WhatsApp para confirmar o pedido." }]);
             
             setTimeout(() => {
               window.open(`https://wa.me/${phone}?text=${encodeURIComponent(waText)}`, '_blank');
               if (onClearCart) onClearCart();
               setOpen(false);
-            }, 1500);
+            }, 1000);
           }
         }
       }
@@ -113,7 +124,8 @@ export const ChatBot: React.FC<ChatBotProps> = ({
         setMessages(prev => [...prev, { role: 'model', text: response.text }]);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', text: "Tive um probleminha de conexão agora. Pode tentar falar comigo de novo?" }]);
+      console.error("Chat Error Catch:", err);
+      setMessages(prev => [...prev, { role: 'model', text: "Minha conexão falhou por um momento. Pode tentar enviar de novo?" }]);
     } finally {
       setIsLoading(false);
     }
@@ -122,7 +134,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
   return (
     <div className={`fixed z-[300] flex flex-col items-end transition-all duration-300 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-6 right-6'}`}>
       {isOpen && (
-        <div className="w-full h-full sm:w-[400px] sm:max-h-[600px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+        <div className="w-full h-[100dvh] sm:h-auto sm:w-[400px] sm:max-h-[600px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
           <div className="bg-emerald-600 p-5 flex items-center justify-between shrink-0 shadow-md">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl shadow-inner">🤖</div>
@@ -167,7 +179,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
             )}
           </div>
 
-          <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2 pb-10 sm:pb-4">
+          <form onSubmit={handleSend} className="p-4 bg-white border-t flex gap-2 pb-10 sm:pb-4 shrink-0">
             <input 
               value={input}
               onChange={(e) => setInput(e.target.value)}

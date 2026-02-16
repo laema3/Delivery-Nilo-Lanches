@@ -78,30 +78,32 @@ export const chatWithAssistant = async (
   `;
 
   try {
-    // Processamento de histórico garantindo alternância e validade de partes
-    let validHistory: any[] = [];
+    // HIGIENIZAÇÃO RIGOROSA DO HISTÓRICO PARA MOBILE
+    const cleanHistory: any[] = [];
     let lastRole = '';
 
-    const processedHistory = history.map(h => ({
-      role: h.role === 'model' ? 'model' : 'user',
-      parts: [{ text: String(h.text || "").trim() || "..." }]
-    })).filter(h => h.parts[0].text !== "...");
-
-    for (const turn of processedHistory) {
-      if (turn.role !== lastRole) {
-        validHistory.push(turn);
-        lastRole = turn.role;
+    history.forEach(h => {
+      const currentRole = h.role === 'model' ? 'model' : 'user';
+      const text = String(h.text || "").trim();
+      
+      // Ignora mensagens vazias e evita roles duplicados seguidos
+      if (text && currentRole !== lastRole) {
+        cleanHistory.push({
+          role: currentRole,
+          parts: [{ text }]
+        });
+        lastRole = currentRole;
       }
-    }
+    });
 
-    // A conversa deve começar com 'user'
-    if (validHistory.length > 0 && validHistory[0].role === 'model') {
-      validHistory.shift();
+    // A API exige que o histórico comece com 'user'
+    if (cleanHistory.length > 0 && cleanHistory[0].role === 'model') {
+      cleanHistory.shift();
     }
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [...validHistory, { role: 'user', parts: [{ text: message }] }],
+      contents: [...cleanHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartFunction, finalizeOrderFunction] }],
@@ -109,21 +111,20 @@ export const chatWithAssistant = async (
       }
     });
 
-    if (!response) throw new Error("Empty response from Gemini");
-
     return {
-      text: response.text || "Entendido! O que mais posso fazer por você?",
+      text: response.text || "Estou aqui! Como posso te ajudar?",
       functionCalls: response.functionCalls || null
     };
   } catch (error: any) {
-    console.error("Gemini Service Error:", error);
-    // Erros 400 geralmente são problemas de histórico. Erros 500/429 são servidor/limites.
-    const errorMessage = error?.message?.includes('400') 
-      ? "Parece que me perdi um pouco na conversa. Pode repetir o que você queria?"
-      : "Minha conexão falhou por um segundo! Pode tentar enviar de novo?";
+    console.error("DEBUG Gemini Service Error:", error);
+    
+    // Retorna mensagens amigáveis baseadas no tipo de erro
+    if (error?.message?.includes('400')) {
+      return { text: "Opa, me perdi um pouco. Pode falar de novo o que você queria?", functionCalls: null };
+    }
     
     return { 
-      text: errorMessage, 
+      text: "Minha conexão falhou por um segundo! Pode tentar enviar sua mensagem de novo?", 
       functionCalls: null 
     };
   }
