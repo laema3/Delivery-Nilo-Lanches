@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'nilo-lanches-v3';
+const CACHE_NAME = 'nilo-lanches-v4';
 const ASSETS = [
   '/',
   '/index.html',
@@ -30,11 +30,17 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // CRÍTICO: Não cachear chamadas do Firebase/Firestore ou do Google Gemini
-  // Isso garante que os dados em tempo real sempre venham da rede, não do cache local
-  if (event.request.url.includes('firestore.googleapis.com') || 
-      event.request.url.includes('generativelanguage.googleapis.com')) {
-    return; // Deixa o navegador/SDK lidar com a rede diretamente
+  const url = event.request.url;
+  
+  // BYPASS CRÍTICO para APIs em tempo real (IA e Banco de Dados)
+  // Nunca cachear ou interceptar estas URLs no smartphone
+  if (
+    url.includes('firestore.googleapis.com') || 
+    url.includes('generativelanguage.googleapis.com') ||
+    url.includes('google.com') ||
+    url.includes('firebase')
+  ) {
+    return; 
   }
 
   event.respondWith(

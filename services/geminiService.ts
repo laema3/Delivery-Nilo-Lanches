@@ -50,7 +50,6 @@ export const chatWithAssistant = async (
   currentDeliveryFee: number,
   isLoggedIn: boolean
 ) => {
-  // Fix: Initializing GoogleGenAI using strictly process.env.API_KEY as per mandatory guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const productsMenu = allProducts.map(p => 
@@ -76,18 +75,17 @@ export const chatWithAssistant = async (
     3. Se ele quiser pagar ou finalizar, use 'finalizeOrder'.
     4. Se a loja estiver fechada, diga que voltamos amanhã às 18:30.
     5. Nunca invente lanches que não estão na lista acima.
-    6. Se o cliente perguntar de rastreio, diga que em breve teremos acompanhamento em tempo real no mapa!
   `;
 
   try {
-    // Limpeza rigorosa para garantir alternância de turnos: USER -> MODEL -> USER -> MODEL
+    // Processamento de histórico garantindo alternância e validade de partes
     let validHistory: any[] = [];
     let lastRole = '';
 
     const processedHistory = history.map(h => ({
       role: h.role === 'model' ? 'model' : 'user',
-      parts: [{ text: h.text || "Entendi, vou verificar." }] // Garante que nunca haja partes vazias
-    }));
+      parts: [{ text: String(h.text || "").trim() || "..." }]
+    })).filter(h => h.parts[0].text !== "...");
 
     for (const turn of processedHistory) {
       if (turn.role !== lastRole) {
@@ -96,16 +94,9 @@ export const chatWithAssistant = async (
       }
     }
 
-    // A conversa DEVE começar com 'user'
+    // A conversa deve começar com 'user'
     if (validHistory.length > 0 && validHistory[0].role === 'model') {
       validHistory.shift();
-    }
-
-    // Se após o shift o histórico ficou vazio ou o último turno é 'user', 
-    // a API vai aceitar o novo turno 'user' que estamos enviando agora.
-    if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === 'user') {
-        // Remove o último turno se for USER, pois vamos adicionar o novo USER agora
-        validHistory.pop();
     }
 
     const response = await ai.models.generateContent({
@@ -118,17 +109,21 @@ export const chatWithAssistant = async (
       }
     });
 
-    if (!response) throw new Error("Sem resposta da API");
+    if (!response) throw new Error("Empty response from Gemini");
 
-    // Fix: Access response.text as a property, not a method, as per guidelines.
     return {
       text: response.text || "Entendido! O que mais posso fazer por você?",
       functionCalls: response.functionCalls || null
     };
-  } catch (error) {
-    console.error("Gemini Critical Error:", error);
+  } catch (error: any) {
+    console.error("Gemini Service Error:", error);
+    // Erros 400 geralmente são problemas de histórico. Erros 500/429 são servidor/limites.
+    const errorMessage = error?.message?.includes('400') 
+      ? "Parece que me perdi um pouco na conversa. Pode repetir o que você queria?"
+      : "Minha conexão falhou por um segundo! Pode tentar enviar de novo?";
+    
     return { 
-      text: "Foi mal, tive um pequeno soluço aqui no sistema! 🍔 Pode tentar falar comigo de novo?", 
+      text: errorMessage, 
       functionCalls: null 
     };
   }

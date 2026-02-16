@@ -41,7 +41,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     if (!input.trim() || isLoading) return;
 
     const userText = input;
-    const currentHistory = [...messages]; // Captura o histórico ANTES da atualização para evitar duplicidade
+    const currentHistory = [...messages]; 
     
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userText }]);
@@ -113,14 +113,14 @@ export const ChatBot: React.FC<ChatBotProps> = ({
         setMessages(prev => [...prev, { role: 'model', text: response.text }]);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', text: "Tive um probleminha técnico. Pode repetir?" }]);
+      setMessages(prev => [...prev, { role: 'model', text: "Tive um probleminha de conexão agora. Pode tentar falar comigo de novo?" }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className={`fixed z-[300] flex flex-col items-end transition-all duration-300 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-28 sm:bottom-6 right-6'}`}>
+    <div className={`fixed z-[300] flex flex-col items-end transition-all duration-300 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-6 right-6'}`}>
       {isOpen && (
         <div className="w-full h-full sm:w-[400px] sm:max-h-[600px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
           <div className="bg-emerald-600 p-5 flex items-center justify-between shrink-0 shadow-md">
