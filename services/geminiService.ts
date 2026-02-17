@@ -47,19 +47,16 @@ export const chatWithAssistant = async (
 
   const systemInstruction = `
     Você é o 'Nilo', assistente da Nilo Lanches em Uberaba-MG.
-    DIRETRIZES:
-    - HORÁRIO: 18:30 às 23:50.
     - STATUS LOJA: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
     - PRODUTOS: ${productsMenu}
-    COMPORTAMENTO: Seja rápido e amigável. Use 'addToCart' para lanches e 'finalizeOrder' para fechar pedidos.
-    IMPORTANTE: Nunca comece uma conversa com 'model'.
+    - TAXA: R$ ${currentDeliveryFee.toFixed(2)}
+    Seja amigável e use addToCart ou finalizeOrder quando necessário.
   `;
 
   try {
     const cleanHistory: any[] = [];
     let lastRole = '';
 
-    // Filtrar mensagens vazias e garantir alternância de papéis
     history.forEach(h => {
       const currentRole = h.role === 'model' ? 'model' : 'user';
       const text = String(h.text || "").trim();
@@ -70,7 +67,7 @@ export const chatWithAssistant = async (
       }
     });
 
-    // REGRA DE OURO DA API GEMINI: O histórico DEVE começar com 'user'
+    // O Gemini exige que o histórico comece com 'user'
     if (cleanHistory.length > 0 && cleanHistory[0].role === 'model') {
       cleanHistory.shift();
     }
@@ -86,13 +83,13 @@ export const chatWithAssistant = async (
     });
 
     return {
-      text: response.text || "Estou aqui! O que deseja pedir?",
+      text: response.text || "Diga o que você deseja pedir!",
       functionCalls: response.functionCalls || null
     };
   } catch (error: any) {
-    console.error("Gemini Assistant Error:", error);
+    console.error("Gemini Error:", error);
     return { 
-      text: "Opa, tive um pequeno lapso de memória aqui na chapa. Pode repetir o que você deseja pedir?", 
+      text: "Opa, tive um pequeno lapso aqui na cozinha. Pode repetir o seu pedido?", 
       functionCalls: null 
     };
   }

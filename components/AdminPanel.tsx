@@ -916,7 +916,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      </div>
                   </section>
 
-                  {/* NOVA SEÇÃO: Marketing e Rastreamento */}
                   <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
                        <span className="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center text-xl">📈</span>
@@ -987,6 +986,4 @@ const NavItem: React.FC<{ active: boolean; icon: string; label: string; onClick:
     </div>
     {badge !== undefined && <span className={`min-w-[24px] h-6 flex items-center justify-center rounded-full text-[10px] font-black px-2 ${active ? 'bg-white text-emerald-600' : 'bg-blue-600 text-white animate-pulse'}`}>{badge}</span>}
   </button>
-);
-
 );
