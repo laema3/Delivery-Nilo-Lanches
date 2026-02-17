@@ -67,7 +67,6 @@ const App: React.FC = () => {
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
   const [isOrderProcessing, setIsOrderProcessing] = useState(false);
 
-  const kioskAdminTimer = useRef<any>(null);
   const previousOrdersRef = useRef<Order[]>([]);
 
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
@@ -84,7 +83,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubs = [
-      dbService.subscribe<Product[]>('products', (data) => data && setProducts(data)),
+      dbService.subscribe<Product[]>('products', (data) => {
+        if (data) setProducts([...data].sort((a, b) => a.name.localeCompare(b.name)));
+      }),
       dbService.subscribe<Order[]>('orders', (newOrders) => {
         if (newOrders) {
            if (currentUser && previousOrdersRef.current.length > 0) {
@@ -101,13 +102,17 @@ const App: React.FC = () => {
            setOrders(newOrders);
         }
       }),
-      dbService.subscribe<CategoryItem[]>('categories', (data) => data && setCategories(data)),
-      dbService.subscribe<SubCategoryItem[]>('sub_categories', (data) => data && setSubCategories(data)),
-      dbService.subscribe<Complement[]>('complements', setComplements),
-      dbService.subscribe<ZipRange[]>('zip_ranges', setZipRanges),
-      dbService.subscribe<PaymentSettings[]>('payment_methods', setPaymentMethods),
-      dbService.subscribe<Coupon[]>('coupons', setCoupons),
-      dbService.subscribe<Customer[]>('customers', setCustomers),
+      dbService.subscribe<CategoryItem[]>('categories', (data) => {
+        if (data) setCategories([...data].sort((a, b) => a.name.localeCompare(b.name)));
+      }),
+      dbService.subscribe<SubCategoryItem[]>('sub_categories', (data) => {
+        if (data) setSubCategories([...data].sort((a, b) => a.name.localeCompare(b.name)));
+      }),
+      dbService.subscribe<Complement[]>('complements', (data) => data && setComplements(data)),
+      dbService.subscribe<ZipRange[]>('zip_ranges', (data) => data && setZipRanges(data)),
+      dbService.subscribe<PaymentSettings[]>('payment_methods', (data) => data && setPaymentMethods(data)),
+      dbService.subscribe<Coupon[]>('coupons', (data) => data && setCoupons(data)),
+      dbService.subscribe<Customer[]>('customers', (data) => data && setCustomers(data)),
       dbService.subscribe<any[]>('settings', (data) => {
         if (data && data.length > 0) {
           const settings = data.find(d => d.id === 'general') || data[0];
@@ -127,33 +132,32 @@ const App: React.FC = () => {
 
   const groupedMenu = useMemo(() => {
     if (!products) return [];
-    return [...products]
-      .filter(p => {
-        const s = safeNormalize(searchTerm);
-        const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
-        const matchesCategory = selectedCategory === 'Todos' || safeNormalize(p.category) === safeNormalize(selectedCategory);
-        const matchesSubCategory = selectedSubCategoryValue === 'Todos' || safeNormalize(p.subCategory) === safeNormalize(selectedSubCategoryValue);
-        return matchesSearch && matchesCategory && matchesSubCategory;
-      })
-      .sort((a, b) => {
-        const catA = a.category || "";
-        const catB = b.category || "";
-        if (catA.localeCompare(catB) !== 0) return catA.localeCompare(catB);
-        
-        const subA = a.subCategory || "";
-        const subB = b.subCategory || "";
-        if (subA.localeCompare(subB) !== 0) return subA.localeCompare(subB);
-        
-        return a.name.localeCompare(b.name);
-      });
+    return [...products].filter(p => {
+      const s = safeNormalize(searchTerm);
+      const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
+      const matchesCategory = selectedCategory === 'Todos' || safeNormalize(p.category) === safeNormalize(selectedCategory);
+      const matchesSubCategory = selectedSubCategoryValue === 'Todos' || safeNormalize(p.subCategory) === safeNormalize(selectedSubCategoryValue);
+      return matchesSearch && matchesCategory && matchesSubCategory;
+    });
   }, [products, searchTerm, selectedCategory, selectedSubCategoryValue]);
 
   const activeSubCategories = useMemo(() => {
     if (selectedCategory === 'Todos') return [];
     const currentCat = categories.find(c => safeNormalize(c.name) === safeNormalize(selectedCategory));
     if (!currentCat) return [];
-    return subCategories.filter(s => s.categoryId === currentCat.id).sort((a, b) => a.name.localeCompare(b.name));
+    return subCategories.filter(s => s.categoryId === currentCat.id);
   }, [selectedCategory, categories, subCategories]);
+
+  const currentDeliveryFee = useMemo(() => {
+    if (!currentUser?.zipCode || zipRanges.length === 0) return 0;
+    const cleanZip = parseInt(currentUser.zipCode.replace(/\D/g, ''));
+    const range = zipRanges.find(z => {
+      const start = parseInt(z.start.replace(/\D/g, ''));
+      const end = parseInt(z.end.replace(/\D/g, ''));
+      return cleanZip >= start && cleanZip <= end;
+    });
+    return range ? range.fee : 0;
+  }, [currentUser, zipRanges]);
 
   const handleAddToCart = (product: Product, quantity: number, comps?: Complement[]) => {
     const compsPrice = comps?.reduce((acc, c) => acc + (c.price || 0), 0) || 0;
@@ -258,14 +262,6 @@ const App: React.FC = () => {
                    <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-4 py-2 sm:px-6 sm:py-3 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>{cat.name}</button>
                  ))}
                </div>
-               {activeSubCategories.length > 0 && (
-                 <div className="flex justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
-                   <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategoryValue === 'Todos' ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Tudo</button>
-                   {activeSubCategories.map(sub => (
-                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategoryValue === sub.name ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>{sub.name}</button>
-                   ))}
-                 </div>
-               )}
             </div>
 
             <div className="w-full max-w-7xl mx-auto px-6 py-12">
@@ -285,7 +281,7 @@ const App: React.FC = () => {
       
       <CartSidebar 
         isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, delta) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item))} 
-        onRemove={(id) => setCart(prev => prev.filter(item => item.id !== id))} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} isKioskMode={isKioskMode} deliveryFee={0} availableCoupons={[]} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
+        onRemove={(id) => setCart(prev => prev.filter(item => item.id !== id))} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} isKioskMode={isKioskMode} deliveryFee={currentDeliveryFee} availableCoupons={[]} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
       />
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={() => {}} zipRanges={zipRanges} customers={customers} />
@@ -296,7 +292,7 @@ const App: React.FC = () => {
         const text = `🍔 *NOVO PEDIDO #${lastOrder.id}*\n\n*Cliente:* ${lastOrder.customerName}\n*Itens:*\n${lastOrder.items.map(i => `▪️ ${i.quantity}x ${i.name}`).join('\n')}\n\n*Total:* R$ ${lastOrder.total.toFixed(2)}`;
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
       }} isKioskMode={isKioskMode} />
-      {!isAdmin && !isKioskMode && <ChatBot products={products} cart={cart} deliveryFee={0} whatsappNumber={socialLinks.whatsapp} isStoreOpen={isStoreOpen} currentUser={currentUser} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
+      {!isAdmin && !isKioskMode && <ChatBot products={products} cart={cart} deliveryFee={currentDeliveryFee} whatsappNumber={socialLinks.whatsapp} isStoreOpen={isStoreOpen} currentUser={currentUser} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
       {!isAdmin && !isKioskMode && <InstallBanner logoUrl={logoUrl} />}
     </div>
   );

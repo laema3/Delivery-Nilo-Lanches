@@ -52,12 +52,14 @@ export const chatWithAssistant = async (
     - STATUS LOJA: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
     - PRODUTOS: ${productsMenu}
     COMPORTAMENTO: Seja rápido e amigável. Use 'addToCart' para lanches e 'finalizeOrder' para fechar pedidos.
+    IMPORTANTE: Nunca comece uma conversa com 'model'.
   `;
 
   try {
     const cleanHistory: any[] = [];
     let lastRole = '';
 
+    // Filtrar mensagens vazias e garantir alternância de papéis
     history.forEach(h => {
       const currentRole = h.role === 'model' ? 'model' : 'user';
       const text = String(h.text || "").trim();
@@ -68,6 +70,7 @@ export const chatWithAssistant = async (
       }
     });
 
+    // REGRA DE OURO DA API GEMINI: O histórico DEVE começar com 'user'
     if (cleanHistory.length > 0 && cleanHistory[0].role === 'model') {
       cleanHistory.shift();
     }
@@ -87,9 +90,9 @@ export const chatWithAssistant = async (
       functionCalls: response.functionCalls || null
     };
   } catch (error: any) {
-    console.error("Gemini Error:", error);
+    console.error("Gemini Assistant Error:", error);
     return { 
-      text: "Opa, tive um pequeno lapso. Pode repetir o que deseja pedir?", 
+      text: "Opa, tive um pequeno lapso de memória aqui na chapa. Pode repetir o que você deseja pedir?", 
       functionCalls: null 
     };
   }

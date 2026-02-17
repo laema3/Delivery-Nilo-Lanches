@@ -58,11 +58,12 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, onMotoboy
           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-900">© 2024 NILO LANCHES</p>
           
           <div className="flex flex-wrap justify-center items-center gap-6 md:gap-10">
+            {/* PORTAL ENTREGADOR - BOTÃO DE DESTAQUE */}
             <button 
               onClick={onMotoboyClick} 
-              className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-2xl transition-all uppercase tracking-[0.2em] font-black text-[11px] flex items-center gap-3 shadow-lg"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-2xl transition-all uppercase tracking-[0.2em] font-black text-[12px] flex items-center gap-3 shadow-[0_10px_30px_rgba(16,185,129,0.3)] active:scale-95"
             >
-              <span className="text-xl">🛵</span> 
+              <span className="text-2xl">🛵</span> 
               <span>Portal Entregador</span>
             </button>
 
