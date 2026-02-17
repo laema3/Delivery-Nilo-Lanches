@@ -130,6 +130,21 @@ const App: React.FC = () => {
     return () => unsubs.forEach(u => u && u());
   }, [currentUser?.email]);
 
+  // CALCULO DINÂMICO DA TAXA DE ENTREGA BASEADO NO CEP DO CLIENTE
+  const currentDeliveryFee = useMemo(() => {
+    if (!currentUser || !zipRanges.length || isKioskMode) return 0;
+    const rawZip = currentUser.zipCode.replace(/\D/g, '');
+    const numZip = parseInt(rawZip);
+    if (isNaN(numZip)) return 0;
+
+    const range = zipRanges.find(r => {
+      const start = parseInt(r.start.replace(/\D/g, ''));
+      const end = parseInt(r.end.replace(/\D/g, ''));
+      return numZip >= start && numZip <= end;
+    });
+    return range ? range.fee : 0;
+  }, [currentUser, zipRanges, isKioskMode]);
+
   const groupedMenu = useMemo(() => {
     if (!products) return [];
     return [...products]
@@ -140,7 +155,7 @@ const App: React.FC = () => {
         const matchesSubCategory = selectedSubCategoryValue === 'Todos' || safeNormalize(p.subCategory) === safeNormalize(selectedSubCategoryValue);
         return matchesSearch && matchesCategory && matchesSubCategory;
       })
-      .sort((a, b) => a.name.localeCompare(b.name)); // ORDENAÇÃO ALFABÉTICA (A-Z)
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [products, searchTerm, selectedCategory, selectedSubCategoryValue]);
 
   const activeSubCategories = useMemo(() => {
@@ -254,7 +269,6 @@ const App: React.FC = () => {
                  ))}
                </div>
                
-               {/* BARRA DE SUBCATEGORIAS RESTAURADA */}
                {activeSubCategories.length > 0 && (
                  <div className="flex justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar w-full max-w-7xl px-4 pb-2 animate-in slide-in-from-top-2 duration-300">
                    <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategoryValue === 'Todos' ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Tudo</button>
@@ -278,11 +292,12 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {!isAdmin && !isKioskMode && <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} onMotoboyClick={() => setActiveView('motoboy')} />}
+      {!isAdmin && !isKioskMode && <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} onMotoboyClick={() => setActiveView('home')} />}
       
       <CartSidebar 
         isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, delta) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item))} 
-        onRemove={(id) => setCart(prev => prev.filter(item => item.id !== id))} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} isKioskMode={isKioskMode} deliveryFee={0} availableCoupons={[]} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
+        onRemove={(id) => setCart(prev => prev.filter(item => item.id !== id))} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} isKioskMode={isKioskMode} 
+        deliveryFee={currentDeliveryFee} availableCoupons={[]} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
       />
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={() => {}} zipRanges={zipRanges} customers={customers} />
@@ -293,7 +308,7 @@ const App: React.FC = () => {
         const text = `🍔 *NOVO PEDIDO #${lastOrder.id}*\n\n*Cliente:* ${lastOrder.customerName}\n*Itens:*\n${lastOrder.items.map(i => `▪️ ${i.quantity}x ${i.name}`).join('\n')}\n\n*Total:* R$ ${lastOrder.total.toFixed(2)}`;
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
       }} isKioskMode={isKioskMode} />
-      {!isAdmin && !isKioskMode && <ChatBot products={products} cart={cart} deliveryFee={0} whatsappNumber={socialLinks.whatsapp} isStoreOpen={isStoreOpen} currentUser={currentUser} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
+      {!isAdmin && !isKioskMode && <ChatBot products={products} cart={cart} deliveryFee={currentDeliveryFee} whatsappNumber={socialLinks.whatsapp} isStoreOpen={isStoreOpen} currentUser={currentUser} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
       {!isAdmin && !isKioskMode && <InstallBanner logoUrl={logoUrl} />}
     </div>
   );
