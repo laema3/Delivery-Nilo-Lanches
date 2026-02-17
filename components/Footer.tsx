@@ -20,7 +20,6 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, onMotoboy
   return (
     <footer className="bg-slate-950 text-emerald-100/60 py-12 md:py-20 border-t border-emerald-900/30">
       <div className="max-w-7xl mx-auto px-6">
-        {/* Grid de Informações Principais */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16 text-center md:text-left">
           <div className="space-y-6 flex flex-col items-center md:items-start">
             <div className="flex items-center gap-3">
@@ -29,10 +28,10 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, onMotoboy
               </div>
               <span className="text-2xl font-black tracking-tighter text-white uppercase">Nilo Lanches</span>
             </div>
-            <p className="text-xs font-bold leading-relaxed max-w-xs text-emerald-100/40 uppercase tracking-widest">O lanche mais respeitado de Uberaba. Qualidade artesanal em cada mordida.</p>
+            <p className="text-xs font-bold leading-relaxed max-w-xs text-emerald-100/40 uppercase tracking-widest">Qualidade artesanal em cada mordida.</p>
             <div className="flex gap-4">
-              {socialLinks?.instagram && <a href={socialLinks.instagram} target="_blank" className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-emerald-600 transition-all text-[10px] font-black text-white border border-white/5">IG</a>}
-              <a href={whatsappUrl} target="_blank" className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-emerald-600 transition-all text-[10px] font-black text-white border border-white/5">WA</a>
+              {socialLinks?.instagram && <a href={socialLinks.instagram} target="_blank" className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-emerald-600 transition-all text-white border border-white/5">IG</a>}
+              <a href={whatsappUrl} target="_blank" className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-emerald-600 transition-all text-white border border-white/5">WA</a>
             </div>
           </div>
 
@@ -50,22 +49,20 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, onAdminClick, onMotoboy
             <p className="text-base font-bold text-emerald-50/80">Todos os dias: 18:30 às 23:50</p>
             <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${isStoreOpen ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
               <span className={`w-2.5 h-2.5 rounded-full ${isStoreOpen ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
-              {isStoreOpen ? 'Estamos Abertos' : 'Loja Fechada'}
+              {isStoreOpen ? 'Aberto' : 'Fechado'}
             </div>
           </div>
         </div>
 
-        {/* Barra de Rodapé com Links de Gestão */}
         <div className="pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
-          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-900">© 2024 NILO LANCHES - DOMÍNIO OFICIAL</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-900">© 2024 NILO LANCHES</p>
           
           <div className="flex flex-wrap justify-center items-center gap-6 md:gap-10">
-            {/* Botão Entregador - Mais visível e destacado */}
             <button 
               onClick={onMotoboyClick} 
-              className="bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/50 text-emerald-400 hover:text-white px-6 py-3 rounded-2xl transition-all uppercase tracking-[0.2em] font-black text-[11px] flex items-center gap-3 group"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-2xl transition-all uppercase tracking-[0.2em] font-black text-[11px] flex items-center gap-3 shadow-lg"
             >
-              <span className="text-xl group-hover:scale-110 transition-transform">🛵</span> 
+              <span className="text-xl">🛵</span> 
               <span>Portal Entregador</span>
             </button>
 
