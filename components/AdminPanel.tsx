@@ -4,7 +4,7 @@ import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, Orde
 import { compressImage } from '../services/imageService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v5.5 (Marketing Tools)";
+const APP_VERSION = "v5.7 (Confirmação de Segurança)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -36,6 +36,16 @@ interface AdminPanelProps {
     googleTagId?: string;
     facebookPixelId?: string;
     instagramPixelId?: string;
+  }) => void;
+  authSettings: {
+    adminUser: string;
+    adminPass: string;
+    motoboyPass: string;
+  };
+  onUpdateAuthSettings: (settings: {
+    adminUser: string;
+    adminPass: string;
+    motoboyPass: string;
   }) => void;
   onAddProduct: (p: Partial<Product>) => Promise<void>;
   onDeleteProduct: (id: string) => void;
@@ -82,7 +92,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     onUpdateOrderStatus, onDeleteOrder, onUpdateCustomer, onAddCategory, onRemoveCategory, onUpdateCategory, onAddSubCategory, 
     onUpdateSubCategory, onRemoveSubCategory, onAddComplement, onToggleComplement, onRemoveComplement, 
     onAddZipRange, onRemoveZipRange, onAddCoupon, onRemoveCoupon, onLogout, onBackToSite, 
-    paymentSettings, onTogglePaymentMethod, onAddPaymentMethod, onRemovePaymentMethod, onUpdatePaymentSettings
+    paymentSettings, onTogglePaymentMethod, onAddPaymentMethod, onRemovePaymentMethod, onUpdatePaymentSettings,
+    authSettings, onUpdateAuthSettings
   } = props;
 
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -92,6 +103,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [audioEnabled, setAudioEnabled] = useState(true);
   
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [showPassConfirm, setShowPassConfirm] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null); 
   const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 });
@@ -127,6 +139,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [localFacebookPixel, setLocalFacebookPixel] = useState(socialLinks?.facebookPixelId || '');
   const [localInstagramPixel, setLocalInstagramPixel] = useState(socialLinks?.instagramPixelId || '');
 
+  const [localAdminUser, setLocalAdminUser] = useState(authSettings.adminUser || 'nilo');
+  const [localAdminPass, setLocalAdminPass] = useState(authSettings.adminPass || 'nilo123');
+  const [localMotoboyPass, setLocalMotoboyPass] = useState(authSettings.motoboyPass || 'nilo123');
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const formTopRef = useRef<HTMLDivElement>(null);
 
@@ -138,6 +154,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     setLocalFacebookPixel(socialLinks?.facebookPixelId || '');
     setLocalInstagramPixel(socialLinks?.instagramPixelId || '');
   }, [socialLinks]);
+
+  useEffect(() => {
+    setLocalAdminUser(authSettings.adminUser);
+    setLocalAdminPass(authSettings.adminPass);
+    setLocalMotoboyPass(authSettings.motoboyPass);
+  }, [authSettings]);
 
   useEffect(() => {
     audioRef.current = new Audio(NOTIFICATION_SOUND);
@@ -346,6 +368,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
       } else onAddSubCategory(subCatParent, subCatName);
       setSubCatName('');
     }
+  };
+
+  const handleConfirmPassSave = () => {
+    onUpdateAuthSettings({ 
+      adminUser: localAdminUser, 
+      adminPass: localAdminPass, 
+      motoboyPass: localMotoboyPass 
+    });
+    setShowPassConfirm(false);
   };
 
   const activeOrdersCount = orders.filter(o => o.status === 'NOVO' && !deletedIds.includes(o.id)).length;
@@ -895,6 +926,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      </div>
                   </section>
 
+                  {/* SEÇÃO DE SEGURANÇA E ACESSOS */}
+                  <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
+                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                       <span className="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center text-xl">🔒</span>
+                       Segurança e Acessos
+                     </h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                           <label className={labelClass}>Usuário Administrativo</label>
+                           <input value={localAdminUser} onChange={e => setLocalAdminUser(e.target.value)} placeholder="nilo" className={inputClass} />
+                        </div>
+                        <div className="space-y-1">
+                           <label className={labelClass}>Senha Administrativa</label>
+                           <input type="password" value={localAdminPass} onChange={e => setLocalAdminPass(e.target.value)} placeholder="••••••••" className={inputClass} />
+                        </div>
+                        <div className="space-y-1">
+                           <label className={labelClass}>Senha Portal Entregador</label>
+                           <input type="password" value={localMotoboyPass} onChange={e => setLocalMotoboyPass(e.target.value)} placeholder="••••••••" className={inputClass} />
+                        </div>
+                        <div className="flex items-end">
+                           <button 
+                             onClick={() => setShowPassConfirm(true)} 
+                             className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all"
+                           >
+                             Salvar Alterações de Senha
+                           </button>
+                        </div>
+                     </div>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">⚠️ Guarde estas senhas em local seguro. Elas são necessárias para acessar as áreas restritas.</p>
+                  </section>
+
                   <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
                        <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center text-xl">📱</span>
@@ -970,6 +1032,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
               <div className="flex flex-col gap-4">
                  <button onClick={confirmDelete} className="w-full py-6 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-xl transition-all active:scale-95">Confirmar Exclusão</button>
                  <button onClick={() => setDeleteTarget(null)} className="w-full py-4 text-slate-400 font-bold uppercase text-xs hover:text-slate-600">Cancelar</button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {showPassConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+           <div className="bg-white border border-slate-200 p-10 rounded-[40px] max-w-md w-full text-center space-y-8 shadow-2xl animate-in zoom-in-95">
+              <div className="text-7xl">🔐</div>
+              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Confirmar Alteração?</h3>
+              <p className="text-slate-500 text-sm font-bold">Você tem certeza que deseja alterar as senhas de acesso ao sistema?</p>
+              <div className="flex flex-col gap-4">
+                 <button onClick={handleConfirmPassSave} className="w-full py-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-xl transition-all active:scale-95">Sim, Salvar Senhas</button>
+                 <button onClick={() => setShowPassConfirm(false)} className="w-full py-4 text-slate-400 font-bold uppercase text-xs hover:text-slate-600">Cancelar</button>
               </div>
            </div>
         </div>

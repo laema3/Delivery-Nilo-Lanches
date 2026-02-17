@@ -5,14 +5,15 @@ interface AdminLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  correctUser: string;
+  correctPass: string;
 }
 
-export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClose, onSuccess, correctUser, correctPass }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
 
-  // Limpa os campos quando o modal abre ou fecha
   useEffect(() => {
     if (!isOpen) {
       setUsername('');
@@ -21,19 +22,14 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
     }
   }, [isOpen]);
 
-  // Credenciais padrão do sistema - Usuário alterado de 'admin' para 'nilo'
-  const ADMIN_USER = 'nilo';
-  const ADMIN_PASS = 'nilo123';
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim() === ADMIN_USER && password.trim() === ADMIN_PASS) {
+    if (username.trim() === correctUser && password.trim() === correctPass) {
       setError(false);
       onSuccess();
       onClose();
     } else {
       setError(true);
-      // Feedback visual de erro dura 3 segundos
       setTimeout(() => setError(false), 3000);
     }
   };

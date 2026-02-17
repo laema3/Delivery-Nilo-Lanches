@@ -44,6 +44,14 @@ const App: React.FC = () => {
     instagram: '', whatsapp: '', facebook: '', 
     googleTagId: '', facebookPixelId: '', instagramPixelId: '' 
   });
+
+  // CONFIGURAÇÕES DE AUTENTICAÇÃO DINÂMICAS
+  const [authSettings, setAuthSettings] = useState({
+    adminUser: 'nilo',
+    adminPass: 'nilo123',
+    motoboyPass: 'nilo123'
+  });
+
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -118,13 +126,23 @@ const App: React.FC = () => {
       dbService.subscribe<Customer[]>('customers', (data) => data && setCustomers(data)),
       dbService.subscribe<any[]>('settings', (data) => {
         if (data && data.length > 0) {
-          const settings = data.find(d => d.id === 'general') || data[0];
+          // Configurações Gerais
+          const settings = data.find(d => d.id === 'general');
           if (settings) {
             if (settings.isStoreOpen !== undefined) setIsStoreOpen(settings.isStoreOpen);
             if (settings.logoUrl) setLogoUrl(settings.logoUrl);
             setSocialLinks({ 
               instagram: settings.instagram || '', whatsapp: settings.whatsapp || '', facebook: settings.facebook || '',
               googleTagId: settings.googleTagId || '', facebookPixelId: settings.facebookPixelId || '', instagramPixelId: settings.instagramPixelId || ''
+            });
+          }
+          // Configurações de Autenticação
+          const auth = data.find(d => d.id === 'auth');
+          if (auth) {
+            setAuthSettings({
+              adminUser: auth.adminUser || 'nilo',
+              adminPass: auth.adminPass || 'nilo123',
+              motoboyPass: auth.motoboyPass || 'nilo123'
             });
           }
         }
@@ -245,6 +263,7 @@ const App: React.FC = () => {
             isStoreOpen={isStoreOpen} onToggleStore={() => { const next = !isStoreOpen; setIsStoreOpen(next); dbService.save('settings', 'general', { isStoreOpen: next }); }} 
             isKioskMode={isKioskMode} onToggleKioskMode={() => { const next = !isKioskMode; setIsKioskMode(next); localStorage.setItem('nl_kiosk_enabled', String(next)); }} 
             logoUrl={logoUrl} onUpdateLogo={(url) => dbService.save('settings', 'general', { logoUrl: url })} socialLinks={socialLinks} onUpdateSocialLinks={(links) => dbService.save('settings', 'general', { ...links })} 
+            authSettings={authSettings} onUpdateAuthSettings={(settings) => dbService.save('settings', 'auth', settings)}
             onAddProduct={(p) => dbService.save('products', Math.random().toString(36).substring(7), p)} onDeleteProduct={(id) => dbService.remove('products', id)} onUpdateProduct={(p) => dbService.save('products', p.id, p)} 
             onUpdateOrderStatus={(id, status) => dbService.save('orders', id, { status })} onDeleteOrder={(id) => dbService.remove('orders', id)} 
             onUpdateCustomer={(id, updates) => dbService.save('customers', id, updates)} onAddCategory={(name) => dbService.save('categories', Math.random().toString(36).substring(7), { name })} onRemoveCategory={(id) => dbService.remove('categories', id)} onUpdateCategory={(id, name) => dbService.save('categories', id, { name })} onAddSubCategory={(catId, name) => dbService.save('sub_categories', Math.random().toString(36).substring(7), { categoryId: catId, name })} onUpdateSubCategory={(id, name, catId) => dbService.save('sub_categories', id, { name, categoryId: catId })} onRemoveSubCategory={(id) => dbService.remove('sub_categories', id)} 
@@ -311,8 +330,22 @@ const App: React.FC = () => {
       />
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={() => {}} zipRanges={zipRanges} customers={customers} />
-      <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdmin(true); sessionStorage.setItem('nl_admin_auth', 'true'); }} />
-      <MotoboyLoginModal isOpen={isMotoboyLoginOpen} onClose={() => setIsMotoboyLoginOpen(false)} onSuccess={() => { setIsMotoboyAuthenticated(true); sessionStorage.setItem('nl_motoboy_auth', 'true'); setActiveView('motoboy'); }} />
+      
+      <AdminLoginModal 
+        isOpen={isAdminLoginOpen} 
+        onClose={() => setIsAdminLoginOpen(false)} 
+        onSuccess={() => { setIsAdmin(true); sessionStorage.setItem('nl_admin_auth', 'true'); }} 
+        correctUser={authSettings.adminUser}
+        correctPass={authSettings.adminPass}
+      />
+      
+      <MotoboyLoginModal 
+        isOpen={isMotoboyLoginOpen} 
+        onClose={() => setIsMotoboyLoginOpen(false)} 
+        onSuccess={() => { setIsMotoboyAuthenticated(true); sessionStorage.setItem('nl_motoboy_auth', 'true'); setActiveView('motoboy'); }} 
+        correctPass={authSettings.motoboyPass}
+      />
+
       <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} order={lastOrder} onSendWhatsApp={() => {
         if (!lastOrder) return;
         const phone = (socialLinks.whatsapp || '5534991183728').replace(/\D/g, '');

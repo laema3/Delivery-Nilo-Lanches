@@ -5,9 +5,10 @@ interface MotoboyLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  correctPass: string;
 }
 
-export const MotoboyLoginModal: React.FC<MotoboyLoginModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const MotoboyLoginModal: React.FC<MotoboyLoginModalProps> = ({ isOpen, onClose, onSuccess, correctPass }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
 
@@ -18,11 +19,9 @@ export const MotoboyLoginModal: React.FC<MotoboyLoginModalProps> = ({ isOpen, on
     }
   }, [isOpen]);
 
-  const MOTOBOY_PASS = 'nilo123';
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.trim() === MOTOBOY_PASS) {
+    if (password.trim() === correctPass) {
       setError(false);
       onSuccess();
       onClose();
