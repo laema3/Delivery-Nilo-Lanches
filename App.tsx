@@ -7,6 +7,7 @@ import { AdminPanel } from './components/AdminPanel.tsx';
 import { ProductModal } from './components/ProductModal.tsx';
 import { AuthModal } from './components/AuthModal.tsx';
 import { AdminLoginModal } from './components/AdminLoginModal.tsx';
+import { MotoboyLoginModal } from './components/MotoboyLoginModal.tsx';
 import { OrderSuccessModal } from './components/OrderSuccessModal.tsx';
 import { ChatBot } from './components/ChatBot.tsx';
 import { Footer } from './components/Footer.tsx';
@@ -61,7 +62,9 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<'home' | 'my-orders' | 'motoboy'>('home');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+  const [isMotoboyLoginOpen, setIsMotoboyLoginOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
+  const [isMotoboyAuthenticated, setIsMotoboyAuthenticated] = useState(() => sessionStorage.getItem('nl_motoboy_auth') === 'true');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
@@ -130,7 +133,6 @@ const App: React.FC = () => {
     return () => unsubs.forEach(u => u && u());
   }, [currentUser?.email]);
 
-  // CALCULO DINÂMICO DA TAXA DE ENTREGA BASEADO NO CEP DO CLIENTE
   const currentDeliveryFee = useMemo(() => {
     if (!currentUser || !zipRanges.length || isKioskMode) return 0;
     const rawZip = currentUser.zipCode.replace(/\D/g, '');
@@ -192,6 +194,14 @@ const App: React.FC = () => {
         if(isKioskMode) setTimeout(() => setKioskStarted(false), 5000); 
     } catch (e) { setToast({ show: true, msg: 'Erro ao processar.', type: 'error' }); }
     finally { setIsOrderProcessing(false); }
+  };
+
+  const onMotoboyClick = () => {
+    if (isMotoboyAuthenticated) {
+      setActiveView('motoboy');
+    } else {
+      setIsMotoboyLoginOpen(true);
+    }
   };
 
   if (isKioskMode && !kioskStarted && !isAdmin) {
@@ -292,7 +302,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {!isAdmin && !isKioskMode && <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} onMotoboyClick={() => setActiveView('home')} />}
+      {!isAdmin && !isKioskMode && <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} onMotoboyClick={onMotoboyClick} />}
       
       <CartSidebar 
         isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, delta) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item))} 
@@ -302,6 +312,7 @@ const App: React.FC = () => {
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={() => {}} zipRanges={zipRanges} customers={customers} />
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdmin(true); sessionStorage.setItem('nl_admin_auth', 'true'); }} />
+      <MotoboyLoginModal isOpen={isMotoboyLoginOpen} onClose={() => setIsMotoboyLoginOpen(false)} onSuccess={() => { setIsMotoboyAuthenticated(true); sessionStorage.setItem('nl_motoboy_auth', 'true'); setActiveView('motoboy'); }} />
       <OrderSuccessModal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} order={lastOrder} onSendWhatsApp={() => {
         if (!lastOrder) return;
         const phone = (socialLinks.whatsapp || '5534991183728').replace(/\D/g, '');
