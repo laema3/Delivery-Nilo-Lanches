@@ -11,7 +11,7 @@ import { OrderSuccessModal } from './components/OrderSuccessModal.tsx';
 import { ChatBot } from './components/ChatBot.tsx';
 import { Footer } from './components/Footer.tsx';
 import { CustomerOrders } from './components/CustomerOrders.tsx';
-import { MotoboyPortal } from './components/MotoboyPortal.tsx'; // NOVO
+import { MotoboyPortal } from './components/MotoboyPortal.tsx';
 import { Toast } from './components/Toast.tsx';
 import { ProductLoader } from './components/ProductLoader.tsx';
 import { InstallBanner } from './components/InstallBanner.tsx';
@@ -59,7 +59,7 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [selectedSubCategoryValue, setSelectedSubCategory] = useState<string>('Todos'); 
-  const [activeView, setActiveView] = useState<'home' | 'my-orders' | 'motoboy'>('home'); // ATUALIZADO
+  const [activeView, setActiveView] = useState<'home' | 'my-orders' | 'motoboy'>('home');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
@@ -78,49 +78,12 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
-  // Efeito para Sincronizar Ícones do PWA com a Logomarca
   useEffect(() => {
     if (logoUrl) {
-      // 1. Atualiza Favicon
       const favicon = document.getElementById('app-favicon') as HTMLLinkElement;
       if (favicon) favicon.href = logoUrl;
-
-      // 2. Atualiza Apple Touch Icon (iOS)
       const appleIcon = document.getElementById('app-apple-touch-icon') as HTMLLinkElement;
       if (appleIcon) appleIcon.href = logoUrl;
-
-      // 3. Atualiza Manifest Dinamicamente
-      try {
-        const manifest = {
-          "short_name": "Nilo Lanches",
-          "name": "Nilo Lanches Delivery",
-          "start_url": "/",
-          "display": "standalone",
-          "theme_color": "#008000",
-          "background_color": "#ffffff",
-          "icons": [
-            {
-              "src": logoUrl,
-              "sizes": "192x192",
-              "type": "image/png",
-              "purpose": "any maskable"
-            },
-            {
-              "src": logoUrl,
-              "sizes": "512x512",
-              "type": "image/png",
-              "purpose": "any maskable"
-            }
-          ]
-        };
-        const stringManifest = JSON.stringify(manifest);
-        const blob = new Blob([stringManifest], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(blob);
-        const manifestLink = document.querySelector('link[rel="manifest"]');
-        if (manifestLink) manifestLink.setAttribute('href', manifestURL);
-      } catch (e) {
-        console.warn("Manifest update failed:", e);
-      }
     }
   }, [logoUrl]);
 
@@ -131,32 +94,40 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubs = [
-      dbService.subscribe<Product[]>('products', setProducts),
-      dbService.subscribe<Order[]>('orders', (newOrders) => {
-        if (currentUser && previousOrdersRef.current.length > 0) {
-          newOrders.forEach(order => {
-            if (order.customerId === currentUser.email) {
-              const prevOrder = previousOrdersRef.current.find(o => o.id === order.id);
-              if (prevOrder && prevOrder.status !== order.status) {
-                setToast({ 
-                  show: true, 
-                  msg: `Seu pedido #${order.id.substring(0,4)} agora está ${order.status}!`, 
-                  type: 'success' 
-                });
-              }
-            }
-          });
-        }
-        previousOrdersRef.current = newOrders;
-        setOrders(newOrders);
+      dbService.subscribe<Product[]>('products', (data) => {
+        if (data) setProducts([...data].sort((a, b) => a.name.localeCompare(b.name)));
       }),
-      dbService.subscribe<CategoryItem[]>('categories', (data) => setCategories([...data].sort((a, b) => a.name.localeCompare(b.name)))),
-      dbService.subscribe<SubCategoryItem[]>('sub_categories', (data) => setSubCategories([...data].sort((a, b) => a.name.localeCompare(b.name)))),
-      dbService.subscribe<Complement[]>('complements', setComplements),
-      dbService.subscribe<ZipRange[]>('zip_ranges', setZipRanges),
-      dbService.subscribe<PaymentSettings[]>('payment_methods', setPaymentMethods),
-      dbService.subscribe<Coupon[]>('coupons', setCoupons),
-      dbService.subscribe<Customer[]>('customers', setCustomers),
+      dbService.subscribe<Order[]>('orders', (newOrders) => {
+        if (newOrders) {
+           if (currentUser && previousOrdersRef.current.length > 0) {
+             newOrders.forEach(order => {
+               if (order.customerId === currentUser.email) {
+                 const prevOrder = previousOrdersRef.current.find(o => o.id === order.id);
+                 if (prevOrder && prevOrder.status !== order.status) {
+                   setToast({ 
+                     show: true, 
+                     msg: `Seu pedido #${order.id.substring(0,4)} agora está ${order.status}!`, 
+                     type: 'success' 
+                   });
+                 }
+               }
+             });
+           }
+           previousOrdersRef.current = newOrders;
+           setOrders(newOrders);
+        }
+      }),
+      dbService.subscribe<CategoryItem[]>('categories', (data) => {
+        if (data) setCategories([...data].sort((a, b) => a.name.localeCompare(b.name)));
+      }),
+      dbService.subscribe<SubCategoryItem[]>('sub_categories', (data) => {
+        if (data) setSubCategories([...data].sort((a, b) => a.name.localeCompare(b.name)));
+      }),
+      dbService.subscribe<Complement[]>('complements', (data) => data && setComplements(data)),
+      dbService.subscribe<ZipRange[]>('zip_ranges', (data) => data && setZipRanges(data)),
+      dbService.subscribe<PaymentSettings[]>('payment_methods', (data) => data && setPaymentMethods(data)),
+      dbService.subscribe<Coupon[]>('coupons', (data) => data && setCoupons(data)),
+      dbService.subscribe<Customer[]>('customers', (data) => data && setCustomers(data)),
       dbService.subscribe<any[]>('settings', (data) => {
         if (data && data.length > 0) {
           const settings = data.find(d => d.id === 'general') || data[0];
@@ -191,12 +162,12 @@ const App: React.FC = () => {
   const groupedMenu = useMemo(() => {
     if (!products) return [];
     return [...products].filter(p => {
-        const s = safeNormalize(searchTerm);
-        const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
-        const matchesCategory = selectedCategory === 'Todos' || safeNormalize(p.category) === safeNormalize(selectedCategory);
-        const matchesSubCategory = selectedSubCategoryValue === 'Todos' || safeNormalize(p.subCategory) === safeNormalize(selectedSubCategoryValue);
-        return matchesSearch && matchesCategory && matchesSubCategory;
-      }).sort((a, b) => a.name.localeCompare(b.name));
+      const s = safeNormalize(searchTerm);
+      const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
+      const matchesCategory = selectedCategory === 'Todos' || safeNormalize(p.category) === safeNormalize(selectedCategory);
+      const matchesSubCategory = selectedSubCategoryValue === 'Todos' || safeNormalize(p.subCategory) === safeNormalize(selectedSubCategoryValue);
+      return matchesSearch && matchesCategory && matchesSubCategory;
+    });
   }, [products, searchTerm, selectedCategory, selectedSubCategoryValue]);
 
   const activeSubCategories = useMemo(() => {
@@ -248,35 +219,22 @@ const App: React.FC = () => {
 
   if (isKioskMode && !kioskStarted && !isAdmin) {
     return (
-      <div 
-        className="fixed inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center cursor-pointer select-none overflow-hidden"
-        onClick={() => setKioskStarted(true)}
-      >
+      <div className="fixed inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center cursor-pointer select-none overflow-hidden" onClick={() => setKioskStarted(true)}>
         <div className="absolute inset-0 z-0">
            <img src="https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=2069" className="w-full h-full object-cover opacity-40 scale-105" alt="Background" />
            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/40" />
         </div>
         <div className="relative z-10 flex flex-col items-center gap-10 animate-in zoom-in duration-500 w-full max-w-4xl px-4 text-center">
-          <div 
-            className="w-48 h-48 sm:w-64 sm:h-64 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center p-4 border-4 border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-bounce-subtle"
-            onMouseDown={handleKioskAdminDown}
-            onMouseUp={handleKioskAdminUp}
-            onTouchStart={handleKioskAdminDown}
-            onTouchEnd={handleKioskAdminUp}
-          >
+          <div className="w-48 h-48 sm:w-64 sm:h-64 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center p-4 border-4 border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-bounce-subtle" onMouseDown={handleKioskAdminDown} onMouseUp={handleKioskAdminUp} onTouchStart={handleKioskAdminDown} onTouchEnd={handleKioskAdminUp}>
              <div className="w-full h-full rounded-full overflow-hidden bg-white shadow-inner flex items-center justify-center">
                 {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" /> : <span className="text-8xl">🍔</span>}
              </div>
           </div>
           <div className="space-y-4">
-            <h1 className="text-6xl sm:text-8xl font-black text-white uppercase tracking-tighter drop-shadow-2xl leading-none">
-              Nilo <span className="text-emerald-500">Lanches</span>
-            </h1>
-            <p className="text-xl sm:text-3xl text-slate-300 font-black uppercase tracking-[0.4em] drop-shadow-lg">Autoatendimento</p>
+            <h1 className="text-6xl sm:text-8xl font-black text-white uppercase tracking-tighter leading-none">Nilo <span className="text-emerald-500">Lanches</span></h1>
+            <p className="text-xl sm:text-3xl text-slate-300 font-black uppercase tracking-[0.4em]">Autoatendimento</p>
           </div>
-          <button onClick={(e) => { e.stopPropagation(); setKioskStarted(true); }} className="mt-8 bg-emerald-700 text-white text-2xl sm:text-4xl font-black py-8 px-16 rounded-[50px] shadow-[0_0_50px_rgba(4,120,87,0.6)] border-b-[8px] border-emerald-900 active:border-b-0 active:translate-y-2 transition-all hover:bg-emerald-600 hover:scale-105 uppercase">
-            <span>👆</span> TOQUE PARA COMEÇAR
-          </button>
+          <button className="mt-8 bg-emerald-700 text-white text-2xl sm:text-4xl font-black py-8 px-16 rounded-[50px] shadow-[0_0_50px_rgba(4,120,87,0.6)] border-b-[8px] border-emerald-900 active:translate-y-2 uppercase">👆 TOQUE PARA COMEÇAR</button>
         </div>
         <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSuccess={() => { setIsAdmin(true); sessionStorage.setItem('nl_admin_auth', 'true'); }} />
       </div>
@@ -312,7 +270,7 @@ const App: React.FC = () => {
           />
         ) : activeView === 'my-orders' ? (
           <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} onReorder={() => {}} />
-        ) : activeView === 'motoboy' ? ( // NOVO
+        ) : activeView === 'motoboy' ? (
           <MotoboyPortal orders={orders} onBack={() => setActiveView('home')} />
         ) : (
           <div className="flex flex-col w-full items-center">
@@ -320,22 +278,14 @@ const App: React.FC = () => {
               <section className="relative w-full min-h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden">
                 <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Banner"/>
                 <div className="relative z-10 text-center px-4 flex flex-col items-center">
-                    
-                    {!isStoreOpen && (
-                      <div className="mb-6 bg-red-600 text-white px-6 py-2 rounded-full font-black uppercase text-xs tracking-widest animate-pulse shadow-xl border border-red-500">
-                        ESTAMOS FECHADOS NO MOMENTO
-                      </div>
-                    )}
-
-                    <h1 className="font-brand text-6xl sm:text-[100px] text-white uppercase leading-none">
-                      <span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span>
-                    </h1>
-                    <button onClick={() => document.getElementById('menu-anchor')?.scrollIntoView({behavior:'smooth'})} className="mt-8 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-brand text-xl border-b-4 border-emerald-800 shadow-xl transition-all active:scale-95 uppercase tracking-widest">Ver Cardápio</button>
+                    {!isStoreOpen && <div className="mb-6 bg-red-600 text-white px-6 py-2 rounded-full font-black uppercase text-xs animate-pulse">ESTAMOS FECHADOS NO MOMENTO</div>}
+                    <h1 className="font-brand text-6xl sm:text-[100px] text-white uppercase leading-none"><span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span></h1>
+                    <button onClick={() => document.getElementById('menu-anchor')?.scrollIntoView({behavior:'smooth'})} className="mt-8 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-brand text-xl border-b-4 border-emerald-800 uppercase">Ver Cardápio</button>
                 </div>
               </section>
             )}
             
-            <div id="menu-anchor" className="bg-slate-100 shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 transition-all duration-300 sticky top-[80px] sm:top-[112px] z-[40]">
+            <div id="menu-anchor" className="bg-slate-100 shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 sticky top-[80px] sm:top-[112px] z-[40]">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
                  <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-4 py-2 sm:px-6 sm:py-3 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Todos</button>
                  {categories.map(cat => (
@@ -354,7 +304,11 @@ const App: React.FC = () => {
 
             <div className="w-full max-w-7xl mx-auto px-6 py-12">
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                  {groupedMenu.map(p => <FoodCard key={p.id} product={p} onAdd={handleAddToCart} onClick={setSelectedProduct} />)}
+                  {groupedMenu.length > 0 ? (
+                    groupedMenu.map(p => <FoodCard key={p.id} product={p} onAdd={handleAddToCart} onClick={setSelectedProduct} />)
+                  ) : (
+                    <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest">Nenhum produto encontrado.</div>
+                  )}
                </div>
             </div>
           </div>

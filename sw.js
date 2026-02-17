@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'nilo-lanches-v5';
+const CACHE_NAME = 'nilo-lanches-v6';
 const ASSETS = [
   '/',
   '/index.html',
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
   
-  // BYPASS CRÍTICO para APIs em tempo real (IA e Banco de Dados)
+  // BYPASS para APIs e Firebase
   if (
     url.includes('firestore.googleapis.com') || 
     url.includes('generativelanguage.googleapis.com') ||

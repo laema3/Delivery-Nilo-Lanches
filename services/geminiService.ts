@@ -81,6 +81,7 @@ export const chatWithAssistant = async (
     const cleanHistory: any[] = [];
     let lastRole = '';
 
+    // Filtra e limpa o histórico para garantir alternância User/Model
     history.forEach(h => {
       const currentRole = h.role === 'model' ? 'model' : 'user';
       const text = String(h.text || "").trim();
@@ -94,6 +95,8 @@ export const chatWithAssistant = async (
       }
     });
 
+    // REGRA CRUCIAL: O histórico para o Gemini DEVE começar com 'user'
+    // Se a primeira mensagem for 'model' (ex: a saudação inicial), removemos ela do contexto enviado à API
     if (cleanHistory.length > 0 && cleanHistory[0].role === 'model') {
       cleanHistory.shift();
     }
@@ -115,9 +118,12 @@ export const chatWithAssistant = async (
   } catch (error: any) {
     console.error("Gemini Error:", error);
     
-    // Mensagens claras para evitar confusão com cache antigo
+    // Fallback amigável caso ocorra erro de contexto
     if (error?.message?.includes('400')) {
-      return { text: "Opa, me perdi um pouco na nossa conversa. Pode repetir o que você deseja pedir?", functionCalls: null };
+      return { 
+        text: "Opa, tive um pequeno lapso de memória aqui na cozinha. Pode repetir seu último pedido ou me dizer o que deseja?", 
+        functionCalls: null 
+      };
     }
     
     return { 
