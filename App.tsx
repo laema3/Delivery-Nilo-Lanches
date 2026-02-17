@@ -78,7 +78,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => setIsInitialLoading(false), 2000);
-    return () => setTimeout(() => setIsInitialLoading(false), 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {

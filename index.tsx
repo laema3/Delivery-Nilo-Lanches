@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
-import './index.css'; // <--- ESTA LINHA É CRUCIAL PARA O VISUAL (TAILWIND)
+import './index.css';
 
-// Tratamento de Service Worker
+// Tratamento de Service Worker com detecção de atualização
 const handleServiceWorker = () => {
   const isSandbox = 
     window.location.hostname.includes('usercontent.goog') || 
@@ -21,7 +22,19 @@ const handleServiceWorker = () => {
 
   if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Nova versão instalada, recarregar para aplicar
+                window.location.reload();
+              }
+            });
+          }
+        });
+      }).catch(() => {});
     });
   }
 };
