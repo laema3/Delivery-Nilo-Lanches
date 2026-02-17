@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'nilo-lanches-v4';
+const CACHE_NAME = 'nilo-lanches-v5';
 const ASSETS = [
   '/',
   '/index.html',
@@ -33,14 +33,13 @@ self.addEventListener('fetch', (event) => {
   const url = event.request.url;
   
   // BYPASS CRÍTICO para APIs em tempo real (IA e Banco de Dados)
-  // Nunca cachear ou interceptar estas URLs no smartphone para evitar falhas de rede PWA
   if (
     url.includes('firestore.googleapis.com') || 
     url.includes('generativelanguage.googleapis.com') ||
     url.includes('google.com') ||
     url.includes('firebase')
   ) {
-    return; // Deixa o navegador lidar com a requisição de rede pura
+    return; 
   }
 
   event.respondWith(

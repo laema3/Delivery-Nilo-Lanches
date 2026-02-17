@@ -78,7 +78,6 @@ export const chatWithAssistant = async (
   `;
 
   try {
-    // HIGIENIZAÇÃO RIGOROSA DO HISTÓRICO PARA MOBILE
     const cleanHistory: any[] = [];
     let lastRole = '';
 
@@ -86,7 +85,6 @@ export const chatWithAssistant = async (
       const currentRole = h.role === 'model' ? 'model' : 'user';
       const text = String(h.text || "").trim();
       
-      // Ignora mensagens vazias e evita roles duplicados seguidos
       if (text && currentRole !== lastRole) {
         cleanHistory.push({
           role: currentRole,
@@ -96,7 +94,6 @@ export const chatWithAssistant = async (
       }
     });
 
-    // A API exige que o histórico comece com 'user'
     if (cleanHistory.length > 0 && cleanHistory[0].role === 'model') {
       cleanHistory.shift();
     }
@@ -112,19 +109,19 @@ export const chatWithAssistant = async (
     });
 
     return {
-      text: response.text || "Estou aqui! Como posso te ajudar?",
+      text: response.text || "Estou aqui! O que posso preparar para você?",
       functionCalls: response.functionCalls || null
     };
   } catch (error: any) {
-    console.error("DEBUG Gemini Service Error:", error);
+    console.error("Gemini Error:", error);
     
-    // Retorna mensagens amigáveis baseadas no tipo de erro
+    // Mensagens claras para evitar confusão com cache antigo
     if (error?.message?.includes('400')) {
-      return { text: "Opa, me perdi um pouco. Pode falar de novo o que você queria?", functionCalls: null };
+      return { text: "Opa, me perdi um pouco na nossa conversa. Pode repetir o que você deseja pedir?", functionCalls: null };
     }
     
     return { 
-      text: "Minha conexão falhou por um segundo! Pode tentar enviar sua mensagem de novo?", 
+      text: "Minha conexão com a cozinha falhou por um segundo! Pode tentar me enviar essa mensagem de novo?", 
       functionCalls: null 
     };
   }
