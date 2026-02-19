@@ -4,7 +4,7 @@ import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, Orde
 import { compressImage } from '../services/imageService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v5.7 (Confirmação de Segurança)";
+const APP_VERSION = "v5.8 (Subcategorias Restauradas)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -401,6 +401,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     }
   };
 
+  // Lógica para filtrar subcategorias baseadas na categoria selecionada no produto
+  const currentCategoryObj = categories.find(c => c.name === newProduct.category);
+  const filteredSubCategories = currentCategoryObj 
+    ? subCategories.filter(s => s.categoryId === currentCategoryObj.id)
+    : [];
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-emerald-200 selection:text-emerald-900">
       <aside className="w-full lg:w-72 bg-slate-950 flex flex-col border-r border-slate-800 shrink-0 z-30">
@@ -555,7 +561,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      <h3 className="text-2xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">{editingId ? '✏️ Editando Produto' : '✨ Novo Produto'}</h3>
                      {editingId && <button onClick={() => { setEditingId(null); setNewProduct({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 }); }} className="text-red-500 text-sm font-bold uppercase hover:underline">Cancelar Edição</button>}
                    </div>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                      <div className="space-y-2">
                         <label className={labelClass}>Nome do Produto</label>
                         <input value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} placeholder="Ex: X-Tudo" className={inputClass} />
@@ -566,16 +572,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      </div>
                      <div className="space-y-2">
                         <label className={labelClass}>Categoria</label>
-                        <select value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} className={inputClass}>
+                        <select value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value, subCategory: ''})} className={inputClass}>
                           <option value="">Selecione...</option>
                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                      </div>
-                     <div className="md:col-span-3 space-y-2">
+                     <div className="space-y-2">
+                        <label className={labelClass}>Subcategoria</label>
+                        <select 
+                          value={newProduct.subCategory || ''} 
+                          onChange={e => setNewProduct({...newProduct, subCategory: e.target.value})} 
+                          className={inputClass}
+                          disabled={!newProduct.category}
+                        >
+                          <option value="">Selecione...</option>
+                          {filteredSubCategories.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                        </select>
+                     </div>
+                     <div className="md:col-span-2 lg:col-span-4 space-y-2">
                         <label className={labelClass}>Descrição Detalhada</label>
                         <textarea rows={3} value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} className={inputClass} />
                      </div>
-                     <div className="md:col-span-3 space-y-2">
+                     <div className="md:col-span-2 lg:col-span-4 space-y-2">
                         <label className={labelClass}>Imagem do Produto (Upload)</label>
                         <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-xl border border-dashed border-slate-300 hover:border-emerald-400">
                           <input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], false)} className="text-sm text-slate-500 file:mr-5 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-emerald-100 file:text-emerald-700 cursor-pointer" />
@@ -596,6 +614,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                            <div>
                              <h4 className="font-black text-slate-800 truncate text-base">{p.name}</h4>
                              <p className="text-emerald-600 text-sm font-black mt-1">R$ {p.price.toFixed(2)}</p>
+                             {p.subCategory && <span className="text-[10px] text-slate-400 font-bold uppercase">{p.subCategory}</span>}
                            </div>
                            <div className="flex gap-3 mt-4 justify-end">
                              <button onClick={() => handleEditProductClick(p)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase">Editar</button>
