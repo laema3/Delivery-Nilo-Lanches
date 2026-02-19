@@ -39,8 +39,9 @@ export const chatWithAssistant = async (
   currentDeliveryFee: number,
   isLoggedIn: boolean
 ) => {
-  // Inicialização garantida a cada chamada
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || (import.meta as any).env.VITE_API_KEY });
+  // Inicialização robusta usando a chave de ambiente
+  const apiKey = process.env.API_KEY || (import.meta as any).env.VITE_API_KEY;
+  const ai = new GoogleGenAI({ apiKey });
 
   const productsMenu = allProducts.map(p => 
     `- ${p.name}: R$ ${p.price.toFixed(2)} | ${p.description}`
@@ -53,17 +54,17 @@ export const chatWithAssistant = async (
     - TAXA: R$ ${currentDeliveryFee.toFixed(2)}
     
     Regras:
-    1. Responda com no máximo 2 frases. Seja muito rápido.
-    2. Use "chapa", "top", "bora".
+    1. Responda com no máximo 2 frases curtas. Seja muito rápido.
+    2. Use gírias como "chapa", "top", "bora".
     3. Para pedidos, use addToCart. Para fechar, finalizeOrder.
-    4. Ignore saudações longas, foque na venda.
+    4. Não enrole, foque em colocar o lanche no carrinho.
   `;
 
   try {
     const formattedHistory: any[] = [];
     
-    // REDUÇÃO PARA MOBILE: Mantemos apenas as últimas 3 mensagens para evitar erro 400 por tamanho de buffer em redes móveis
-    history.slice(-3).forEach(h => {
+    // REDUÇÃO RADICAL PARA MOBILE: Mantemos apenas o contexto imediato para evitar timeouts em redes instáveis
+    history.slice(-2).forEach(h => {
       const text = String(h.text || "").trim();
       if (text) {
         formattedHistory.push({
@@ -73,6 +74,7 @@ export const chatWithAssistant = async (
       }
     });
 
+    // Garante que o histórico não comece com 'model' (exigência da API)
     if (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
       formattedHistory.shift();
     }
@@ -83,21 +85,21 @@ export const chatWithAssistant = async (
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartFunction, finalizeOrderFunction] }],
-        temperature: 0.5,
-        topK: 20,
-        topP: 0.8
+        temperature: 0.7, // Um pouco mais de criatividade para evitar respostas robóticas
+        topK: 40,
+        topP: 0.95
       }
     });
 
     return {
-      text: response.text || "Opa! No que posso te ajudar?",
+      text: response.text || "Opa, bora pedir um lanche?",
       functionCalls: response.functionCalls || null
     };
   } catch (error: any) {
-    console.error("Gemini Critical Mobile Error:", error);
-    // Erros de conexão em smartphones geralmente são recuperáveis com uma nova tentativa
+    console.error("Gemini Mobile Connection Error:", error);
+    // Retorno amigável em caso de queda de sinal no smartphone
     return { 
-      text: "Minha chapa esfriou por um segundo (instabilidade no sinal)! 🍟 Pode repetir o que você queria? Estou aqui.", 
+      text: "Minha chapa esfriou um pouco por causa do sinal! 🍟 Pode repetir o que você queria? Agora vai!", 
       functionCalls: null 
     };
   }
