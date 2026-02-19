@@ -86,7 +86,7 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
-  // Efeito para atualizar ícones da aba do navegador e do celular dinamicamente
+  // Atualiza os ícones de atalho do celular com a logomarca oficial centralizada
   useEffect(() => {
     if (logoUrl && logoUrl !== DEFAULT_LOGO) {
       const favicon = document.getElementById('app-favicon') as HTMLLinkElement;
@@ -237,7 +237,7 @@ const App: React.FC = () => {
            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/40" />
         </div>
         <div className="relative z-10 flex flex-col items-center gap-10 animate-in zoom-in duration-500 w-full max-w-4xl px-4 text-center">
-          <div className="w-48 h-48 sm:w-64 sm:h-64 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center p-4 border-4 border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-bounce-subtle overflow-hidden">
+          <div className="w-48 h-48 sm:w-64 sm:h-64 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center p-4 border-4 border-white/20 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-bounce-subtle">
              <div className="w-full h-full rounded-full overflow-hidden bg-white shadow-inner flex items-center justify-center p-2">
                 {logoUrl ? <img src={logoUrl} className="max-w-full max-h-full object-contain" alt="Logo" /> : <span className="text-8xl">🍔</span>}
              </div>
