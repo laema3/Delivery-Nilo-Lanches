@@ -69,11 +69,11 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
       <div className="relative overflow-hidden bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-100 p-5 animate-in slide-in-from-bottom-10 duration-700">
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg border-2 border-white shrink-0 overflow-hidden">
+            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg border-2 border-slate-50 shrink-0 overflow-hidden p-1.5">
               {logoUrl ? (
-                <img src={logoUrl} className="w-full h-full object-cover" alt="Logo do App" />
+                <img src={logoUrl} className="max-w-full max-h-full object-contain" alt="Logo do App" />
               ) : (
-                <span className="text-3xl text-white">🍔</span>
+                <span className="text-3xl text-emerald-600">🍔</span>
               )}
             </div>
             <div className="flex flex-col items-start text-left">
