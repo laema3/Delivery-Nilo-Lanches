@@ -9,7 +9,7 @@ export const ProductLoader: React.FC<ProductLoaderProps> = ({ logoUrl }) => {
   return (
     <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-white/95 backdrop-blur-xl animate-fade-in">
       <div className="relative flex flex-col items-center">
-        <div className="w-40 h-40 md:w-48 md:h-48 flex items-center justify-center animate-bounce-subtle bg-white rounded-full shadow-2xl p-4 border-2 border-slate-50">
+        <div className="w-40 h-40 md:w-48 md:h-48 flex items-center justify-center animate-bounce-subtle bg-white rounded-full shadow-2xl p-4 border-2 border-slate-50 overflow-hidden">
            {logoUrl ? (
              <img src={logoUrl} className="max-w-full max-h-full object-contain" alt="Logo" />
            ) : (

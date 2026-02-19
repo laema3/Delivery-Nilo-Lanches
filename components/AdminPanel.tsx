@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, OrderStatus, Complement, PaymentSettings, Coupon } from '../types.ts';
 import { compressImage } from '../services/imageService.ts';
+import { dbService } from '../services/dbService.ts';
 
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
-const APP_VERSION = "v5.8 (Subcategorias Restauradas)";
+const APP_VERSION = "v6.0 (Subcategorias & Import SQL)";
 
 interface AdminPanelProps {
   products: Product[];
@@ -142,6 +143,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [localAdminUser, setLocalAdminUser] = useState(authSettings.adminUser || 'nilo');
   const [localAdminPass, setLocalAdminPass] = useState(authSettings.adminPass || 'nilo123');
   const [localMotoboyPass, setLocalMotoboyPass] = useState(authSettings.motoboyPass || 'nilo123');
+
+  const [isImporting, setIsImporting] = useState(false);
+  const [importLog, setImportLog] = useState('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const formTopRef = useRef<HTMLDivElement>(null);
@@ -377,6 +381,54 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
       motoboyPass: localMotoboyPass 
     });
     setShowPassConfirm(false);
+  };
+
+  const handleImportSQL = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportLog('Lendo arquivo SQL...');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split('\n');
+      let count = 0;
+
+      setImportLog(`Processando ${lines.length} linhas...`);
+
+      for (const line of lines) {
+        // Busca padrões simples de INSERT de clientes
+        const emailMatch = line.match(/'([^']+@[^']+)'/);
+        const nameMatch = line.match(/INSERT INTO .* VALUES.*'([^']+)',/i);
+        const phoneMatch = line.match(/['"](\d{10,13})['"]/);
+
+        if (emailMatch) {
+          const email = emailMatch[1];
+          const name = nameMatch ? nameMatch[1] : 'Cliente Importado';
+          const phone = phoneMatch ? phoneMatch[1] : '0000000000';
+
+          await dbService.save('customers', email, {
+            id: email,
+            name,
+            email,
+            phone,
+            password: 'nilo' + Math.floor(Math.random() * 900),
+            address: 'Importado',
+            neighborhood: 'Uberaba',
+            zipCode: '38000000',
+            totalOrders: 0,
+            points: 0,
+            lastOrder: new Date().toISOString()
+          });
+          count++;
+        }
+      }
+      setImportLog(`Sucesso! ${count} clientes importados.`);
+      setTimeout(() => setIsImporting(false), 3000);
+    };
+    reader.readAsText(file);
   };
 
   const activeOrdersCount = orders.filter(o => o.status === 'NOVO' && !deletedIds.includes(o.id)).length;
@@ -945,6 +997,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      </div>
                   </section>
 
+                  {/* IMPORTAÇÃO DE CLIENTES SQL */}
+                  <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
+                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                       <span className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center text-xl">📥</span>
+                       Importar Clientes (SQL)
+                     </h3>
+                     <div className="bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-slate-200">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Selecione um arquivo .sql para importar seus clientes antigos.</p>
+                        <input 
+                          type="file" 
+                          accept=".sql" 
+                          onChange={handleImportSQL}
+                          className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-slate-900 file:text-white cursor-pointer" 
+                        />
+                        {isImporting && (
+                          <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-[10px] font-bold text-emerald-600 uppercase animate-pulse">
+                            {importLog}
+                          </div>
+                        )}
+                     </div>
+                  </section>
+
                   {/* SEÇÃO DE SEGURANÇA E ACESSOS */}
                   <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
@@ -973,7 +1047,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                            </button>
                         </div>
                      </div>
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">⚠️ Guarde estas senhas em local seguro. Elas são necessárias para acessar as áreas restritas.</p>
                   </section>
 
                   <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
@@ -995,28 +1068,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                            <input value={localFacebook} onChange={e => setLocalFacebook(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, facebook: localFacebook })} placeholder="https://facebook.com/nilo..." className={inputClass} />
                         </div>
                      </div>
-                  </section>
-
-                  <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
-                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
-                       <span className="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center text-xl">📈</span>
-                       Marketing e Rastreamento
-                     </h3>
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-1">
-                           <label className={labelClass}>ID Google Tag (Analytics)</label>
-                           <input value={localGoogleTag} onChange={e => setLocalGoogleTag(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, googleTagId: localGoogleTag })} placeholder="G-XXXXXXXX" className={inputClass} />
-                        </div>
-                        <div className="space-y-1">
-                           <label className={labelClass}>ID Facebook Pixel</label>
-                           <input value={localFacebookPixel} onChange={e => setLocalFacebookPixel(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, facebookPixelId: localFacebookPixel })} placeholder="123456789" className={inputClass} />
-                        </div>
-                        <div className="space-y-1">
-                           <label className={labelClass}>ID Instagram Tag</label>
-                           <input value={localInstagramPixel} onChange={e => setLocalInstagramPixel(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, instagramPixelId: localInstagramPixel })} placeholder="Apenas ID numérico" className={inputClass} />
-                        </div>
-                     </div>
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Estes códigos permitem rastrear acessos e conversões no seu site.</p>
                   </section>
                </div>
             )}

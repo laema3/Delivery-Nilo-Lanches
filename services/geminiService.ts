@@ -39,31 +39,31 @@ export const chatWithAssistant = async (
   currentDeliveryFee: number,
   isLoggedIn: boolean
 ) => {
-  // Garantir inicialização limpa a cada chamada para evitar stale key em redes móveis
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Inicialização com a API KEY do ambiente para maior segurança e estabilidade
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || (import.meta as any).env.VITE_API_KEY });
 
   const productsMenu = allProducts.map(p => 
     `- ${p.name}: R$ ${p.price.toFixed(2)} | ${p.description}`
   ).join("\n");
 
   const systemInstruction = `
-    Você é o 'Nilo', assistente da Nilo Lanches em Uberaba-MG.
+    Você é o 'Nilo', assistente oficial da Nilo Lanches em Uberaba-MG.
     - STATUS LOJA: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
     - PRODUTOS DISPONÍVEIS: ${productsMenu}
     - TAXA DE ENTREGA: R$ ${currentDeliveryFee.toFixed(2)}
     
-    Diretrizes:
-    1. Seja amigável, rápido e use gírias leves de lanchonete.
-    2. Se o cliente escolher um lanche, use addToCart.
-    3. Se o cliente quiser fechar a conta, use finalizeOrder.
-    4. Mantenha as respostas curtas e focadas em converter a venda.
+    Regras:
+    1. Seja extremamente ágil e amigável. Use termos como "chapa", "lanche top", "bora comer".
+    2. Se o cliente quer algo do menu, use addToCart imediatamente.
+    3. Se o cliente quer fechar o pedido, use finalizeOrder.
+    4. Mantenha as respostas curtas (máximo 2-3 frases) para facilitar leitura no celular.
   `;
 
   try {
     const formattedHistory: any[] = [];
     
-    // Filtragem agressiva do histórico para evitar estouro de tokens ou formatação inválida no mobile
-    history.slice(-6).forEach(h => {
+    // REDUÇÃO AGRESSIVA DO HISTÓRICO: Mantemos apenas as últimas 4 mensagens para estabilidade em 4G/5G
+    history.slice(-4).forEach(h => {
       const text = String(h.text || "").trim();
       if (text) {
         formattedHistory.push({
@@ -73,32 +73,31 @@ export const chatWithAssistant = async (
       }
     });
 
-    // O Gemini exige que se houver histórico, ele comece obrigatoriamente com o papel 'user'
+    // O Gemini exige que a primeira mensagem do histórico seja do 'user' se ele existir
     if (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
       formattedHistory.shift();
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", // Modelo leve ideal para conexões instáveis
+      model: "gemini-3-flash-preview", // Modelo rápido ideal para smartphones
       contents: [...formattedHistory, { role: 'user', parts: [{ text: message }] }],
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartFunction, finalizeOrderFunction] }],
-        temperature: 0.7, // Um pouco mais criativo e humano
-        topK: 40,
-        topP: 0.95
+        temperature: 0.6,
+        topK: 32,
+        topP: 0.9
       }
     });
 
     return {
-      text: response.text || "Estou aqui! O que deseja pedir hoje?",
+      text: response.text || "Opa! No que posso te ajudar com o cardápio hoje?",
       functionCalls: response.functionCalls || null
     };
   } catch (error: any) {
-    console.error("Gemini Assistant Critical Error:", error);
-    // Erros 400 no Gemini geralmente indicam histórico mal formado ou bloqueio de segurança
+    console.error("Gemini Error:", error);
     return { 
-      text: "Opa, deu um estalo aqui na chapa! 🍳 Pode repetir o que você disse? Estou pronto pra anotar seu pedido.", 
+      text: "Minha conexão falhou por um momento devido ao sinal. 🍟 Pode tentar enviar de novo? Estou pronto pra anotar seu pedido!", 
       functionCalls: null 
     };
   }
