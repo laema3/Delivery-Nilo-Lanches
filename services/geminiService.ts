@@ -39,7 +39,7 @@ export const chatWithAssistant = async (
   currentDeliveryFee: number,
   isLoggedIn: boolean
 ) => {
-  // Inicialização com a API KEY do ambiente para maior segurança e estabilidade
+  // Inicialização garantida a cada chamada
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || (import.meta as any).env.VITE_API_KEY });
 
   const productsMenu = allProducts.map(p => 
@@ -48,22 +48,22 @@ export const chatWithAssistant = async (
 
   const systemInstruction = `
     Você é o 'Nilo', assistente oficial da Nilo Lanches em Uberaba-MG.
-    - STATUS LOJA: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
-    - PRODUTOS DISPONÍVEIS: ${productsMenu}
-    - TAXA DE ENTREGA: R$ ${currentDeliveryFee.toFixed(2)}
+    - LOJA: ${isStoreOpen ? 'ABERTA' : 'FECHADA'}.
+    - CARDÁPIO: ${productsMenu}
+    - TAXA: R$ ${currentDeliveryFee.toFixed(2)}
     
     Regras:
-    1. Seja extremamente ágil e amigável. Use termos como "chapa", "lanche top", "bora comer".
-    2. Se o cliente quer algo do menu, use addToCart imediatamente.
-    3. Se o cliente quer fechar o pedido, use finalizeOrder.
-    4. Mantenha as respostas curtas (máximo 2-3 frases) para facilitar leitura no celular.
+    1. Responda com no máximo 2 frases. Seja muito rápido.
+    2. Use "chapa", "top", "bora".
+    3. Para pedidos, use addToCart. Para fechar, finalizeOrder.
+    4. Ignore saudações longas, foque na venda.
   `;
 
   try {
     const formattedHistory: any[] = [];
     
-    // REDUÇÃO AGRESSIVA DO HISTÓRICO: Mantemos apenas as últimas 4 mensagens para estabilidade em 4G/5G
-    history.slice(-4).forEach(h => {
+    // REDUÇÃO PARA MOBILE: Mantemos apenas as últimas 3 mensagens para evitar erro 400 por tamanho de buffer em redes móveis
+    history.slice(-3).forEach(h => {
       const text = String(h.text || "").trim();
       if (text) {
         formattedHistory.push({
@@ -73,31 +73,31 @@ export const chatWithAssistant = async (
       }
     });
 
-    // O Gemini exige que a primeira mensagem do histórico seja do 'user' se ele existir
     if (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
       formattedHistory.shift();
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", // Modelo rápido ideal para smartphones
-      contents: [...formattedHistory, { role: 'user', parts: [{ text: message }] }],
+      model: "gemini-3-flash-preview",
+      contents: [...formattedHistory, { role: 'user', parts: [{ text: message.trim() }] }],
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: [addToCartFunction, finalizeOrderFunction] }],
-        temperature: 0.6,
-        topK: 32,
-        topP: 0.9
+        temperature: 0.5,
+        topK: 20,
+        topP: 0.8
       }
     });
 
     return {
-      text: response.text || "Opa! No que posso te ajudar com o cardápio hoje?",
+      text: response.text || "Opa! No que posso te ajudar?",
       functionCalls: response.functionCalls || null
     };
   } catch (error: any) {
-    console.error("Gemini Error:", error);
+    console.error("Gemini Critical Mobile Error:", error);
+    // Erros de conexão em smartphones geralmente são recuperáveis com uma nova tentativa
     return { 
-      text: "Minha conexão falhou por um momento devido ao sinal. 🍟 Pode tentar enviar de novo? Estou pronto pra anotar seu pedido!", 
+      text: "Minha chapa esfriou por um segundo (instabilidade no sinal)! 🍟 Pode repetir o que você queria? Estou aqui.", 
       functionCalls: null 
     };
   }

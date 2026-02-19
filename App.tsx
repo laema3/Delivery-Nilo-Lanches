@@ -86,13 +86,49 @@ const App: React.FC = () => {
     } catch { return null; }
   });
 
-  // Atualiza os ícones de atalho do celular com a logomarca oficial centralizada
+  // Atualiza os ícones de sistema e o MANIFESTO dinamicamente com a logomarca
   useEffect(() => {
     if (logoUrl && logoUrl !== DEFAULT_LOGO) {
+      // 1. Atualiza Favicon e Apple Touch Icon
       const favicon = document.getElementById('app-favicon') as HTMLLinkElement;
       const appleIcon = document.getElementById('app-apple-touch-icon') as HTMLLinkElement;
       if (favicon) favicon.href = logoUrl;
       if (appleIcon) appleIcon.href = logoUrl;
+
+      // 2. Gera manifesto dinâmico para garantir o ícone do App instalado
+      const dynamicManifest = {
+        "short_name": "Nilo Lanches",
+        "name": "Nilo Lanches Delivery Oficial",
+        "description": "O melhor lanche artesanal de Uberaba.",
+        "icons": [
+          {
+            "src": logoUrl,
+            "type": "image/png",
+            "sizes": "192x192",
+            "purpose": "any"
+          },
+          {
+            "src": logoUrl,
+            "type": "image/png",
+            "sizes": "512x512",
+            "purpose": "maskable"
+          }
+        ],
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "theme_color": "#008000",
+        "background_color": "#ffffff"
+      };
+
+      const stringManifest = JSON.stringify(dynamicManifest);
+      const blob = new Blob([stringManifest], {type: 'application/json'});
+      const manifestURL = URL.createObjectURL(blob);
+      const manifestTag = document.getElementById('app-manifest') as HTMLLinkElement;
+      if (manifestTag) {
+        manifestTag.href = manifestURL;
+      }
     }
   }, [logoUrl]);
 
