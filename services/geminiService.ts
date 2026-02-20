@@ -39,7 +39,7 @@ export const chatWithAssistant = async (
   currentDeliveryFee: number,
   isLoggedIn: boolean
 ) => {
-  const apiKey = process.env.API_KEY || (import.meta as any).env.VITE_API_KEY;
+  const apiKey = (import.meta as any).env.VITE_API_KEY;
   if (!apiKey) {
     return { 
       text: "A chave da API do Gemini não foi configurada. Por favor, adicione-a.", 
