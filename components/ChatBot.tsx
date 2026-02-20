@@ -51,17 +51,17 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     const trimmedInput = input.trim();
     if (!trimmedInput || isLoading) return;
 
-    const userText = trimmedInput;
-    const currentHistory = [...messages]; 
-    
+    const userMessage: Message = { role: 'user', text: trimmedInput };
+    const newMessages = [...messages, userMessage];
+
+    setMessages(newMessages);
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userText }]);
     setIsLoading(true);
 
     try {
       const response = await chatWithAssistant(
-        userText, 
-        currentHistory, 
+        trimmedInput, 
+        newMessages, 
         products, 
         isStoreOpen, 
         deliveryFee, 
@@ -134,7 +134,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
   return (
     <div className={`fixed z-[300] flex flex-col items-end transition-all duration-300 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-6 right-6'}`}>
       {isOpen && (
-        <div className="w-full h-[100dvh] sm:h-auto sm:w-[400px] sm:max-h-[600px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+        <div className="w-full h-full sm:h-auto sm:w-[400px] sm:max-h-[600px] bg-white sm:rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
           <div className="bg-emerald-600 p-5 flex items-center justify-between shrink-0 shadow-md">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl shadow-inner">🤖</div>
