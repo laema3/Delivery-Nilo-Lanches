@@ -1,32 +1,23 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { chatWithAssistant } from '../services/geminiService.ts';
+import { startChat } from '../services/geminiService.ts';
 import { Product, CartItem, Customer, Complement } from '../types.ts';
-
-interface Message {
-  role: 'user' | 'model';
-  text: string;
-}
+import { Content, FunctionCall } from '@google/genai';
 
 interface ChatBotProps {
   products: Product[];
   cart: CartItem[];
   deliveryFee: number;
-  whatsappNumber?: string;
   isStoreOpen: boolean;
   currentUser: Customer | null;
-  onAddToCart?: (product: Product, quantity: number, comps?: Complement[]) => void;
-  onClearCart?: () => void;
+  onAddToCart: (product: Product, quantity: number, comps?: Complement[]) => void;
 }
 
 export const ChatBot: React.FC<ChatBotProps> = ({ 
-  products, cart, deliveryFee, whatsappNumber, isStoreOpen, currentUser, onAddToCart, onClearCart 
+  products, cart, deliveryFee, isStoreOpen, currentUser, onAddToCart 
 }) => {
   const [isOpen, setOpen] = useState(false);
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'E aí! Sou o Nilo. 🍔 Pronto para o melhor lanche da sua vida? O que vai ser hoje?' }
-  ]);
+  const [history, setHistory] = useState<Content[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -34,9 +25,8 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isLoading, isOpen]);
+  }, [history, isLoading, isOpen]);
 
-  // Prevenir que o scroll do fundo se mova quando o chat estiver aberto no mobile
   useEffect(() => {
     if (isOpen && window.innerWidth < 640) {
       document.body.style.overflow = 'hidden';
@@ -51,81 +41,57 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     const trimmedInput = input.trim();
     if (!trimmedInput || isLoading) return;
 
-    const userMessage: Message = { role: 'user', text: trimmedInput };
-    const newMessages = [...messages, userMessage];
+    const userMessage: Content = { role: 'user', parts: [{ text: trimmedInput }] };
+    const newHistory = [...history, userMessage];
 
-    setMessages(newMessages);
+    setHistory(newHistory);
     setInput('');
     setIsLoading(true);
 
     try {
-      const response = await chatWithAssistant(
-        trimmedInput, 
-        newMessages, 
-        products, 
-        isStoreOpen, 
-        deliveryFee, 
+      const response = await startChat(
+        newHistory,
+        trimmedInput,
+        products,
+        isStoreOpen,
+        deliveryFee,
         !!currentUser
       );
 
+      const modelResponse: Content = { role: 'model', parts: [] };
+
       if (response.functionCalls) {
-        for (const call of response.functionCalls) {
-          if (call.name === 'addToCart' && onAddToCart) {
-            const { productName, quantity } = call.args as any;
-            const found = products.find(p => 
-              p.name.toLowerCase().includes(productName.toLowerCase()) ||
-              productName.toLowerCase().includes(p.name.toLowerCase())
-            );
-
-            if (found) {
-              onAddToCart(found, quantity || 1);
-              setMessages(prev => [...prev, { 
-                role: 'model', 
-                text: `✅ Adicionei **${quantity}x ${found.name}** ao seu carrinho! Quer algo para acompanhar? 🍟🥤` 
-              }]);
-            } else {
-              setMessages(prev => [...prev, { 
-                role: 'model', 
-                text: `Humm, não achei o "${productName}" no menu. Pode confirmar o nome pra mim?` 
-              }]);
-            }
+        response.functionCalls.forEach((call: FunctionCall) => {
+          if (call.name === 'addToCart') {
+            const { items } = call.args as any;
+            let itemsAddedText = 'Adicionei no seu carrinho:';
+            items.forEach((item: { productName: string, quantity: number }) => {
+              const found = products.find(p => 
+                p.name.toLowerCase().includes(item.productName.toLowerCase()) ||
+                item.productName.toLowerCase().includes(p.name.toLowerCase())
+              );
+              if (found) {
+                onAddToCart(found, item.quantity || 1);
+                itemsAddedText += `\n- ${item.quantity}x ${found.name}`;
+              }
+            });
+            modelResponse.parts.push({ text: itemsAddedText });
           }
-
-          if (call.name === 'finalizeOrder') {
-            if (cart.length === 0) {
-              setMessages(prev => [...prev, { 
-                role: 'model', 
-                text: "Seu carrinho está vazio! Escolha uma delícia do menu primeiro. 🍔" 
-              }]);
-              continue;
-            }
-
-            const args = call.args as any;
-            const subtotal = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0);
-            const total = subtotal + (args.isDelivery ? deliveryFee : 0);
-            
-            const summary = cart.map(i => `▪️ ${i.quantity}x ${i.name}`).join('\n');
-            const waText = `🍔 *PEDIDO NILO LANCHES*\n\n*Cliente:* ${args.customerName}\n*Tipo:* ${args.isDelivery ? '🚀 Entrega' : '🏪 Retirada'}\n*Endereço:* ${args.isDelivery ? args.deliveryAddress : 'BALCÃO'}\n*Pagamento:* ${args.paymentMethod}\n\n*ITENS:*\n${summary}\n\n*TOTAL: R$ ${total.toFixed(2)}*`;
-            
-            const phone = (whatsappNumber || '5534991183728').replace(/\D/g, '');
-            
-            setMessages(prev => [...prev, { role: 'model', text: "🎯 Tudo pronto! Clique no botão do WhatsApp para confirmar o pedido." }]);
-            
-            setTimeout(() => {
-              window.open(`https://wa.me/${phone}?text=${encodeURIComponent(waText)}`, '_blank');
-              if (onClearCart) onClearCart();
-              setOpen(false);
-            }, 1000);
-          }
-        }
+        });
       }
 
       if (response.text) {
-        setMessages(prev => [...prev, { role: 'model', text: response.text }]);
+        modelResponse.parts.push({ text: response.text });
       }
+
+      if (modelResponse.parts.length > 0) {
+        setHistory(prev => [...prev, modelResponse]);
+      }
+
     } catch (err) {
-      console.error("Chat Error Catch:", err);
-      setMessages(prev => [...prev, { role: 'model', text: "Minha conexão falhou por um momento. Pode tentar enviar de novo?" }]);
+      console.error("Chat Error:", err);
+      const errorResponse: Content = { role: 'model', parts: [{ text: "Opa, minha chapa esfriou! Tive um problema de conexão. Pode tentar de novo?" }] };
+      setHistory(prev => [...prev, errorResponse]);
     } finally {
       setIsLoading(false);
     }
@@ -150,18 +116,14 @@ export const ChatBot: React.FC<ChatBotProps> = ({
           </div>
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50 no-scrollbar overscroll-contain">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm font-medium shadow-sm leading-relaxed ${
-                  m.role === 'user' 
+            {history.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm font-medium shadow-sm leading-relaxed ${ 
+                  msg.role === 'user' 
                   ? 'bg-emerald-600 text-white rounded-tr-none' 
                   : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'
                 }`}>
-                  {m.text.split('\n').map((line, lIdx) => (
-                    <p key={lIdx} className={lIdx > 0 ? "mt-1" : ""}>
-                      {line.split('**').map((part, idx) => idx % 2 === 1 ? <strong key={idx} className="font-black text-emerald-800">{part}</strong> : part)}
-                    </p>
-                  ))}
+                  {msg.parts.map((part, pIdx) => part.text && <p key={pIdx}>{part.text}</p>)}
                 </div>
               </div>
             ))}
@@ -173,7 +135,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
                     <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
                     <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                   </div>
-                  <span className="text-[9px] font-black uppercase text-slate-400">Nilo está conferindo...</span>
+                  <span className="text-[9px] font-black uppercase text-slate-400">Nilo está pensando...</span>
                 </div>
               </div>
             )}

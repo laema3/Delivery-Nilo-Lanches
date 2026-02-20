@@ -10,6 +10,7 @@ import { AdminLoginModal } from './components/AdminLoginModal.tsx';
 import { MotoboyLoginModal } from './components/MotoboyLoginModal.tsx';
 import { OrderSuccessModal } from './components/OrderSuccessModal.tsx';
 import { ChatBot } from './components/ChatBot.tsx';
+
 import { Footer } from './components/Footer.tsx';
 import { CustomerOrders } from './components/CustomerOrders.tsx';
 import { MotoboyPortal } from './components/MotoboyPortal.tsx';
@@ -78,6 +79,8 @@ const App: React.FC = () => {
   const [isOrderProcessing, setIsOrderProcessing] = useState(false);
 
   const previousOrdersRef = useRef<Order[]>([]);
+
+
 
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
     try {
@@ -395,7 +398,8 @@ const App: React.FC = () => {
         const text = `🍔 *NOVO PEDIDO #${lastOrder.id}*\n\n*Cliente:* ${lastOrder.customerName}\n*Itens:*\n${lastOrder.items.map(i => `▪️ ${i.quantity}x ${i.name}`).join('\n')}\n\n*Total:* R$ ${lastOrder.total.toFixed(2)}`;
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
       }} isKioskMode={isKioskMode} />
-      {!isAdmin && !isKioskMode && <ChatBot products={products} cart={cart} deliveryFee={currentDeliveryFee} whatsappNumber={socialLinks.whatsapp} isStoreOpen={isStoreOpen} currentUser={currentUser} onAddToCart={handleAddToCart} onClearCart={() => setCart([])} />}
+
+      {!isAdmin && !isKioskMode && <ChatBot products={products} cart={cart} deliveryFee={currentDeliveryFee} isStoreOpen={isStoreOpen} currentUser={currentUser} onAddToCart={handleAddToCart} />}
       {!isAdmin && !isKioskMode && <InstallBanner logoUrl={logoUrl} />}
     </div>
   );
