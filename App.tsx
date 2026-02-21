@@ -80,10 +80,7 @@ const App: React.FC = () => {
 
   const previousOrdersRef = useRef<Order[]>([]);
 
-  // Debug: Verificar se a VITE_API_KEY está sendo carregada
-  useEffect(() => {
-    console.log('VITE_API_KEY:', (import.meta as any).env.VITE_API_KEY);
-  }, []);
+
 
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
     try {
