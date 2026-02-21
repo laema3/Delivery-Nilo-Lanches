@@ -1,6 +1,12 @@
 import { GoogleGenAI, Type, FunctionDeclaration, Content } from "@google/genai";
 import { Product } from "../types.ts";
 
+const apiKey = (import.meta as any).env.VITE_API_KEY;
+let ai: GoogleGenAI;
+if (apiKey) {
+  ai = new GoogleGenAI({ apiKey });
+}
+
 const tools: FunctionDeclaration[] = [
   {
     name: "addToCart",
@@ -55,7 +61,7 @@ const getSystemInstruction = (allProducts: Product[], isStoreOpen: boolean, curr
     ${productsMenu}
 
     **COMO VOCÊ DEVE AGIR:**
-    1.  **SEJA UM VENDEDOR PROATIVO:** Não seja passivo. Se o cliente pedir um lanche, sugira uma bebida ou um acompanhamento. Ex: "Ótima pedida! Para acompanhar seu ${"productName"}, que tal uma porção de fritas crocantes e uma Coca-Cola geladinha?"
+    1.  **SEJA UM VENDEDOR PROATIVO:** Não seja passivo. Se o cliente pedir um lanche, sugira uma bebida ou um acompanhamento. Ex: "Ótima pedida! Para acompanhar seu ${'productName'}, que tal uma porção de fritas crocantes e uma Coca-Cola geladinha?"
     2.  **USE AS FERRAMENTAS:** Use a função 'addToCart' para adicionar itens ao pedido. Use 'showMenu' se o cliente estiver indeciso ou pedir para ver o cardápio.
     3.  **MANTENHA O TOM:** Use uma linguagem jovem e animada. Gírias como "chapa quente", "partiu", "fechou" são bem-vindas. Mantenha as respostas curtas e diretas (máximo 2-3 frases).
     4.  **LOJA FECHADA:** Se a loja estiver fechada, informe o cliente e o horário que voltamos. Não adicione itens ao carrinho.
@@ -76,17 +82,22 @@ export const startChat = async (
     return { text: "A chave da API do Gemini não está configurada corretamente." };
   }
 
-  const ai = new GoogleGenAI({ apiKey });
-  const model = ai.models.create({ model: "gemini-3-flash-preview" });
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const model = ai.models.create({ model: "gemini-3-flash-preview" });
+    const systemInstruction = getSystemInstruction(allProducts, isStoreOpen, currentDeliveryFee, isLoggedIn);
 
-  const systemInstruction = getSystemInstruction(allProducts, isStoreOpen, currentDeliveryFee, isLoggedIn);
+    const chat = model.startChat({
+      history,
+      tools: [{ functionDeclarations: tools }],
+      systemInstruction
+    });
 
-  const chat = model.startChat({
-    history,
-    tools: [{ functionDeclarations: tools }],
-    systemInstruction
-  });
-
-  const result = await chat.sendMessage(message);
-  return result.response;
+    const result = await chat.sendMessage(message);
+    return result.response;
+  } catch (error: any) {
+    console.error("Gemini API Error:", error);
+    const errorMessage = error.message || 'Erro desconhecido na API.';
+    return { text: `Erro na API do Gemini: ${errorMessage}` };
+  }
 };

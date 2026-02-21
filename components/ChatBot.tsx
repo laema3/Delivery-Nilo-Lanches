@@ -88,9 +88,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({
         setHistory(prev => [...prev, modelResponse]);
       }
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Chat Error:", err);
-      const errorResponse: Content = { role: 'model', parts: [{ text: "Opa, minha chapa esfriou! Tive um problema de conexão. Pode tentar de novo?" }] };
+      const errorMessage = err.message || "Opa, minha chapa esfriou! Tive um problema de conexão. Pode tentar de novo?";
+      const errorResponse: Content = { role: 'model', parts: [{ text: errorMessage }] };
       setHistory(prev => [...prev, errorResponse]);
     } finally {
       setIsLoading(false);
