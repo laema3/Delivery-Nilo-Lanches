@@ -84,20 +84,23 @@ export const startChat = async (
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const model = ai.models.create({ model: "gemini-3-flash-preview" });
     const systemInstruction = getSystemInstruction(allProducts, isStoreOpen, currentDeliveryFee, isLoggedIn);
 
-    const chat = model.startChat({
+    const chat = ai.chats.create({
+      model: "gemini-3-flash-preview",
       history,
-      tools: [{ functionDeclarations: tools }],
-      systemInstruction
+      config: {
+        systemInstruction,
+        tools: [{ functionDeclarations: tools }],
+      }
     });
 
-    const result = await chat.sendMessage(message);
-    return result.response;
+    const result = await chat.sendMessage({ message });
+    return result;
+
   } catch (error: any) {
     console.error("Gemini API Error:", error);
     const errorMessage = error.message || 'Erro desconhecido na API.';
-    return { text: `Erro na API do Gemini: ${errorMessage}` };
+    return { text: `Erro na API do Gemini: ${errorMessage}`, functionCalls: undefined };
   }
 };
