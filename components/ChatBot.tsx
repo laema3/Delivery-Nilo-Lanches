@@ -49,7 +49,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await startChat(
+      const result = await startChat(
         newHistory,
         trimmedInput,
         products,
@@ -59,6 +59,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
       );
 
       const modelResponse: Content = { role: 'model', parts: [] };
+      const response = result; // A resposta já é o objeto que precisamos
 
       if (response.functionCalls) {
         response.functionCalls.forEach((call: FunctionCall) => {
@@ -80,8 +81,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({
         });
       }
 
-      if (response.text) {
-        modelResponse.parts.push({ text: response.text });
+      // A resposta de texto agora é uma propriedade da resposta
+      const text = response.text;
+      if (text) {
+        modelResponse.parts.push({ text });
       }
 
       if (modelResponse.parts.length > 0) {

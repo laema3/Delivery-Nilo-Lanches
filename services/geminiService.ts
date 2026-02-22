@@ -79,28 +79,30 @@ export const startChat = async (
 ) => {
   const apiKey = (import.meta as any).env.VITE_API_KEY;
   if (!apiKey) {
-    return { text: "A chave da API do Gemini não está configurada corretamente." };
+    return { text: "A chave da API do Gemini não está configurada corretamente.", functionCalls: undefined };
   }
 
   try {
     const ai = new GoogleGenAI({ apiKey });
     const systemInstruction = getSystemInstruction(allProducts, isStoreOpen, currentDeliveryFee, isLoggedIn);
+    
+    const contents = [...history, { role: 'user', parts: [{ text: message }] }];
 
-    const chat = ai.chats.create({
-      model: "gemini-3-flash-preview",
-      history,
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents,
       config: {
         systemInstruction,
         tools: [{ functionDeclarations: tools }],
       }
     });
 
-    const result = await chat.sendMessage({ message });
-    return result;
+    return response;
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
     const errorMessage = error.message || 'Erro desconhecido na API.';
-    return { text: `Erro na API do Gemini: ${errorMessage}`, functionCalls: undefined };
+    // Retornamos um objeto no formato esperado pelo componente para exibir o erro
+    return { text: `Opa! Ocorreu um erro ao conectar com a IA: ${errorMessage}`, functionCalls: undefined };
   }
 };
