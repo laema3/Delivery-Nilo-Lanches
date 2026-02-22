@@ -101,8 +101,13 @@ export const startChat = async (
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    const errorMessage = error.message || 'Erro desconhecido na API.';
-    // Retornamos um objeto no formato esperado pelo componente para exibir o erro
-    return { text: `Opa! Ocorreu um erro ao conectar com a IA: ${errorMessage}`, functionCalls: undefined };
+    let friendlyErrorMessage = 'Opa! Tive um probleminha de conexão. Você pode tentar de novo?';
+    
+    // Verifica se o erro é de limite de cota excedido (código 429)
+    if (error.message && (error.message.includes('429') || error.message.toLowerCase().includes('quota exceeded'))) {
+      friendlyErrorMessage = "Nosso atendimento via inteligência artificial atingiu o limite por hoje. Por favor, continue seu pedido diretamente pelo site ou nos chame no WhatsApp!";
+    }
+
+    return { text: friendlyErrorMessage, functionCalls: undefined };
   }
 };
