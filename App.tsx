@@ -80,9 +80,7 @@ const App: React.FC = () => {
 
   const previousOrdersRef = useRef<Order[]>([]);
 
-  useEffect(() => {
-    console.log('App Version: 1.3'); // Forçar novo build
-  }, []);
+
 
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
     try {
