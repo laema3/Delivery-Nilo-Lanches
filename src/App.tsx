@@ -48,7 +48,7 @@ const App: React.FC = () => {
 
   const [authSettings, setAuthSettings] = useState({
     adminUser: 'nilo',
-    adminPass: 'nilo123',
+    adminPass: 'nilo*2026',
     motoboyPass: 'nilo123'
   });
 
@@ -187,7 +187,7 @@ const App: React.FC = () => {
           if (auth) {
             setAuthSettings({
               adminUser: auth.adminUser || 'nilo',
-              adminPass: auth.adminPass || 'nilo123',
+              adminPass: auth.adminPass || 'nilo*2026',
               motoboyPass: auth.motoboyPass || 'nilo123'
             });
           }
