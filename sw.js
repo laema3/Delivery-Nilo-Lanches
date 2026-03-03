@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'nilo-lanches-v7'; // Versão incrementada para forçar atualização
+const CACHE_NAME = 'nilo-lanches-v9'; // Versão incrementada para forçar atualização
 const ASSETS = [
   '/',
   '/index.html',

@@ -87,8 +87,8 @@ export interface PaymentSettings {
   name: string; 
   enabled: boolean; 
   type: 'ONLINE' | 'DELIVERY'; 
-  token?: string;
-  email?: string;
+  token?: string; // Pode ser usado para PagSeguro ou outros tokens genéricos
+  email?: string; // Pode ser usado para PagSeguro ou outros emails
   description?: string;
 }
 

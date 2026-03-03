@@ -71,7 +71,7 @@ interface AdminPanelProps {
   onRemoveCoupon: (id: string) => void;
   paymentSettings: PaymentSettings[];
   onTogglePaymentMethod: (id: string) => void;
-  onAddPaymentMethod: (name: string, type: 'ONLINE' | 'DELIVERY', email?: string, token?: string) => void;
+  onAddPaymentMethod: (name: string, type: 'ONLINE' | 'DELIVERY') => void;
   onRemovePaymentMethod: (id: string) => void;
   onUpdatePaymentSettings: (id: string, updates: Partial<PaymentSettings>) => void;
   onLogout: () => void;
@@ -130,8 +130,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const [payName, setPayName] = useState('');
   const [payType, setPayType] = useState<'ONLINE' | 'DELIVERY'>('DELIVERY');
-  const [payEmail, setPayEmail] = useState('');
-  const [payToken, setPayToken] = useState('');
 
   const [localInstagram, setLocalInstagram] = useState(socialLinks?.instagram || '');
   const [localWhatsapp, setLocalWhatsapp] = useState(socialLinks?.whatsapp || '');
@@ -892,7 +890,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                         <div className="space-y-1">
                            <label className={labelClass}>Nome do Método</label>
-                           <input value={payName} onChange={e => setPayName(e.target.value)} placeholder="Ex: Pix Online, PagSeguro" className={inputClass} />
+                           <input value={payName} onChange={e => setPayName(e.target.value)} placeholder="Ex: Pix Online, Mercado Pago" className={inputClass} />
                         </div>
                         <div className="space-y-1">
                            <label className={labelClass}>Tipo</label>
@@ -901,22 +899,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                              <option value="ONLINE">Pagamento Online (App)</option>
                            </select>
                         </div>
-
-                        {payType === 'ONLINE' && (
-                          <>
-                            <div className="space-y-1">
-                               <label className={labelClass}>E-mail (PagSeguro)</label>
-                               <input value={payEmail} onChange={e => setPayEmail(e.target.value)} placeholder="email@exemplo.com" className={inputClass} />
-                            </div>
-                            <div className="space-y-1">
-                               <label className={labelClass}>Token (PagSeguro)</label>
-                               <input value={payToken} onChange={e => setPayToken(e.target.value)} placeholder="Cole o token aqui" className={inputClass} />
-                            </div>
-                          </>
-                        )}
                      </div>
                      <div className="flex justify-end pt-4 border-t border-slate-100">
-                        <button onClick={() => { onAddPaymentMethod(payName, payType, payEmail, payToken); setPayName(''); setPayEmail(''); setPayToken(''); }} className={buttonClass}>Salvar Método</button>
+                        <button onClick={() => { onAddPaymentMethod(payName, payType); setPayName(''); }} className={buttonClass}>Salvar Método</button>
                      </div>
                   </div>
 
@@ -935,30 +920,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                 <button onClick={() => requestDelete('PAYMENT', p.id, p.name)} className="text-red-500 text-xs font-black hover:bg-red-50 p-2 rounded-lg">🗑️</button>
                              </div>
                           </div>
-
-                          {p.type === 'ONLINE' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-50">
-                               <div className="space-y-1">
-                                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Cadastrado</label>
-                                  <input 
-                                    defaultValue={p.email || ''} 
-                                    onBlur={(e) => onUpdatePaymentSettings(p.id, { email: e.target.value })}
-                                    placeholder="Não configurado" 
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-emerald-500" 
-                                  />
-                               </div>
-                               <div className="space-y-1">
-                                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Token Ativo</label>
-                                  <input 
-                                    type="password"
-                                    defaultValue={p.token || ''} 
-                                    onBlur={(e) => onUpdatePaymentSettings(p.id, { token: e.target.value })}
-                                    placeholder="Não configurado" 
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-emerald-500" 
-                                  />
-                               </div>
-                            </div>
-                          )}
                        </div>
                      ))}
                   </div>

@@ -197,6 +197,23 @@ const App: React.FC = () => {
     return () => unsubs.forEach(u => u && u());
   }, [currentUser?.email]);
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get('status');
+
+    if (status) {
+      if (status === 'success') {
+        setToast({ show: true, msg: 'Pagamento aprovado com sucesso!', type: 'success' });
+      } else if (status === 'pending') {
+        setToast({ show: true, msg: 'Seu pagamento está pendente.', type: 'success' });
+      } else if (status === 'failure') {
+        setToast({ show: true, msg: 'Seu pagamento não foi aprovado.', type: 'error' });
+      }
+      // Limpa os parâmetros da URL para evitar que a mensagem apareça novamente ao recarregar
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const currentDeliveryFee = useMemo(() => {
     if (!currentUser || !zipRanges.length || isKioskMode) return 0;
     const rawZip = currentUser.zipCode.replace(/\D/g, '');
@@ -246,6 +263,67 @@ const App: React.FC = () => {
         const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
         const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const total = subtotal + fee - discount;
+
+        // Integração Mercado Pago (PIX ou Cartão via MP)
+        const isMercadoPago = paymentMethod.toLowerCase().includes('mercado pago') || paymentMethod.toLowerCase().includes('pix');
+
+        if (isMercadoPago) {
+           try {
+             const response = await fetch('/api/create_preference', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({
+                 items: cart.map(item => ({
+                   id: item.id,
+                   title: item.name,
+                   quantity: item.quantity,
+                   unit_price: item.price
+                 })),
+                 payer: {
+                   email: currentUser?.email || 'cliente@nilo.com',
+                   name: currentUser?.name || 'Cliente'
+                 },
+                 external_reference: orderId
+               })
+             });
+             
+             if (!response.ok) throw new Error('Erro ao criar pagamento no Mercado Pago');
+             
+             const { init_point } = await response.json();
+             
+             // Salva o pedido como AGUARDANDO PAGAMENTO antes de redirecionar
+             const newOrder: Order = {
+               id: orderId, 
+               customerId: currentUser?.email || 'kiosk', 
+               customerName: currentUser?.name || 'Cliente Local', 
+               customerPhone: currentUser?.phone || '000',
+               customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
+               items: [...cart], 
+               total, 
+               deliveryFee: fee, 
+               deliveryType: isKioskMode ? 'PICKUP' : deliveryType, 
+               status: 'AGUARDANDO PAGAMENTO', 
+               paymentMethod, 
+               createdAt: new Date().toISOString(), 
+               pointsEarned: Math.floor(total), 
+               changeFor: changeFor || 0, 
+               discountValue: discount || 0, 
+               couponCode: couponCode || ''
+             };
+             await dbService.save('orders', orderId, newOrder);
+             
+             // Redireciona para o checkout do Mercado Pago
+             window.location.href = init_point;
+             return; 
+           } catch (mpError) {
+             console.error("Erro MP:", mpError);
+             // Se falhar o MP, cai no catch geral ou trata aqui. 
+             // Vamos deixar cair no catch geral para exibir erro.
+             throw mpError;
+           }
+        }
+
+        // --- Lógica existente para outros métodos de pagamento (Dinheiro, Cartão na Entrega) --- 
         const newOrder: Order = {
           id: orderId, customerId: currentUser?.email || 'kiosk', customerName: currentUser?.name || 'Cliente Local', customerPhone: currentUser?.phone || '000',
           customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
@@ -256,8 +334,14 @@ const App: React.FC = () => {
         setIsSuccessModalOpen(true);
         setCart([]);
         if(isKioskMode) setTimeout(() => setKioskStarted(false), 5000); 
-    } catch (e) { setToast({ show: true, msg: 'Erro ao processar.', type: 'error' }); }
-    finally { setIsOrderProcessing(false); }
+    } catch (e) {
+        console.error("Checkout error:", e);
+        setToast({ show: true, msg: 'Erro ao processar pedido. Tente novamente.', type: 'error' });
+        setIsOrderProcessing(false); // Garante que o loading pare em caso de erro
+    } 
+    // Nota: Não colocamos setIsOrderProcessing(false) no finally se for redirecionar, 
+    // mas como o redirecionamento recarrega a página, não tem problema.
+    // Se não redirecionar (erro), cai no catch e reseta.
   };
 
   const onMotoboyClick = () => {
@@ -267,6 +351,12 @@ const App: React.FC = () => {
       setIsMotoboyLoginOpen(true);
     }
   };
+
+  useEffect(() => {
+    const handleOpenMotoboy = () => onMotoboyClick();
+    window.addEventListener('open-motoboy-portal', handleOpenMotoboy);
+    return () => window.removeEventListener('open-motoboy-portal', handleOpenMotoboy);
+  }, [isMotoboyAuthenticated]);
 
   if (isKioskMode && !kioskStarted && !isAdmin) {
     return (
@@ -316,7 +406,7 @@ const App: React.FC = () => {
             onAddComplement={(name, price, cats) => dbService.save('complements', Math.random().toString(36).substring(7), { name, price, applicable_categories: cats, active: true })} onUpdateComplement={(id) => dbService.remove('complements', id)} onToggleComplement={(id) => { const c = complements.find(x => x.id === id); if (c) dbService.save('complements', id, { active: !c.active }); }} onRemoveComplement={(id) => dbService.remove('complements', id)} 
             onAddZipRange={(start, end, fee) => dbService.save('zip_ranges', Math.random().toString(36).substring(7), { start, end, fee })} onUpdateZipRange={(id, start, end, fee) => dbService.save('zip_ranges', id, { start, end, fee })} onRemoveZipRange={(id) => dbService.remove('zip_ranges', id)} 
             onAddCoupon={(code, discount, type) => dbService.save('coupons', Math.random().toString(36).substring(7), { code, discount, type, active: true })} onRemoveCoupon={(id) => dbService.remove('coupons', id)} 
-            paymentSettings={paymentMethods} onTogglePaymentMethod={(id) => { const p = paymentMethods.find(x => x.id === id); if (p) dbService.save('payment_methods', id, { enabled: !p.enabled }); }} onAddPaymentMethod={(name, type, email, token) => dbService.save('payment_methods', Math.random().toString(36).substring(7), { name, type, email, token, enabled: true })} onRemovePaymentMethod={(id) => dbService.remove('payment_methods', id)} onUpdatePaymentSettings={(id, updates) => dbService.save('payment_methods', id, updates)} 
+            paymentSettings={paymentMethods} onTogglePaymentMethod={(id) => { const p = paymentMethods.find(x => x.id === id); if (p) dbService.save('payment_methods', id, { enabled: !p.enabled }); }} onAddPaymentMethod={(name, type) => dbService.save('payment_methods', Math.random().toString(36).substring(7), { name, type, enabled: true })} onRemovePaymentMethod={(id) => dbService.remove('payment_methods', id)} onUpdatePaymentSettings={(id, updates) => dbService.save('payment_methods', id, updates)} 
             onLogout={() => { setIsAdmin(false); sessionStorage.removeItem('nl_admin_auth'); }} onBackToSite={() => setIsAdmin(false)}
           />
         ) : activeView === 'my-orders' ? (
@@ -375,7 +465,19 @@ const App: React.FC = () => {
         deliveryFee={currentDeliveryFee} availableCoupons={[]} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
       />
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={setCurrentUser} onSignup={() => {}} zipRanges={zipRanges} customers={customers} />
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        onLogin={(user) => {
+          setCurrentUser(user);
+          localStorage.setItem('nl_current_user', JSON.stringify(user));
+        }} 
+        onSignup={(newCustomer) => {
+          dbService.save('customers', newCustomer.id, newCustomer);
+        }} 
+        zipRanges={zipRanges} 
+        customers={customers} 
+      />
       
       <AdminLoginModal 
         isOpen={isAdminLoginOpen} 
