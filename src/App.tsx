@@ -242,7 +242,28 @@ const App: React.FC = () => {
         }
       })
     ];
-    return () => unsubs.forEach(u => u && u());
+
+    // Fallback: Busca manual se as subscrições falharem no carregamento inicial
+    const loadInitialData = async () => {
+        console.log("Iniciando carregamento manual de fallback...");
+        if (products.length === 0) {
+            const p = await dbService.getAll<Product>('products');
+            if (p.length > 0) setProducts(p);
+        }
+        if (categories.length === 0) {
+            const c = await dbService.getAll<CategoryItem>('categories');
+            if (c.length > 0) setCategories(c);
+        }
+        // Adicione outros carregamentos manuais se necessário
+    };
+    
+    // Tenta carregar manualmente após 2 segundos se ainda estiver vazio
+    const fallbackTimer = setTimeout(loadInitialData, 2000);
+
+    return () => {
+        unsubs.forEach(u => u && u());
+        clearTimeout(fallbackTimer);
+    };
   }, [currentUser?.email]);
 
   useEffect(() => {

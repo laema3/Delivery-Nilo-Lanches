@@ -25,6 +25,23 @@ export const dbService = {
       throw e;
     }
   },
+  getAll: async <T>(collectionName: string): Promise<T[]> => {
+    if (!db) return [];
+    try {
+      console.log(`[dbService] Buscando todos (getAll) de: ${collectionName}`);
+      const q = query(collection(db, collectionName));
+      const querySnapshot = await getDocs(q);
+      const data: any[] = [];
+      querySnapshot.forEach((doc) => {
+        data.push({ ...doc.data(), id: doc.id });
+      });
+      console.log(`[dbService] getAll ${collectionName}: ${data.length} itens encontrados`);
+      return data as T[];
+    } catch (e) {
+      console.error(`[dbService] Erro ao buscar (getAll) ${collectionName}:`, e);
+      return [];
+    }
+  },
   subscribe: <T>(collectionName: string, callback: (data: T | null) => void) => {
     console.log(`[dbService] Iniciando subscrição para: ${collectionName}`);
     if (!db) {
