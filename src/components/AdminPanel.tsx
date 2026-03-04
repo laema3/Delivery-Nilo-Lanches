@@ -29,6 +29,8 @@ interface AdminPanelProps {
     googleTagId?: string;
     facebookPixelId?: string;
     instagramPixelId?: string;
+    address?: string;
+    city?: string;
   };
   onUpdateSocialLinks: (links: { 
     instagram?: string; 
@@ -37,6 +39,8 @@ interface AdminPanelProps {
     googleTagId?: string;
     facebookPixelId?: string;
     instagramPixelId?: string;
+    address?: string;
+    city?: string;
   }) => void;
   authSettings: {
     adminUser: string;
@@ -49,30 +53,30 @@ interface AdminPanelProps {
     motoboyPass: string;
   }) => void;
   onAddProduct: (p: Partial<Product>) => Promise<void>;
-  onDeleteProduct: (id: string) => void;
+  onDeleteProduct: (id: string) => Promise<void>;
   onUpdateProduct: (p: Product) => void;
   onUpdateOrderStatus: (id: string, status: OrderStatus) => void;
-  onDeleteOrder: (id: string) => void;
+  onDeleteOrder: (id: string) => Promise<void>;
   onUpdateCustomer: (id: string, updates: Partial<Customer>) => void;
   onAddCategory: (name: string) => void;
-  onRemoveCategory: (id: string) => void;
+  onRemoveCategory: (id: string) => Promise<void>;
   onUpdateCategory: (id: string, name: string) => void;
   onAddSubCategory: (catId: string, name: string) => void;
   onUpdateSubCategory: (id: string, name: string, categoryId: string) => void;
-  onRemoveSubCategory: (id: string) => void;
+  onRemoveSubCategory: (id: string) => Promise<void>;
   onAddComplement: (name: string, price: number, applicableCategories?: string[]) => void;
   onUpdateComplement: (id: string, name: string, price: number, applicableCategories?: string[]) => void;
   onToggleComplement: (id: string) => void;
-  onRemoveComplement: (id: string) => void;
+  onRemoveComplement: (id: string) => Promise<void>;
   onAddZipRange: (start: string, end: string, fee: number) => void;
   onUpdateZipRange: (id: string, start: string, end: string, fee: number) => void;
-  onRemoveZipRange: (id: string) => void;
+  onRemoveZipRange: (id: string) => Promise<void>;
   onAddCoupon: (code: string, discount: number, type: 'PERCENT' | 'FIXED') => void;
-  onRemoveCoupon: (id: string) => void;
+  onRemoveCoupon: (id: string) => Promise<void>;
   paymentSettings: PaymentSettings[];
   onTogglePaymentMethod: (id: string) => void;
   onAddPaymentMethod: (name: string, type: 'ONLINE' | 'DELIVERY') => void;
-  onRemovePaymentMethod: (id: string) => void;
+  onRemovePaymentMethod: (id: string) => Promise<void>;
   onUpdatePaymentSettings: (id: string, updates: Partial<PaymentSettings>) => void;
   onLogout: () => void;
   onBackToSite: () => void;
@@ -142,6 +146,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [localAdminPass, setLocalAdminPass] = useState(authSettings.adminPass || 'nilo123');
   const [localMotoboyPass, setLocalMotoboyPass] = useState(authSettings.motoboyPass || 'nilo123');
 
+  const [localAddress, setLocalAddress] = useState(socialLinks?.address || 'Rua Exemplo, 123 - Centro');
+  const [localCity, setLocalCity] = useState(socialLinks?.city || 'Uberaba - MG');
+
   const [isImporting, setIsImporting] = useState(false);
   const [importLog, setImportLog] = useState('');
 
@@ -155,6 +162,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     setLocalGoogleTag(socialLinks?.googleTagId || '');
     setLocalFacebookPixel(socialLinks?.facebookPixelId || '');
     setLocalInstagramPixel(socialLinks?.instagramPixelId || '');
+    setLocalAddress(socialLinks?.address || 'Rua Exemplo, 123 - Centro');
+    setLocalCity(socialLinks?.city || 'Uberaba - MG');
   }, [socialLinks]);
 
   useEffect(() => {
@@ -286,22 +295,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     setDeleteTarget({ type, id, name });
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
-    switch (deleteTarget.type) {
-      case 'ORDER':
-        setDeletedIds(prev => [...prev, deleteTarget.id]);
-        onDeleteOrder(deleteTarget.id);
-        if (selectedOrderId === deleteTarget.id) setSelectedOrderId(null);
-        stopAlarm();
-        break;
-      case 'PRODUCT': onDeleteProduct(deleteTarget.id); break;
-      case 'CATEGORY': onRemoveCategory(deleteTarget.id); break;
-      case 'SUBCATEGORY': onRemoveSubCategory(deleteTarget.id); break;
-      case 'COMPLEMENT': onRemoveComplement(deleteTarget.id); break;
-      case 'COUPON': onRemoveCoupon(deleteTarget.id); break;
-      case 'ZIP': onRemoveZipRange(deleteTarget.id); break;
-      case 'PAYMENT': onRemovePaymentMethod(deleteTarget.id); break;
+    try {
+      switch (deleteTarget.type) {
+        case 'ORDER':
+          setDeletedIds(prev => [...prev, deleteTarget.id]);
+          await onDeleteOrder(deleteTarget.id);
+          if (selectedOrderId === deleteTarget.id) setSelectedOrderId(null);
+          stopAlarm();
+          break;
+        case 'PRODUCT': await onDeleteProduct(deleteTarget.id); break;
+        case 'CATEGORY': await onRemoveCategory(deleteTarget.id); break;
+        case 'SUBCATEGORY': await onRemoveSubCategory(deleteTarget.id); break;
+        case 'COMPLEMENT': await onRemoveComplement(deleteTarget.id); break;
+        case 'COUPON': await onRemoveCoupon(deleteTarget.id); break;
+        case 'ZIP': await onRemoveZipRange(deleteTarget.id); break;
+        case 'PAYMENT': await onRemovePaymentMethod(deleteTarget.id); break;
+      }
+    } catch (error) {
+      console.error("Erro ao excluir:", error);
+      alert("Erro ao excluir item. Verifique sua conexão ou permissões.");
+      if (deleteTarget.type === 'ORDER') {
+        setDeletedIds(prev => prev.filter(id => id !== deleteTarget.id));
+      }
     }
     setDeleteTarget(null);
   };
@@ -1013,9 +1030,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                   <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
                        <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center text-xl">📱</span>
-                       Redes Sociais
+                       Informações da Loja & Redes Sociais
                      </h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                           <label className={labelClass}>Endereço da Loja</label>
+                           <input value={localAddress} onChange={e => setLocalAddress(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, address: localAddress })} placeholder="Rua Exemplo, 123 - Centro" className={inputClass} />
+                        </div>
+                        <div className="space-y-1">
+                           <label className={labelClass}>Cidade - Estado</label>
+                           <input value={localCity} onChange={e => setLocalCity(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, city: localCity })} placeholder="Uberaba - MG" className={inputClass} />
+                        </div>
                         <div className="space-y-1">
                            <label className={labelClass}>Instagram (URL completa)</label>
                            <input value={localInstagram} onChange={e => setLocalInstagram(e.target.value)} onBlur={() => onUpdateSocialLinks({ ...socialLinks, instagram: localInstagram })} placeholder="https://instagram.com/nilo..." className={inputClass} />

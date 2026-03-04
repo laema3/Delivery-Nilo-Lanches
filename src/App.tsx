@@ -43,7 +43,8 @@ const App: React.FC = () => {
   const [logoUrl, setLogoUrl] = useState(DEFAULT_LOGO);
   const [socialLinks, setSocialLinks] = useState({ 
     instagram: '', whatsapp: '', facebook: '', 
-    googleTagId: '', facebookPixelId: '', instagramPixelId: '' 
+    googleTagId: '', facebookPixelId: '', instagramPixelId: '',
+    address: '', city: ''
   });
 
   const [authSettings, setAuthSettings] = useState({
@@ -180,7 +181,8 @@ const App: React.FC = () => {
             if (settings.logoUrl) setLogoUrl(settings.logoUrl);
             setSocialLinks({ 
               instagram: settings.instagram || '', whatsapp: settings.whatsapp || '', facebook: settings.facebook || '',
-              googleTagId: settings.googleTagId || '', facebookPixelId: settings.facebookPixelId || '', instagramPixelId: settings.instagramPixelId || ''
+              googleTagId: settings.googleTagId || '', facebookPixelId: settings.facebookPixelId || '', instagramPixelId: settings.instagramPixelId || '',
+              address: settings.address || '', city: settings.city || ''
             });
           }
           const auth = data.find(d => d.id === 'auth');

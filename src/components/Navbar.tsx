@@ -65,17 +65,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   ⚙️
                 </button>
-
-                <button 
-                  onClick={() => {
-                    const event = new CustomEvent('open-motoboy-portal');
-                    window.dispatchEvent(event);
-                  }} 
-                  className="hidden sm:flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors" 
-                  title="Portal do Motoboy"
-                >
-                  🛵
-                </button>
                 
                 {currentUser ? (
                   <div className="hidden sm:flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">

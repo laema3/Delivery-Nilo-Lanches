@@ -4,7 +4,7 @@ import React from 'react';
 interface FooterProps {
   logoUrl: string;
   isStoreOpen: boolean;
-  socialLinks: { instagram?: string; whatsapp?: string; facebook?: string; };
+  socialLinks: { instagram?: string; whatsapp?: string; facebook?: string; address?: string; city?: string; };
   onAdminClick: () => void;
   onMotoboyClick: () => void;
 }
@@ -33,11 +33,11 @@ export const Footer: React.FC<FooterProps> = ({ logoUrl, isStoreOpen, socialLink
           <ul className="space-y-4 text-sm font-medium">
             <li className="flex items-center gap-3 hover:text-emerald-500 transition-colors cursor-pointer">
               <span className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-lg">📍</span>
-              Rua dos Andradas, 123 - Abadia
+              {socialLinks.address || 'Rua Exemplo, 123 - Centro'}
             </li>
             <li className="flex items-center gap-3 hover:text-emerald-500 transition-colors cursor-pointer">
               <span className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-lg">📞</span>
-              (34) 99118-3728
+              {socialLinks.whatsapp ? `(${socialLinks.whatsapp.substring(2, 4)}) ${socialLinks.whatsapp.substring(4, 9)}-${socialLinks.whatsapp.substring(9)}` : '(34) 99118-3728'}
             </li>
             <li className="flex items-center gap-3 hover:text-emerald-500 transition-colors cursor-pointer">
               <span className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-lg">⏰</span>

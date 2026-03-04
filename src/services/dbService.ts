@@ -15,11 +15,14 @@ export const dbService = {
     }
   },
   remove: async (collectionName: string, id: string) => {
-    if (!db) return;
+    if (!db) throw new Error("Database not initialized");
+    console.log(`[dbService] Tentando excluir documento: ${collectionName}/${id}`);
     try {
       await deleteDoc(doc(db, collectionName, id));
+      console.log(`[dbService] Documento excluído com sucesso: ${collectionName}/${id}`);
     } catch (e) {
-      console.error("Error removing document: ", e);
+      console.error(`[dbService] Erro ao excluir ${collectionName}/${id}:`, e);
+      throw e;
     }
   },
   subscribe: <T>(collectionName: string, callback: (data: T | null) => void) => {
@@ -28,8 +31,10 @@ export const dbService = {
     return onSnapshot(q, (querySnapshot) => {
       const data: any[] = [];
       querySnapshot.forEach((doc) => {
-        data.push({ id: doc.id, ...doc.data() });
+        // Garante que o ID do documento seja o ID real do Firestore, sobrescrevendo qualquer ID interno que possa estar errado
+        data.push({ ...doc.data(), id: doc.id });
       });
+      console.log(`[dbService] Sincronizado ${collectionName}: ${data.length} itens`);
       callback(data as T);
     });
   },
