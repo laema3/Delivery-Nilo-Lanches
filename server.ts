@@ -69,6 +69,7 @@ async function startServer() {
           }
         });
 
+        // O init_point está dentro do objeto retornado pelo SDK v2
         res.json({ id: result.id, init_point: result.init_point });
       } catch (error) {
         console.error('Erro ao criar preferência:', error);
