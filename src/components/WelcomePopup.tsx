@@ -6,18 +6,20 @@ export const WelcomePopup: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const hasSeenPopup = sessionStorage.getItem('nl_welcome_popup_seen');
-    if (!hasSeenPopup) {
+    const viewCount = parseInt(localStorage.getItem('nl_welcome_popup_views') || '0');
+    
+    if (viewCount < 3) {
       const timer = setTimeout(() => {
         setIsOpen(true);
-      }, 1500); // Mostra após 1.5s para não ser tão abrupto
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, []);
 
   const handleClose = () => {
     setIsOpen(false);
-    sessionStorage.setItem('nl_welcome_popup_seen', 'true');
+    const viewCount = parseInt(localStorage.getItem('nl_welcome_popup_views') || '0');
+    localStorage.setItem('nl_welcome_popup_views', (viewCount + 1).toString());
   };
 
   return (
