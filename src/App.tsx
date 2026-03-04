@@ -318,17 +318,18 @@ const App: React.FC = () => {
                  customerPhone: currentUser?.phone || '000',
                  customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
                  items: [...cart], 
-                 total, 
-                 deliveryFee: fee, 
+                 total: total || 0, 
+                 deliveryFee: fee || 0, 
                  deliveryType: isKioskMode ? 'PICKUP' : deliveryType, 
                  status: 'AGUARDANDO PAGAMENTO', 
-                 paymentMethod, 
+                 paymentMethod: paymentMethod || 'Não informado', 
                  createdAt: new Date().toISOString(), 
-                 pointsEarned: Math.floor(total), 
+                 pointsEarned: Math.floor(total || 0), 
                  changeFor: changeFor || 0, 
                  discountValue: discount || 0, 
                  couponCode: couponCode || ''
                };
+               
                await dbService.save('orders', orderId, newOrder);
                
                // Redireciona para o checkout do Mercado Pago

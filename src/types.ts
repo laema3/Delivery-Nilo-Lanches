@@ -36,7 +36,7 @@ export interface CartItem extends Product {
   selectedComplements?: Complement[]; 
 }
 
-export type OrderStatus = 'NOVO' | 'PREPARANDO' | 'PRONTO PARA RETIRADA' | 'SAIU PARA ENTREGA' | 'FINALIZADO' | 'CANCELADO';
+export type OrderStatus = 'NOVO' | 'PREPARANDO' | 'PRONTO PARA RETIRADA' | 'SAIU PARA ENTREGA' | 'FINALIZADO' | 'CANCELADO' | 'AGUARDANDO PAGAMENTO';
 export type DeliveryType = 'DELIVERY' | 'PICKUP';
 
 export interface OrderLocation {
