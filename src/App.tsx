@@ -286,61 +286,59 @@ const App: React.FC = () => {
         const isMercadoPago = paymentMethod.toLowerCase().includes('mercado pago') || paymentMethod.toLowerCase().includes('pix');
 
         if (isMercadoPago) {
-           try {
-             const response = await fetch('/api/create_preference', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({
-                 items: cart.map(item => ({
-                   id: item.id,
-                   title: item.name,
-                   quantity: item.quantity,
-                   unit_price: item.price
-                 })),
-                 payer: {
-                   email: currentUser?.email || 'cliente@nilo.com',
-                   name: currentUser?.name || 'Cliente'
-                 },
-                 external_reference: orderId,
-                 accessToken: paymentConfig.mercadopagoAccessToken
-               })
-             });
-             
-             if (!response.ok) throw new Error('Erro ao criar pagamento no Mercado Pago');
-             
-             const { init_point } = await response.json();
-             
-             // Salva o pedido como AGUARDANDO PAGAMENTO antes de redirecionar
-             const newOrder: Order = {
-               id: orderId, 
-               customerId: currentUser?.email || 'kiosk', 
-               customerName: currentUser?.name || 'Cliente Local', 
-               customerPhone: currentUser?.phone || '000',
-               customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
-               items: [...cart], 
-               total, 
-               deliveryFee: fee, 
-               deliveryType: isKioskMode ? 'PICKUP' : deliveryType, 
-               status: 'AGUARDANDO PAGAMENTO', 
-               paymentMethod, 
-               createdAt: new Date().toISOString(), 
-               pointsEarned: Math.floor(total), 
-               changeFor: changeFor || 0, 
-               discountValue: discount || 0, 
-               couponCode: couponCode || ''
-             };
-             await dbService.save('orders', orderId, newOrder);
-             
-             // Redireciona para o checkout do Mercado Pago
-             localStorage.setItem('nl_last_order_id', orderId);
-             window.location.href = init_point;
-             return; 
-           } catch (mpError) {
-             console.error("Erro MP:", mpError);
-             // Se falhar o MP, cai no catch geral ou trata aqui. 
-             // Vamos deixar cair no catch geral para exibir erro.
-             throw mpError;
-           }
+             try {
+               const response = await fetch('/api/create_preference', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({
+                   items: cart.map(item => ({
+                     id: item.id,
+                     title: item.name,
+                     quantity: item.quantity,
+                     unit_price: item.price
+                   })),
+                   payer: {
+                     email: currentUser?.email || 'cliente@nilo.com',
+                     name: currentUser?.name || 'Cliente'
+                   },
+                   external_reference: orderId,
+                   accessToken: paymentConfig.mercadopagoAccessToken
+                 })
+               });
+               
+               if (!response.ok) throw new Error('Erro ao criar pagamento no Mercado Pago');
+               
+               const { init_point } = await response.json();
+               
+               // Salva o pedido como AGUARDANDO PAGAMENTO antes de redirecionar
+               const newOrder: Order = {
+                 id: orderId, 
+                 customerId: currentUser?.email || 'kiosk', 
+                 customerName: currentUser?.name || 'Cliente Local', 
+                 customerPhone: currentUser?.phone || '000',
+                 customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
+                 items: [...cart], 
+                 total, 
+                 deliveryFee: fee, 
+                 deliveryType: isKioskMode ? 'PICKUP' : deliveryType, 
+                 status: 'AGUARDANDO PAGAMENTO', 
+                 paymentMethod, 
+                 createdAt: new Date().toISOString(), 
+                 pointsEarned: Math.floor(total), 
+                 changeFor: changeFor || 0, 
+                 discountValue: discount || 0, 
+                 couponCode: couponCode || ''
+               };
+               await dbService.save('orders', orderId, newOrder);
+               
+               // Redireciona para o checkout do Mercado Pago
+               localStorage.setItem('nl_last_order_id', orderId);
+               window.location.href = init_point;
+               return; 
+             } catch (mpError) {
+               console.error("Erro MP:", mpError);
+               throw mpError;
+             }
         }
 
         // --- Lógica existente para outros métodos de pagamento (Dinheiro, Cartão na Entrega) --- 
@@ -359,9 +357,6 @@ const App: React.FC = () => {
         setToast({ show: true, msg: 'Erro ao processar pedido. Tente novamente.', type: 'error' });
         setIsOrderProcessing(false); // Garante que o loading pare em caso de erro
     } 
-    // Nota: Não colocamos setIsOrderProcessing(false) no finally se for redirecionar, 
-    // mas como o redirecionamento recarrega a página, não tem problema.
-    // Se não redirecionar (erro), cai no catch e reseta.
   };
 
   const onMotoboyClick = () => {

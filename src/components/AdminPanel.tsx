@@ -926,7 +926,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         </div>
                      </div>
                      <div className="flex justify-end pt-4 border-t border-slate-100">
-                        <button onClick={() => { onAddPaymentMethod(payName, payType); setPayName(''); }} className={buttonClass}>Salvar Método</button>
+                        <button 
+                          onClick={() => { 
+                            if (!payName) return alert('Digite um nome para o método');
+                            onAddPaymentMethod(payName, payType); 
+                            setPayName(''); 
+                          }} 
+                          className="w-full md:w-auto bg-emerald-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-900/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                          <span>➕</span> Salvar Novo Método de Pagamento
+                        </button>
                      </div>
                   </div>
 
@@ -945,6 +954,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                 <button onClick={() => requestDelete('PAYMENT', p.id, p.name)} className="text-red-500 text-xs font-black hover:bg-red-50 p-2 rounded-lg">🗑️</button>
                              </div>
                           </div>
+                          {p.type === 'ONLINE' && (
+                            <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <div className="space-y-1">
+                                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">E-mail (Opcional)</label>
+                                  <input 
+                                    value={p.email || ''} 
+                                    onChange={e => onUpdatePaymentSettings?.(p.id, { email: e.target.value })} 
+                                    placeholder="email@exemplo.com" 
+                                    className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500" 
+                                  />
+                               </div>
+                               <div className="space-y-1">
+                                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Token / Chave (Opcional)</label>
+                                  <input 
+                                    type="password"
+                                    value={p.token || ''} 
+                                    onChange={e => onUpdatePaymentSettings?.(p.id, { token: e.target.value })} 
+                                    placeholder="Token ou Chave Pix" 
+                                    className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500" 
+                                  />
+                               </div>
+                            </div>
+                          )}
                        </div>
                      ))}
                   </div>
@@ -1023,6 +1055,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                            />
                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Obtenha seu token no painel de desenvolvedor do Mercado Pago.</p>
                         </div>
+                        
+                        {!paymentSettings.some(p => p.type === 'ONLINE' && p.enabled) && localMercadoPagoToken && (
+                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3 items-start animate-in fade-in slide-in-from-top-2">
+                            <span className="text-xl">⚠️</span>
+                            <div>
+                              <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Atenção: Método de Pagamento não configurado</p>
+                              <p className="text-[10px] font-bold text-amber-600 uppercase leading-relaxed">
+                                Você inseriu o token, mas ainda não ativou um método de pagamento online. 
+                                Vá na aba <button onClick={() => setActiveView('pagamentos')} className="underline font-black text-amber-800">PAGAMENTOS</button> e adicione um método (ex: Mercado Pago) com o tipo "PAGAMENTO ONLINE (APP)".
+                              </p>
+                              <button 
+                                onClick={() => {
+                                  onAddPaymentMethod('Mercado Pago', 'ONLINE');
+                                  setActiveView('pagamentos');
+                                }}
+                                className="mt-3 bg-amber-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all"
+                              >
+                                Criar Método "Mercado Pago" Agora
+                              </button>
+                            </div>
+                          </div>
+                        )}
                      </div>
                   </section>
 
