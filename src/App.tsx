@@ -146,6 +146,44 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Verifica retorno do Mercado Pago
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    const collectionStatus = params.get('collection_status');
+    const orderId = localStorage.getItem('nl_last_order_id');
+
+    console.log("Verificando retorno MP:", { status, collectionStatus, orderId });
+
+    if ((status || collectionStatus) && orderId) {
+      const finalStatus = status || collectionStatus;
+      
+      if (finalStatus === 'success' || finalStatus === 'approved') {
+        setCart([]);
+        // Busca o pedido para exibir no modal de sucesso
+        const order = orders.find(o => o.id === orderId);
+        if (order) setLastOrder(order);
+        
+        setIsSuccessModalOpen(true);
+        setToast({ show: true, msg: 'Pagamento confirmado com sucesso!', type: 'success' });
+        
+        // Atualiza status localmente para garantir feedback rápido
+        dbService.save('orders', orderId, { status: 'NOVO' }); // Muda de AGUARDANDO PAGAMENTO para NOVO (pago)
+        
+      } else if (finalStatus === 'failure' || finalStatus === 'rejected') {
+        setToast({ show: true, msg: 'O pagamento foi recusado ou falhou.', type: 'error' });
+      } else if (finalStatus === 'pending' || finalStatus === 'in_process') {
+        setCart([]);
+        setIsSuccessModalOpen(true);
+        setToast({ show: true, msg: 'Pagamento em processamento.', type: 'success' });
+      }
+      
+      // Limpa a URL para evitar reprocessamento ao recarregar
+      window.history.replaceState({}, document.title, window.location.pathname);
+      localStorage.removeItem('nl_last_order_id');
+    }
+  }, [orders]); // Dependência orders para garantir que consiga buscar o lastOrder se já estiver carregado
+
   useEffect(() => {
     const unsubs = [
       dbService.subscribe<Product[]>('products', (data) => {
@@ -275,6 +313,8 @@ const App: React.FC = () => {
   };
 
   const handleCheckout = async (paymentMethod: string, fee: number, discount: number, couponCode: string, deliveryType: DeliveryType, changeFor?: number) => {
+    console.log("handleCheckout iniciado. Método:", paymentMethod);
+    
     if (!currentUser && !isKioskMode) return setIsAuthModalOpen(true);
     setIsOrderProcessing(true);
     try {
@@ -283,14 +323,22 @@ const App: React.FC = () => {
         const total = subtotal + fee - discount;
 
         // Integração Mercado Pago (PIX ou Cartão via MP)
-        const isMercadoPago = paymentMethod.toLowerCase().includes('mercado pago') || paymentMethod.toLowerCase().includes('pix');
+        // Normaliza removendo espaços extras e deixando minúsculo para comparação
+        const normalizedPayment = paymentMethod.toLowerCase().trim();
+        const isMercadoPago = normalizedPayment.includes('mercado pago') || 
+                              normalizedPayment.includes('mercadopago') || 
+                              normalizedPayment.includes('pix');
+                              
+        console.log("Verificação de Pagamento:", { 
+            original: paymentMethod, 
+            normalized: normalizedPayment, 
+            isMercadoPago 
+        });
 
         if (isMercadoPago) {
              try {
-               const response = await fetch('/api/create_preference', {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({
+               console.log("Iniciando checkout Mercado Pago...");
+               const mpPayload = {
                    items: cart.map(item => ({
                      id: item.id,
                      title: item.name,
@@ -303,13 +351,30 @@ const App: React.FC = () => {
                    },
                    external_reference: orderId,
                    accessToken: paymentConfig.mercadopagoAccessToken
-                 })
+                 };
+               console.log("Payload enviado para /api/create_preference:", mpPayload);
+
+               const response = await fetch('/api/create_preference', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(mpPayload)
                });
                
-               if (!response.ok) throw new Error('Erro ao criar pagamento no Mercado Pago');
+               if (!response.ok) {
+                   const errorText = await response.text();
+                   console.error("Erro na resposta do Mercado Pago:", response.status, errorText);
+                   throw new Error('Erro ao criar pagamento no Mercado Pago: ' + errorText);
+               }
                
-               const { init_point } = await response.json();
+               const mpData = await response.json();
+               console.log("Resposta do Mercado Pago:", mpData);
+               const { init_point } = mpData;
                
+               if (!init_point) {
+                   console.error("init_point não encontrado na resposta");
+                   throw new Error("Link de pagamento não gerado");
+               }
+
                // Salva o pedido como AGUARDANDO PAGAMENTO antes de redirecionar
                const newOrder: Order = {
                  id: orderId, 
@@ -330,7 +395,12 @@ const App: React.FC = () => {
                  couponCode: couponCode || ''
                };
                
-               await dbService.save('orders', orderId, newOrder);
+               // Remove campos opcionais que podem ser undefined para evitar erro no Firebase
+               const orderToSave = JSON.parse(JSON.stringify(newOrder));
+               
+               console.log("Salvando pedido no banco antes do redirecionamento:", orderToSave);
+               await dbService.save('orders', orderId, orderToSave);
+               console.log("Pedido salvo com sucesso. Redirecionando para:", init_point);
                
                // Redireciona para o checkout do Mercado Pago
                localStorage.setItem('nl_last_order_id', orderId);
@@ -338,6 +408,8 @@ const App: React.FC = () => {
                return; 
              } catch (mpError) {
                console.error("Erro MP:", mpError);
+               alert("Erro ao processar pagamento: " + (mpError instanceof Error ? mpError.message : String(mpError)));
+               setIsOrderProcessing(false); // Reabilita o botão em caso de erro
                throw mpError;
              }
         }
@@ -348,7 +420,13 @@ const App: React.FC = () => {
           customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
           items: [...cart], total, deliveryFee: fee, deliveryType: isKioskMode ? 'PICKUP' : deliveryType, status: 'NOVO', paymentMethod, createdAt: new Date().toISOString(), pointsEarned: Math.floor(total), changeFor: changeFor || 0, discountValue: discount || 0, couponCode: couponCode || ''
         };
-        await dbService.save('orders', orderId, newOrder);
+        
+        // Remove campos opcionais que podem ser undefined
+        const orderToSave = JSON.parse(JSON.stringify(newOrder));
+        
+        console.log("Salvando pedido (Outros métodos):", orderToSave);
+        await dbService.save('orders', orderId, orderToSave);
+        
         setLastOrder(newOrder);
         setIsSuccessModalOpen(true);
         setCart([]);

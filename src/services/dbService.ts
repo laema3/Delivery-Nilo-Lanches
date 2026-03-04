@@ -26,17 +26,27 @@ export const dbService = {
     }
   },
   subscribe: <T>(collectionName: string, callback: (data: T | null) => void) => {
-    if (!db) return () => {};
-    const q = query(collection(db, collectionName));
-    return onSnapshot(q, (querySnapshot) => {
-      const data: any[] = [];
-      querySnapshot.forEach((doc) => {
-        // Garante que o ID do documento seja o ID real do Firestore, sobrescrevendo qualquer ID interno que possa estar errado
-        data.push({ ...doc.data(), id: doc.id });
-      });
-      console.log(`[dbService] Sincronizado ${collectionName}: ${data.length} itens`);
-      callback(data as T);
-    });
+    console.log(`[dbService] Iniciando subscrição para: ${collectionName}`);
+    if (!db) {
+        console.error(`[dbService] Erro: DB não inicializado ao tentar subscrever ${collectionName}`);
+        return () => {};
+    }
+    try {
+        const q = query(collection(db, collectionName));
+        return onSnapshot(q, (querySnapshot) => {
+          const data: any[] = [];
+          querySnapshot.forEach((doc) => {
+            data.push({ ...doc.data(), id: doc.id });
+          });
+          console.log(`[dbService] Sincronizado ${collectionName}: ${data.length} itens`);
+          callback(data as T);
+        }, (error) => {
+            console.error(`[dbService] Erro no onSnapshot de ${collectionName}:`, error);
+        });
+    } catch (err) {
+        console.error(`[dbService] Erro ao criar query para ${collectionName}:`, err);
+        return () => {};
+    }
   },
   auth: auth
 };
