@@ -29,9 +29,18 @@ export const dbService = {
     if (!db) return [];
     try {
       console.log(`[dbService] Buscando todos (getAll) de: ${collectionName}`);
+      
+      // Timeout aumentado para 20 segundos
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout ao buscar dados (20s)")), 20000)
+      );
+      
       const q = query(collection(db, collectionName));
-      const querySnapshot = await getDocs(q);
+      // @ts-ignore
+      const querySnapshot = await Promise.race([getDocs(q), timeoutPromise]);
+      
       const data: any[] = [];
+      // @ts-ignore
       querySnapshot.forEach((doc) => {
         data.push({ ...doc.data(), id: doc.id });
       });

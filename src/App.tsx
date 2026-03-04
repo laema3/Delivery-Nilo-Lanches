@@ -244,12 +244,15 @@ const App: React.FC = () => {
     ];
 
     // Fallback: Busca manual se as subscrições falharem no carregamento inicial
-    const loadInitialData = async () => {
-        console.log("Iniciando carregamento manual de fallback...");
+    const loadInitialData = async (retryCount = 0) => {
+        console.log(`Iniciando carregamento manual de fallback (Tentativa ${retryCount + 1})...`);
+        
         if (products.length === 0) {
             const p = await dbService.getAll<Product>('products');
             if (p.length > 0) setProducts(p);
+            else if (retryCount < 2) setTimeout(() => loadInitialData(retryCount + 1), 3000); // Tenta novamente após 3s
         }
+        
         if (categories.length === 0) {
             const c = await dbService.getAll<CategoryItem>('categories');
             if (c.length > 0) setCategories(c);
@@ -257,8 +260,8 @@ const App: React.FC = () => {
         // Adicione outros carregamentos manuais se necessário
     };
     
-    // Tenta carregar manualmente após 2 segundos se ainda estiver vazio
-    const fallbackTimer = setTimeout(loadInitialData, 2000);
+    // Tenta carregar manualmente após 3 segundos se ainda estiver vazio
+    const fallbackTimer = setTimeout(() => loadInitialData(0), 3000);
 
     return () => {
         unsubs.forEach(u => u && u());
@@ -565,7 +568,15 @@ const App: React.FC = () => {
                   {groupedMenu.length > 0 ? (
                     groupedMenu.map(p => <FoodCard key={p.id} product={p} onAdd={handleAddToCart} onClick={setSelectedProduct} />)
                   ) : (
-                    <div className="col-span-full py-20 text-center opacity-50 font-black uppercase tracking-widest">Nenhum produto encontrado.</div>
+                    <div className="col-span-full py-20 text-center flex flex-col items-center gap-4">
+                        <span className="opacity-50 font-black uppercase tracking-widest">Nenhum produto encontrado.</span>
+                        <button 
+                            onClick={() => window.location.reload()} 
+                            className="bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold uppercase text-xs shadow-lg hover:bg-emerald-700 transition-colors"
+                        >
+                            Recarregar Cardápio
+                        </button>
+                    </div>
                   )}
                </div>
             </div>
