@@ -42,6 +42,12 @@ interface AdminPanelProps {
     address?: string;
     city?: string;
   }) => void;
+  paymentConfig: {
+    mercadopagoAccessToken: string;
+  };
+  onUpdatePaymentConfig: (config: {
+    mercadopagoAccessToken: string;
+  }) => void;
   authSettings: {
     adminUser: string;
     adminPass: string;
@@ -98,7 +104,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     onUpdateSubCategory, onRemoveSubCategory, onAddComplement, onToggleComplement, onRemoveComplement, 
     onAddZipRange, onRemoveZipRange, onAddCoupon, onRemoveCoupon, onLogout, onBackToSite, 
     paymentSettings, onTogglePaymentMethod, onAddPaymentMethod, onRemovePaymentMethod, onUpdatePaymentSettings,
-    authSettings, onUpdateAuthSettings
+    authSettings, onUpdateAuthSettings,
+    paymentConfig, onUpdatePaymentConfig
   } = props;
 
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -148,6 +155,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const [localAddress, setLocalAddress] = useState(socialLinks?.address || 'Rua Exemplo, 123 - Centro');
   const [localCity, setLocalCity] = useState(socialLinks?.city || 'Uberaba - MG');
+  const [localMercadoPagoToken, setLocalMercadoPagoToken] = useState(paymentConfig?.mercadopagoAccessToken || '');
 
   const [isImporting, setIsImporting] = useState(false);
   const [importLog, setImportLog] = useState('');
@@ -994,6 +1002,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                             {importLog}
                           </div>
                         )}
+                     </div>
+                  </section>
+
+                  <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
+                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                       <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center text-xl">💳</span>
+                       Configuração Mercado Pago
+                     </h3>
+                     <div className="space-y-4">
+                        <div className="space-y-1">
+                           <label className={labelClass}>Access Token (Produção ou Teste)</label>
+                           <input 
+                             type="password" 
+                             value={localMercadoPagoToken} 
+                             onChange={e => setLocalMercadoPagoToken(e.target.value)} 
+                             onBlur={() => onUpdatePaymentConfig({ mercadopagoAccessToken: localMercadoPagoToken })}
+                             placeholder="APP_USR-..." 
+                             className={inputClass} 
+                           />
+                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Obtenha seu token no painel de desenvolvedor do Mercado Pago.</p>
+                        </div>
                      </div>
                   </section>
 

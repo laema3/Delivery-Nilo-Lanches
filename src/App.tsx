@@ -48,6 +48,10 @@ const App: React.FC = () => {
     address: '', city: ''
   });
 
+  const [paymentConfig, setPaymentConfig] = useState({
+    mercadopagoAccessToken: ''
+  });
+
   const [authSettings, setAuthSettings] = useState({
     adminUser: 'nilo',
     adminPass: 'nilo*2026',
@@ -185,6 +189,9 @@ const App: React.FC = () => {
               googleTagId: settings.googleTagId || '', facebookPixelId: settings.facebookPixelId || '', instagramPixelId: settings.instagramPixelId || '',
               address: settings.address || '', city: settings.city || ''
             });
+            setPaymentConfig({
+              mercadopagoAccessToken: settings.mercadopagoAccessToken || ''
+            });
           }
           const auth = data.find(d => d.id === 'auth');
           if (auth) {
@@ -207,6 +214,14 @@ const App: React.FC = () => {
     if (status) {
       if (status === 'success') {
         setToast({ show: true, msg: 'Pagamento aprovado com sucesso!', type: 'success' });
+        
+        // Atualiza o status do pedido para NOVO
+        const lastOrderId = localStorage.getItem('nl_last_order_id');
+        if (lastOrderId) {
+          dbService.save('orders', lastOrderId, { status: 'NOVO' });
+          localStorage.removeItem('nl_last_order_id');
+          setCart([]); // Limpa o carrinho após sucesso
+        }
       } else if (status === 'pending') {
         setToast({ show: true, msg: 'Seu pagamento está pendente.', type: 'success' });
       } else if (status === 'failure') {
@@ -286,7 +301,8 @@ const App: React.FC = () => {
                    email: currentUser?.email || 'cliente@nilo.com',
                    name: currentUser?.name || 'Cliente'
                  },
-                 external_reference: orderId
+                 external_reference: orderId,
+                 accessToken: paymentConfig.mercadopagoAccessToken
                })
              });
              
@@ -316,6 +332,7 @@ const App: React.FC = () => {
              await dbService.save('orders', orderId, newOrder);
              
              // Redireciona para o checkout do Mercado Pago
+             localStorage.setItem('nl_last_order_id', orderId);
              window.location.href = init_point;
              return; 
            } catch (mpError) {
@@ -410,6 +427,7 @@ const App: React.FC = () => {
             onAddZipRange={(start, end, fee) => dbService.save('zip_ranges', Math.random().toString(36).substring(7), { start, end, fee })} onUpdateZipRange={(id, start, end, fee) => dbService.save('zip_ranges', id, { start, end, fee })} onRemoveZipRange={(id) => dbService.remove('zip_ranges', id)} 
             onAddCoupon={(code, discount, type) => dbService.save('coupons', Math.random().toString(36).substring(7), { code, discount, type, active: true })} onRemoveCoupon={(id) => dbService.remove('coupons', id)} 
             paymentSettings={paymentMethods} onTogglePaymentMethod={(id) => { const p = paymentMethods.find(x => x.id === id); if (p) dbService.save('payment_methods', id, { enabled: !p.enabled }); }} onAddPaymentMethod={(name, type) => dbService.save('payment_methods', Math.random().toString(36).substring(7), { name, type, enabled: true })} onRemovePaymentMethod={(id) => dbService.remove('payment_methods', id)} onUpdatePaymentSettings={(id, updates) => dbService.save('payment_methods', id, updates)} 
+            paymentConfig={paymentConfig} onUpdatePaymentConfig={(config) => dbService.save('settings', 'general', { ...config })}
             onLogout={() => { setIsAdmin(false); sessionStorage.removeItem('nl_admin_auth'); }} onBackToSite={() => setIsAdmin(false)}
           />
         ) : activeView === 'my-orders' ? (
