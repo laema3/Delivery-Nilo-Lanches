@@ -17,6 +17,7 @@ import { MotoboyPortal } from './components/MotoboyPortal.tsx';
 import { Toast } from './components/Toast.tsx';
 import { ProductLoader } from './components/ProductLoader.tsx';
 import { InstallBanner } from './components/InstallBanner.tsx';
+import { WelcomePopup } from './components/WelcomePopup.tsx';
 import { dbService } from './services/dbService.ts';
 import { Product, CartItem, Order, Customer, ZipRange, PaymentSettings, CategoryItem, SubCategoryItem, Complement, DeliveryType, Coupon } from './types.ts';
 import { DEFAULT_LOGO } from './constants.tsx';
@@ -505,6 +506,7 @@ const App: React.FC = () => {
 
       {!isAdmin && !isKioskMode && <ChatBot products={products} cart={cart} deliveryFee={currentDeliveryFee} isStoreOpen={isStoreOpen} currentUser={currentUser} onAddToCart={handleAddToCart} />}
       {!isAdmin && !isKioskMode && <InstallBanner logoUrl={logoUrl} />}
+      {!isAdmin && !isKioskMode && <WelcomePopup />}
     </div>
   );
 };
