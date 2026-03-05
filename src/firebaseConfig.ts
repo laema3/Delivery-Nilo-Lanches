@@ -14,9 +14,9 @@ const FALLBACK_CONFIG = {
 
 const getEnv = (key: string, fallback: string) => {
   try {
-    // @ts-ignore
+    // @ts-expect-error: import.meta.env may not be defined in all environments
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-      // @ts-ignore
+      // @ts-expect-error: import.meta.env may not be defined in all environments
       const val = import.meta.env[key];
       return (val && val !== "undefined") ? val : fallback;
     }

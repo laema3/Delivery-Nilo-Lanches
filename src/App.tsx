@@ -425,6 +425,14 @@ const App: React.FC = () => {
         const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const total = subtotal + fee - discount;
 
+        console.log("Checkout iniciado:", { 
+            orderId, 
+            paymentMethod, 
+            isKioskMode, 
+            cartSize: cart.length,
+            total
+        });
+
         // Integração Mercado Pago (PIX ou Cartão via MP)
         // Normaliza removendo espaços extras e deixando minúsculo para comparação
         const normalizedPayment = paymentMethod.toLowerCase().trim();
@@ -433,12 +441,14 @@ const App: React.FC = () => {
         const selectedMethod = paymentMethods.find(p => p.name.toLowerCase().trim() === normalizedPayment);
         
         // Verifica se é PagSeguro
-        const isPagSeguro = normalizedPayment.includes('pagseguro') || normalizedPayment.includes('pag seguro');
+        const isPagSeguro = normalizedPayment.includes('pagseguro') || 
+                            normalizedPayment.includes('pag seguro') ||
+                            (selectedMethod?.type === 'ONLINE' && normalizedPayment.includes('pag'));
 
         // Verifica se é Mercado Pago (mais permissivo)
-        const isMercadoPago = normalizedPayment.includes('mercado pago') || 
-                              normalizedPayment.includes('mercadopago') ||
-                              (selectedMethod?.type === 'ONLINE' && normalizedPayment.includes('mercado'));
+        const isMercadoPago = normalizedPayment.includes('mercado') || 
+                              normalizedPayment.includes('mp') ||
+                              (selectedMethod?.type === 'ONLINE' && !isPagSeguro);
         
         // Define se é um método online (seja por nome ou por configuração)
         const isOnlineType = selectedMethod?.type === 'ONLINE' || isMercadoPago || isPagSeguro;
@@ -450,28 +460,12 @@ const App: React.FC = () => {
             methodType: selectedMethod?.type,
             isMercadoPago,
             isPagSeguro,
-            isOnlineType
+            isOnlineType,
+            finalIsMercadoPago: isMercadoPago || (isOnlineType && !isPagSeguro)
         });
 
-        // DIAGNÓSTICO: Se for um método ONLINE mas não foi detectado como MP ou PS, impede a venda
-        if (isOnlineType && !isMercadoPago && !isPagSeguro) {
-             console.error("ERRO: Método online não identificado corretamente.");
-             setToast({ show: true, msg: `Erro: Método '${paymentMethod}' não reconhecido como online. Contate o administrador.`, type: 'error' });
-             setIsOrderProcessing(false);
-             return;
-        }
-        
-        // DEBUG: Se chegou aqui e não é MP nem PS, mas é online, algo está errado
-        if (isOnlineType && !isPagSeguro && !isMercadoPago) {
-            alert(`DEBUG: Método '${paymentMethod}' identificado como online, mas não foi detectado como MP ou PS. isMercadoPago: ${isMercadoPago}, isPagSeguro: ${isPagSeguro}`);
-        }
-        
-        // FORÇA: Se for ONLINE e não for PagSeguro, trata como Mercado Pago para evitar passar direto
-        const forceMercadoPago = isOnlineType && !isPagSeguro && !isMercadoPago;
-        const finalIsMercadoPago = isMercadoPago || forceMercadoPago;
-
-        // ALERTA DE DIAGNÓSTICO FINAL
-        alert(`DEBUG: finalIsMercadoPago: ${finalIsMercadoPago}, isMercadoPago: ${isMercadoPago}, forceMercadoPago: ${forceMercadoPago}, isOnlineType: ${isOnlineType}, paymentMethod: '${paymentMethod}'`);
+        // Se for ONLINE e não for PagSeguro, trata como Mercado Pago
+        const finalIsMercadoPago = isMercadoPago || (isOnlineType && !isPagSeguro);
 
         if (isPagSeguro) {
              console.log("Token PagSeguro atual:", paymentConfig.pagseguroToken ? "Configurado" : "Ausente");
@@ -655,6 +649,14 @@ const App: React.FC = () => {
                setIsOrderProcessing(false);
                throw mpError;
              }
+        }
+
+        // SEGURANÇA: Se for um método online, não deve chegar aqui
+        if (isOnlineType) {
+            console.error("ERRO CRÍTICO: Fluxo online não interrompido.");
+            setToast({ show: true, msg: "Erro no processamento do pagamento online. Tente novamente.", type: 'error' });
+            setIsOrderProcessing(false);
+            return;
         }
 
         // --- Lógica existente para outros métodos de pagamento (Dinheiro, Cartão na Entrega) --- 

@@ -139,7 +139,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                       className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all flex items-center justify-between shadow-sm ${paymentMethod === method.name ? 'border-red-500 bg-red-50 text-red-700 shadow-red-100' : 'border-slate-100 bg-white text-slate-500 hover:border-red-200 hover:text-red-500'}`}
                     >
                       <span className="text-xs font-black uppercase tracking-wide flex items-center gap-2">
-                        <span className="text-lg">💳</span> MERCADO PAGO - ONLINE
+                        <span className="text-lg">💳</span> {method.name} - ONLINE
                       </span>
                       {paymentMethod === method.name && <span className="text-red-600 font-bold">●</span>}
                     </button>

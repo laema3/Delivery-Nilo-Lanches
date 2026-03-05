@@ -36,12 +36,12 @@ export const dbService = {
       );
       
       const q = query(collection(db, collectionName));
-      // @ts-ignore
+      // @ts-expect-error: Promise.race return type might not match querySnapshot
       const querySnapshot = await Promise.race([getDocs(q), timeoutPromise]);
       
       const data: any[] = [];
-      // @ts-ignore
-      querySnapshot.forEach((doc) => {
+      // @ts-expect-error: querySnapshot might be the timeout error
+      querySnapshot.forEach((doc: any) => {
         data.push({ ...doc.data(), id: doc.id });
       });
       console.log(`[dbService] getAll ${collectionName}: ${data.length} itens encontrados`);

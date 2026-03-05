@@ -307,7 +307,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             printWindow.document.write(printContent);
             printWindow.document.close();
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("Print error:", e);
+    }
   };
 
   const handleRightSidebarClick = (status: OrderStatus | 'TODOS') => {
