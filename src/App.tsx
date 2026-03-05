@@ -470,6 +470,9 @@ const App: React.FC = () => {
         const forceMercadoPago = isOnlineType && !isPagSeguro && !isMercadoPago;
         const finalIsMercadoPago = isMercadoPago || forceMercadoPago;
 
+        // ALERTA DE DIAGNÓSTICO FINAL
+        alert(`DEBUG: finalIsMercadoPago: ${finalIsMercadoPago}, isMercadoPago: ${isMercadoPago}, forceMercadoPago: ${forceMercadoPago}, isOnlineType: ${isOnlineType}, paymentMethod: '${paymentMethod}'`);
+
         if (isPagSeguro) {
              console.log("Token PagSeguro atual:", paymentConfig.pagseguroToken ? "Configurado" : "Ausente");
              
