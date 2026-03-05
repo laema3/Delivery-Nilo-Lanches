@@ -145,7 +145,8 @@ const App: React.FC = () => {
   }, [logoUrl]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsInitialLoading(false), 2000);
+    // Aumentado para 10 segundos para evitar tela de erro prematura em conexões lentas ou retornos de pagamento
+    const timer = setTimeout(() => setIsInitialLoading(false), 10000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -554,6 +555,32 @@ const App: React.FC = () => {
              }
 
              try {
+               // 1. CRIA E SALVA O PEDIDO PRIMEIRO (Status: INICIANDO)
+               const newOrder: Order = {
+                 id: orderId, 
+                 customerId: currentUser?.email || 'kiosk', 
+                 customerName: currentUser?.name || 'Cliente Local', 
+                 customerPhone: currentUser?.phone || '000',
+                 customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
+                 items: [...cart], 
+                 total: total || 0, 
+                 deliveryFee: fee || 0, 
+                 deliveryType: isKioskMode ? 'PICKUP' : deliveryType, 
+                 status: 'AGUARDANDO PAGAMENTO', // Já salva como aguardando
+                 paymentMethod: paymentMethod || 'Não informado', 
+                 createdAt: new Date().toISOString(), 
+                 pointsEarned: Math.floor(total || 0), 
+                 changeFor: changeFor || 0, 
+                 discountValue: discount || 0, 
+                 couponCode: couponCode || ''
+               };
+               
+               const orderToSave = JSON.parse(JSON.stringify(newOrder));
+               console.log("[Checkout] Salvando pedido PRELIMINAR no banco:", orderId);
+               await dbService.save('orders', orderId, orderToSave);
+               localStorage.setItem('nl_last_order_id', orderId);
+
+               // 2. CHAMA A API DO MERCADO PAGO
                const mpPayload = {
                    items: cart.map(item => ({
                      id: item.id,
@@ -569,7 +596,7 @@ const App: React.FC = () => {
                    accessToken: paymentConfig.mercadopagoAccessToken
                  };
                
-               console.log("[Checkout] Enviando payload para API:", JSON.stringify(mpPayload));
+               console.log("[Checkout] Enviando payload para API MP:", JSON.stringify(mpPayload));
 
                const response = await fetch('/api/checkout/mercadopago', {
                  method: 'POST',
@@ -584,7 +611,7 @@ const App: React.FC = () => {
                }
                
                const mpData = await response.json();
-               console.log("[Checkout] Resposta da API:", mpData);
+               console.log("[Checkout] Resposta da API MP:", mpData);
                const { init_point } = mpData;
                
                if (!init_point) {
@@ -592,30 +619,8 @@ const App: React.FC = () => {
                    throw new Error("Link de pagamento não gerado");
                }
 
-               // Salva o pedido como AGUARDANDO PAGAMENTO antes de redirecionar
-               const newOrder: Order = {
-                 id: orderId, 
-                 customerId: currentUser?.email || 'kiosk', 
-                 customerName: currentUser?.name || 'Cliente Local', 
-                 customerPhone: currentUser?.phone || '000',
-                 customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
-                 items: [...cart], 
-                 total: total || 0, 
-                 deliveryFee: fee || 0, 
-                 deliveryType: isKioskMode ? 'PICKUP' : deliveryType, 
-                 status: 'AGUARDANDO PAGAMENTO', 
-                 paymentMethod: paymentMethod || 'Não informado', 
-                 createdAt: new Date().toISOString(), 
-                 pointsEarned: Math.floor(total || 0), 
-                 changeFor: changeFor || 0, 
-                 discountValue: discount || 0, 
-                 couponCode: couponCode || ''
-               };
-               
-               const orderToSave = JSON.parse(JSON.stringify(newOrder));
-               await dbService.save('orders', orderId, orderToSave);
-               
-               localStorage.setItem('nl_last_order_id', orderId);
+               // 3. REDIRECIONA
+               console.log("[Checkout] Redirecionando para:", init_point);
                window.location.href = init_point;
                return; 
              } catch (mpError) {
@@ -823,6 +828,7 @@ const App: React.FC = () => {
         isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, delta) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item))} 
         onRemove={(id) => setCart(prev => prev.filter(item => item.id !== id))} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} isKioskMode={isKioskMode} 
         deliveryFee={currentDeliveryFee} availableCoupons={[]} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
+        onShowToast={(msg, type) => setToast({ show: true, msg, type })}
       />
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal 

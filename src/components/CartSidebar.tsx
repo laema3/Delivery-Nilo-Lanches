@@ -18,11 +18,13 @@ interface CartSidebarProps {
   availableCoupons: Coupon[];
   isStoreOpen: boolean;
   isProcessing: boolean;
+  onShowToast?: (msg: string, type: 'success' | 'error') => void;
 }
 
 export const CartSidebar: React.FC<CartSidebarProps> = ({ 
   isOpen, onClose, items, coupons, onUpdateQuantity, onRemove, onCheckout, onAuthClick, 
-  paymentSettings, currentUser, isKioskMode, deliveryFee, availableCoupons, isStoreOpen, isProcessing 
+  paymentSettings, currentUser, isKioskMode, deliveryFee, availableCoupons, isStoreOpen, isProcessing,
+  onShowToast
 }) => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -38,13 +40,22 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
     const coupon = coupons.find(c => c.code === couponCode && c.active);
     if (coupon) {
       setAppliedCoupon(coupon);
+      if (onShowToast) onShowToast('Cupom aplicado com sucesso!', 'success');
     } else {
-      alert('Cupom inválido ou expirado');
+      if (onShowToast) onShowToast('Cupom inválido ou expirado', 'error');
+      else alert('Cupom inválido ou expirado');
     }
   };
 
   const handleCheckoutClick = () => {
-    if (!paymentMethod) return alert('Selecione um método de pagamento');
+    if (!paymentMethod) {
+      if (onShowToast) {
+        onShowToast('FAVOR SELECIONAR UMA FORMA DE PAGAMENTO', 'error');
+      } else {
+        alert('FAVOR SELECIONAR UMA FORMA DE PAGAMENTO');
+      }
+      return;
+    }
     onCheckout(paymentMethod, deliveryType === 'DELIVERY' ? deliveryFee : 0, discount, appliedCoupon?.code || '', deliveryType, changeFor);
   };
 
@@ -120,7 +131,22 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               <div className="space-y-3">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Pagamento</h3>
                 <div className="grid grid-cols-1 gap-2">
-                  {paymentSettings.filter(p => p.enabled).map(method => (
+                  {/* MERCADO PAGO - SEMPRE PRIMEIRO E EM DESTAQUE */}
+                  {paymentSettings.filter(p => p.enabled && (p.name.toUpperCase().includes('MERCADO PAGO') || p.type === 'ONLINE')).map(method => (
+                    <button 
+                      key={method.id}
+                      onClick={() => setPaymentMethod(method.name)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all flex items-center justify-between shadow-sm ${paymentMethod === method.name ? 'border-red-500 bg-red-50 text-red-700 shadow-red-100' : 'border-slate-100 bg-white text-slate-500 hover:border-red-200 hover:text-red-500'}`}
+                    >
+                      <span className="text-xs font-black uppercase tracking-wide flex items-center gap-2">
+                        <span className="text-lg">💳</span> MERCADO PAGO - ONLINE
+                      </span>
+                      {paymentMethod === method.name && <span className="text-red-600 font-bold">●</span>}
+                    </button>
+                  ))}
+
+                  {/* OUTROS MÉTODOS */}
+                  {paymentSettings.filter(p => p.enabled && !p.name.toUpperCase().includes('MERCADO PAGO') && p.type !== 'ONLINE').map(method => (
                     <button 
                       key={method.id}
                       onClick={() => setPaymentMethod(method.name)}

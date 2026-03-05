@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 // As chaves do projeto Nilo Lanches
 const FALLBACK_CONFIG = {
@@ -43,13 +43,23 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   try {
     app = initializeApp(firebaseConfig);
     
-    // Inicialização Padrão: Garante que os dados sejam enviados para o servidor imediatamente.
-    // Removemos caches complexos para evitar que o pedido fique "preso" no celular do cliente.
-    db = getFirestore(app);
+    // Inicialização com Persistência Offline Habilitada
+    // Isso permite carregar o cardápio mesmo se a conexão estiver instável
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
     
-    console.log("🔥 [Firebase] Conectado e Sincronizando.");
+    console.log("🔥 [Firebase] Conectado com Persistência Offline.");
   } catch (error: any) {
     console.error("❌ [Firebase] Erro:", error);
+    // Fallback para inicialização padrão se persistência falhar (ex: cookies bloqueados)
+    try {
+        if (!db) db = getFirestore(app);
+    } catch (e) {
+        console.error("❌ [Firebase] Falha total:", e);
+    }
     connectionError = error.message;
   }
 }

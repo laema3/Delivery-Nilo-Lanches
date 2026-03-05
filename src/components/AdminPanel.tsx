@@ -478,10 +478,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const buttonClass = "bg-emerald-600 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95";
   const editButtonClass = "bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95";
 
-  const ORDER_STATUSES: (OrderStatus | 'TODOS')[] = ['TODOS', 'NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'];
+  const ORDER_STATUSES: (OrderStatus | 'TODOS')[] = ['TODOS', 'AGUARDANDO PAGAMENTO', 'NOVO', 'PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA', 'FINALIZADO', 'CANCELADO'];
 
   const getStatusColorClass = (status: string) => {
     switch (status) {
+      case 'AGUARDANDO PAGAMENTO': return 'bg-slate-200 text-slate-600 border-slate-300 animate-pulse';
       case 'NOVO': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'PREPARANDO': return 'bg-amber-100 text-amber-700 border-amber-200';
       case 'PRONTO PARA RETIRADA': return 'bg-cyan-100 text-cyan-700 border-cyan-200';
@@ -592,8 +593,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                             <div className="space-y-4">
                                <div className="flex flex-wrap items-center gap-3">
                                  <span className="text-2xl font-black text-slate-800">#{order.id.substring(0,6)}</span>
+                                 
+                                 {/* SELOS DE PAGAMENTO */}
+                                 {order.paymentMethod.toUpperCase().includes('MERCADO PAGO') ? (
+                                   <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${order.status === 'AGUARDANDO PAGAMENTO' ? 'bg-amber-50 border-amber-500 text-amber-600' : 'bg-emerald-50 border-emerald-500 text-emerald-600'}`}>
+                                     {order.status === 'AGUARDANDO PAGAMENTO' ? '⌛ AGUARDANDO PIX' : '✅ MP-OK'}
+                                   </span>
+                                 ) : (
+                                   <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 bg-blue-50 border-blue-500 text-blue-600">
+                                     🚚 RECEBER ENTREGA
+                                   </span>
+                                 )}
+
                                  <div className="relative z-10">
                                    <select value={order.status} onClick={(e) => e.stopPropagation()} onChange={(e) => { const newStatus = e.target.value as OrderStatus; onUpdateOrderStatus(order.id, newStatus); if (order.status === 'NOVO' && newStatus !== 'NOVO') stopAlarm(); }} className={`appearance-none cursor-pointer pl-4 pr-10 py-2 rounded-xl text-xs font-black uppercase tracking-widest outline-none border-2 transition-all shadow-sm ${getStatusColorClass(order.status)}`}>
+                                     <option value="AGUARDANDO PAGAMENTO">Aguardando Pagamento</option>
                                      <option value="NOVO">Novo</option>
                                      <option value="PREPARANDO">Preparando</option>
                                      <option value="PRONTO PARA RETIRADA">Pronto p/ Retirada</option>
