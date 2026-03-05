@@ -437,7 +437,8 @@ const App: React.FC = () => {
 
         // Verifica se é Mercado Pago (mais permissivo)
         const isMercadoPago = normalizedPayment.includes('mercado pago') || 
-                              normalizedPayment.includes('mercadopago');
+                              normalizedPayment.includes('mercadopago') ||
+                              (selectedMethod?.type === 'ONLINE' && normalizedPayment.includes('mercado'));
         
         // Define se é um método online (seja por nome ou por configuração)
         const isOnlineType = selectedMethod?.type === 'ONLINE' || isMercadoPago || isPagSeguro;
@@ -465,6 +466,10 @@ const App: React.FC = () => {
             alert(`DEBUG: Método '${paymentMethod}' identificado como online, mas não foi detectado como MP ou PS. isMercadoPago: ${isMercadoPago}, isPagSeguro: ${isPagSeguro}`);
         }
         
+        // FORÇA: Se for ONLINE e não for PagSeguro, trata como Mercado Pago para evitar passar direto
+        const forceMercadoPago = isOnlineType && !isPagSeguro && !isMercadoPago;
+        const finalIsMercadoPago = isMercadoPago || forceMercadoPago;
+
         if (isPagSeguro) {
              console.log("Token PagSeguro atual:", paymentConfig.pagseguroToken ? "Configurado" : "Ausente");
              
@@ -561,7 +566,7 @@ const App: React.FC = () => {
              }
         }
 
-        if (isMercadoPago) {
+        if (finalIsMercadoPago) {
              console.log("[Checkout] Iniciando fluxo Mercado Pago...");
              console.log("[Checkout] Token configurado:", paymentConfig.mercadopagoAccessToken ? "SIM" : "NÃO");
              
