@@ -56,6 +56,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
       }
       return;
     }
+    console.log("[CartSidebar] Chamando onCheckout com:", paymentMethod);
     onCheckout(paymentMethod, deliveryType === 'DELIVERY' ? deliveryFee : 0, discount, appliedCoupon?.code || '', deliveryType, changeFor);
   };
 
@@ -131,22 +132,22 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               <div className="space-y-3">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Pagamento</h3>
                 <div className="grid grid-cols-1 gap-2">
-                  {/* MERCADO PAGO - SEMPRE PRIMEIRO E EM DESTAQUE */}
-                  {paymentSettings.filter(p => p.enabled && (p.name.toUpperCase().includes('MERCADO PAGO') || p.type === 'ONLINE')).map(method => (
+                  {/* MÉTODOS ONLINE */}
+                  {paymentSettings.filter(p => p.enabled && (p.type === 'ONLINE' || p.integration === 'MERCADO_PAGO' || p.integration === 'PAGSEGURO')).map(method => (
                     <button 
                       key={method.id}
                       onClick={() => setPaymentMethod(method.name)}
                       className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all flex items-center justify-between shadow-sm ${paymentMethod === method.name ? 'border-red-500 bg-red-50 text-red-700 shadow-red-100' : 'border-slate-100 bg-white text-slate-500 hover:border-red-200 hover:text-red-500'}`}
                     >
                       <span className="text-xs font-black uppercase tracking-wide flex items-center gap-2">
-                        <span className="text-lg">💳</span> {method.name} - ONLINE
+                        <span className="text-lg">💳</span> {method.name} {method.integration && method.integration !== 'NONE' ? `- ${method.integration.replace('_', ' ')}` : '- ONLINE'}
                       </span>
                       {paymentMethod === method.name && <span className="text-red-600 font-bold">●</span>}
                     </button>
                   ))}
 
-                  {/* OUTROS MÉTODOS */}
-                  {paymentSettings.filter(p => p.enabled && !p.name.toUpperCase().includes('MERCADO PAGO') && p.type !== 'ONLINE').map(method => (
+                  {/* MÉTODOS OFFLINE */}
+                  {paymentSettings.filter(p => p.enabled && p.type !== 'ONLINE' && p.integration !== 'MERCADO_PAGO' && p.integration !== 'PAGSEGURO').map(method => (
                     <button 
                       key={method.id}
                       onClick={() => setPaymentMethod(method.name)}

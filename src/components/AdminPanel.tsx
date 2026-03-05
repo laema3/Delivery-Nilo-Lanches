@@ -1082,7 +1082,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                              </div>
                           </div>
                           {p.type === 'ONLINE' && (
-                            <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+                               <div className="space-y-1">
+                                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Integração</label>
+                                  <select 
+                                    value={p.integration || 'NONE'} 
+                                    onChange={e => onUpdatePaymentSettings?.(p.id, { integration: e.target.value as any })} 
+                                    className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                                  >
+                                    <option value="NONE">Nenhuma (Manual)</option>
+                                    <option value="MERCADO_PAGO">Mercado Pago</option>
+                                    <option value="PAGSEGURO">PagSeguro</option>
+                                  </select>
+                               </div>
                                <div className="space-y-1">
                                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">E-mail (Opcional)</label>
                                   <input 

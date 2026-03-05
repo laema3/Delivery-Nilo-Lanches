@@ -87,6 +87,7 @@ export interface PaymentSettings {
   name: string; 
   enabled: boolean; 
   type: 'ONLINE' | 'DELIVERY'; 
+  integration?: 'MERCADO_PAGO' | 'PAGSEGURO' | 'NONE';
   token?: string; // Pode ser usado para PagSeguro ou outros tokens genéricos
   email?: string; // Pode ser usado para PagSeguro ou outros emails
   description?: string;

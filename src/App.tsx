@@ -437,37 +437,46 @@ const App: React.FC = () => {
         // Normaliza removendo espaços extras e deixando minúsculo para comparação
         const normalizedPayment = paymentMethod.toLowerCase().trim();
         
-        // Busca a configuração do método selecionado
-        const selectedMethod = paymentMethods.find(p => p.name.toLowerCase().trim() === normalizedPayment);
+        // Busca a configuração do método selecionado (Busca exata ou por nome normalizado)
+        const selectedMethod = paymentMethods.find(p => 
+            p.name.toLowerCase().trim() === normalizedPayment || 
+            p.name === paymentMethod
+        );
         
-        // Verifica se é PagSeguro
-        const isPagSeguro = normalizedPayment.includes('pagseguro') || 
-                            normalizedPayment.includes('pag seguro') ||
-                            (selectedMethod?.type === 'ONLINE' && normalizedPayment.includes('pag'));
+        // Verifica se é PagSeguro (Prioriza campo integration, fallback para nome)
+        const isPagSeguro = (selectedMethod?.integration === 'PAGSEGURO') || 
+                            normalizedPayment.includes('pagseguro') || 
+                            normalizedPayment.includes('pag seguro');
 
-        // Verifica se é Mercado Pago (mais permissivo)
-        const isMercadoPago = normalizedPayment.includes('mercado') || 
+        // Verifica se é Mercado Pago (Prioriza campo integration, fallback para nome ou se for ONLINE e não for PagSeguro)
+        const isMercadoPago = (selectedMethod?.integration === 'MERCADO_PAGO') || 
+                              normalizedPayment.includes('mercado') || 
                               normalizedPayment.includes('mp') ||
                               (selectedMethod?.type === 'ONLINE' && !isPagSeguro);
         
         // Define se é um método online (seja por nome ou por configuração)
-        const isOnlineType = selectedMethod?.type === 'ONLINE' || isMercadoPago || isPagSeguro;
+        const isOnlineType = (selectedMethod?.type === 'ONLINE') || 
+                             (selectedMethod?.integration && selectedMethod.integration !== 'NONE') ||
+                             normalizedPayment.includes('online') ||
+                             isMercadoPago || isPagSeguro;
                               
-        console.log("Verificação de Pagamento Detalhada:", { 
+        console.log("[Checkout] Verificação de Pagamento Detalhada:", { 
             original: paymentMethod, 
             normalized: normalizedPayment,
             foundMethod: selectedMethod?.name,
             methodType: selectedMethod?.type,
+            methodIntegration: selectedMethod?.integration,
             isMercadoPago,
             isPagSeguro,
             isOnlineType,
-            finalIsMercadoPago: isMercadoPago || (isOnlineType && !isPagSeguro)
+            allMethods: paymentMethods.map(m => ({ name: m.name, type: m.type, integration: m.integration }))
         });
 
-        // Se for ONLINE e não for PagSeguro, trata como Mercado Pago
+        // Se for ONLINE e não for PagSeguro, trata como Mercado Pago (nosso padrão principal)
         const finalIsMercadoPago = isMercadoPago || (isOnlineType && !isPagSeguro);
+        const finalIsPagSeguro = isPagSeguro;
 
-        if (isPagSeguro) {
+        if (finalIsPagSeguro) {
              console.log("Token PagSeguro atual:", paymentConfig.pagseguroToken ? "Configurado" : "Ausente");
              
              if (!paymentConfig.pagseguroEmail || !paymentConfig.pagseguroToken) {
@@ -653,8 +662,14 @@ const App: React.FC = () => {
 
         // SEGURANÇA: Se for um método online, não deve chegar aqui
         if (isOnlineType) {
-            console.error("ERRO CRÍTICO: Fluxo online não interrompido.");
-            setToast({ show: true, msg: "Erro no processamento do pagamento online. Tente novamente.", type: 'error' });
+            console.error("ERRO CRÍTICO: Fluxo online não interrompido.", {
+                isMercadoPago,
+                isPagSeguro,
+                finalIsMercadoPago,
+                finalIsPagSeguro,
+                normalizedPayment
+            });
+            setToast({ show: true, msg: "Erro no processamento do pagamento online. Verifique se o método está configurado corretamente no painel administrativo.", type: 'error' });
             setIsOrderProcessing(false);
             return;
         }
