@@ -431,19 +431,21 @@ const App: React.FC = () => {
         
         // Busca a configuração do método selecionado para verificar o tipo
         const selectedMethod = paymentMethods.find(p => p.name.toLowerCase().trim() === normalizedPayment);
-        const isOnlineType = selectedMethod?.type === 'ONLINE';
-
+        
         // Verifica se é PagSeguro primeiro
-        const isPagSeguro = isOnlineType && (normalizedPayment.includes('pagseguro') || normalizedPayment.includes('pag seguro'));
+        const isPagSeguro = normalizedPayment.includes('pagseguro') || normalizedPayment.includes('pag seguro');
 
         // Verifica se é Mercado Pago
-        const isMercadoPago = isOnlineType && !isPagSeguro;
+        // Se o método for explicitamente Mercado Pago ou se for um método ONLINE que não é PagSeguro
+        const isMercadoPago = normalizedPayment.includes('mercado pago') || 
+                              normalizedPayment.includes('mercadopago') || 
+                              (selectedMethod?.type === 'ONLINE' && !isPagSeguro);
                               
         console.log("Verificação de Pagamento Detalhada:", { 
             original: paymentMethod, 
             normalized: normalizedPayment,
             foundMethod: selectedMethod?.name,
-            isOnlineType,
+            methodType: selectedMethod?.type,
             isMercadoPago,
             isPagSeguro
         });
