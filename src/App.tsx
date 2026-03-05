@@ -429,20 +429,21 @@ const App: React.FC = () => {
         // Normaliza removendo espaços extras e deixando minúsculo para comparação
         const normalizedPayment = paymentMethod.toLowerCase().trim();
         
-        // Verifica se é PagSeguro primeiro
-        const isPagSeguro = normalizedPayment.includes('pagseguro') || normalizedPayment.includes('pag seguro');
+        // Busca a configuração do método selecionado para verificar o tipo
+        const selectedMethod = paymentMethods.find(p => p.name.toLowerCase().trim() === normalizedPayment);
+        const isOnlineType = selectedMethod?.type === 'ONLINE';
 
-        // Verifica se é Mercado Pago (se não for PagSeguro)
-        const isMercadoPago = !isPagSeguro && (
-                              normalizedPayment.includes('mercado pago') || 
-                              normalizedPayment.includes('mercadopago') || 
-                              normalizedPayment.includes('pix') ||
-                              normalizedPayment.includes('qr code') ||
-                              normalizedPayment.includes('qrcode'));
+        // Verifica se é PagSeguro primeiro
+        const isPagSeguro = isOnlineType && (normalizedPayment.includes('pagseguro') || normalizedPayment.includes('pag seguro'));
+
+        // Verifica se é Mercado Pago
+        const isMercadoPago = isOnlineType && !isPagSeguro;
                               
-        console.log("Verificação de Pagamento:", { 
+        console.log("Verificação de Pagamento Detalhada:", { 
             original: paymentMethod, 
-            normalized: normalizedPayment, 
+            normalized: normalizedPayment,
+            foundMethod: selectedMethod?.name,
+            isOnlineType,
             isMercadoPago,
             isPagSeguro
         });

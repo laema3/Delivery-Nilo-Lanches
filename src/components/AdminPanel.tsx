@@ -209,19 +209,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   };
 
   useEffect(() => {
-    const newOrders = orders.filter(o => o.status === 'NOVO' && !deletedIds.includes(o.id));
+    // O alarme toca para pedidos NOVOS ou AGUARDANDO PAGAMENTO (que acabaram de chegar)
+    const newOrders = orders.filter(o => (o.status === 'NOVO' || o.status === 'AGUARDANDO PAGAMENTO') && !deletedIds.includes(o.id));
     const hasNewOrders = newOrders.length > 0;
 
     if (hasNewOrders && audioEnabled) {
       if (audioRef.current && audioRef.current.paused) {
         audioRef.current.play().catch(e => {
-          console.warn("Autoplay bloqueado pelo navegador.", e);
+          console.warn("Autoplay bloqueado pelo navegador. O usuário precisa interagir com a página primeiro.", e);
         });
       }
     } else {
       stopAlarm();
     }
   }, [orders, deletedIds, audioEnabled]);
+
+  const testAlarm = () => {
+    if (audioRef.current) {
+      audioRef.current.play().then(() => {
+        setTimeout(stopAlarm, 3000);
+      }).catch(e => alert("Erro ao tocar som. Verifique se o navegador bloqueou o áudio."));
+    }
+  };
 
   const handlePrintOrder = (order: Order) => {
     const itemsHtml = order.items.map(item => `
@@ -1121,6 +1130,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                               <span className="font-black text-lg uppercase tracking-widest">{isKioskMode ? 'Quiosque Ativado' : 'Modo Normal'}</span>
                            </button>
                         </div>
+                        <div className="space-y-3 md:col-span-2">
+                           <label className={labelClass}>Alerta Sonoro (Novos Pedidos)</label>
+                           <div className="flex gap-3">
+                              <button onClick={() => setAudioEnabled(!audioEnabled)} className={`flex-1 py-8 rounded-2xl flex items-center justify-center gap-4 border-2 transition-all ${audioEnabled ? 'bg-emerald-50 border-emerald-500 text-emerald-600' : 'bg-slate-50 border-slate-300 text-slate-400'}`}>
+                                 <span className="text-2xl">{audioEnabled ? '🔊' : '🔇'}</span>
+                                 <span className="font-black text-lg uppercase tracking-widest">{audioEnabled ? 'Ligado' : 'Desligado'}</span>
+                              </button>
+                              <button onClick={testAlarm} className="px-6 py-8 bg-white border-2 border-slate-200 rounded-2xl hover:bg-slate-50 text-slate-600 transition-all font-black uppercase text-[10px] tracking-widest flex flex-col items-center justify-center gap-2">
+                                 <span>🔔</span>
+                                 <span>Testar</span>
+                              </button>
+                           </div>
+                        </div>
+
                         <div className="space-y-3 md:col-span-2">
                            <label className={labelClass}>Logo da Loja (Upload)</label>
                            <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-300 hover:border-emerald-400">
