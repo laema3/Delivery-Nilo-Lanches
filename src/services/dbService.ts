@@ -30,9 +30,9 @@ export const dbService = {
     try {
       console.log(`[dbService] Buscando todos (getAll) de: ${collectionName}`);
       
-      // Timeout aumentado para 20 segundos
+      // Timeout aumentado para 30 segundos
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout ao buscar dados (20s)")), 20000)
+        setTimeout(() => reject(new Error(`Timeout ao buscar dados de ${collectionName} (30s)`)), 30000)
       );
       
       const q = query(collection(db, collectionName));
@@ -48,6 +48,7 @@ export const dbService = {
       return data as T[];
     } catch (e) {
       console.error(`[dbService] Erro ao buscar (getAll) ${collectionName}:`, e);
+      // Retorna array vazio em caso de erro para não quebrar a UI, mas loga o erro
       return [];
     }
   },

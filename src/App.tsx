@@ -49,7 +49,10 @@ const App: React.FC = () => {
   });
 
   const [paymentConfig, setPaymentConfig] = useState({
-    mercadopagoAccessToken: ''
+    mercadopagoAccessToken: '',
+    mercadopagoPublicKey: '',
+    pagseguroEmail: '',
+    pagseguroToken: ''
   });
 
   const [authSettings, setAuthSettings] = useState({
@@ -153,22 +156,25 @@ const App: React.FC = () => {
     const collectionStatus = params.get('collection_status');
     const orderId = localStorage.getItem('nl_last_order_id');
 
-    console.log("Verificando retorno MP:", { status, collectionStatus, orderId });
-
     if ((status || collectionStatus) && orderId) {
+      console.log("[App] Retorno MP detectado:", { status, collectionStatus, orderId });
       const finalStatus = status || collectionStatus;
       
       if (finalStatus === 'success' || finalStatus === 'approved') {
         setCart([]);
-        // Busca o pedido para exibir no modal de sucesso
+        
+        // Tenta buscar o pedido no estado local para exibir no modal
         const order = orders.find(o => o.id === orderId);
         if (order) setLastOrder(order);
         
         setIsSuccessModalOpen(true);
         setToast({ show: true, msg: 'Pagamento confirmado com sucesso!', type: 'success' });
         
-        // Atualiza status localmente para garantir feedback rápido
-        dbService.save('orders', orderId, { status: 'NOVO' }); // Muda de AGUARDANDO PAGAMENTO para NOVO (pago)
+        // Atualiza status no banco IMEDIATAMENTE, independente do estado local
+        console.log(`[App] Atualizando pedido ${orderId} para status NOVO (pago)...`);
+        dbService.save('orders', orderId, { status: 'NOVO' })
+            .then(() => console.log("[App] Pedido atualizado com sucesso no banco."))
+            .catch(err => console.error("[App] Erro ao atualizar pedido no banco:", err));
         
       } else if (finalStatus === 'failure' || finalStatus === 'rejected') {
         setToast({ show: true, msg: 'O pagamento foi recusado ou falhou.', type: 'error' });
@@ -182,12 +188,21 @@ const App: React.FC = () => {
       window.history.replaceState({}, document.title, window.location.pathname);
       localStorage.removeItem('nl_last_order_id');
     }
-  }, [orders]); // Dependência orders para garantir que consiga buscar o lastOrder se já estiver carregado
+  }, [orders]); // Mantém orders para atualizar lastOrder se necessário
+
+  const productsRef = useRef<Product[]>([]);
+  
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
 
   useEffect(() => {
     const unsubs = [
       dbService.subscribe<Product[]>('products', (data) => {
-        if (data) setProducts([...data]);
+        if (data) {
+            console.log(`[App] Produtos recebidos via subscribe: ${data.length}`);
+            setProducts([...data]);
+        }
       }),
       dbService.subscribe<Order[]>('orders', (newOrders) => {
         if (newOrders) {
@@ -217,9 +232,11 @@ const App: React.FC = () => {
       dbService.subscribe<Coupon[]>('coupons', (data) => data && setCoupons(data)),
       dbService.subscribe<Customer[]>('customers', (data) => data && setCustomers(data)),
       dbService.subscribe<any[]>('settings', (data) => {
+        console.log("[App] Settings data received:", data);
         if (data && data.length > 0) {
           const settings = data.find(d => d.id === 'general');
           if (settings) {
+            console.log("[App] Settings recebidas do subscribe:", settings);
             if (settings.isStoreOpen !== undefined) setIsStoreOpen(settings.isStoreOpen);
             if (settings.logoUrl) setLogoUrl(settings.logoUrl);
             setSocialLinks({ 
@@ -227,9 +244,14 @@ const App: React.FC = () => {
               googleTagId: settings.googleTagId || '', facebookPixelId: settings.facebookPixelId || '', instagramPixelId: settings.instagramPixelId || '',
               address: settings.address || '', city: settings.city || ''
             });
-            setPaymentConfig({
-              mercadopagoAccessToken: settings.mercadopagoAccessToken || ''
-            });
+            const newPaymentConfig = {
+              mercadopagoAccessToken: settings.mercadopagoAccessToken || '',
+              mercadopagoPublicKey: settings.mercadopagoPublicKey || '',
+              pagseguroEmail: settings.pagseguroEmail || '',
+              pagseguroToken: settings.pagseguroToken || ''
+            };
+            console.log("[App] Atualizando paymentConfig via subscribe:", newPaymentConfig);
+            setPaymentConfig(newPaymentConfig);
           }
           const auth = data.find(d => d.id === 'auth');
           if (auth) {
@@ -247,17 +269,73 @@ const App: React.FC = () => {
     const loadInitialData = async (retryCount = 0) => {
         console.log(`Iniciando carregamento manual de fallback (Tentativa ${retryCount + 1})...`);
         
-        if (products.length === 0) {
-            const p = await dbService.getAll<Product>('products');
-            if (p.length > 0) setProducts(p);
-            else if (retryCount < 2) setTimeout(() => loadInitialData(retryCount + 1), 3000); // Tenta novamente após 3s
+        try {
+            // Produtos
+            if (productsRef.current.length === 0) {
+                const p = await dbService.getAll<Product>('products');
+                if (p.length > 0) {
+                    console.log(`Fallback: ${p.length} produtos carregados.`);
+                    setProducts(p);
+                } else {
+                    console.warn("Fallback: Nenhum produto encontrado.");
+                    if (retryCount < 3) setTimeout(() => loadInitialData(retryCount + 1), 3000);
+                }
+            } else {
+                console.log("Fallback: Produtos já carregados via subscrição.");
+            }
+            
+            if (categories.length === 0) {
+                const c = await dbService.getAll<CategoryItem>('categories');
+                if (c.length > 0) setCategories(c);
+            }
+
+            if (orders.length === 0) {
+                 const o = await dbService.getAll<Order>('orders');
+                 if (o.length > 0) {
+                     console.log(`Fallback: ${o.length} pedidos carregados.`);
+                     setOrders(o);
+                 }
+            }
+
+            // Fallback para configurações (incluindo token MP) - SEMPRE TENTA CARREGAR
+            const s = await dbService.getAll<any>('settings');
+            if (s && s.length > 0) {
+                console.log(`Fallback: Configurações carregadas (${s.length} itens).`);
+                const settings = s.find(d => d.id === 'general');
+                if (settings) {
+                    if (settings.isStoreOpen !== undefined) setIsStoreOpen(settings.isStoreOpen);
+                    if (settings.logoUrl) setLogoUrl(settings.logoUrl);
+                    setSocialLinks({ 
+                      instagram: settings.instagram || '', whatsapp: settings.whatsapp || '', facebook: settings.facebook || '',
+                      googleTagId: settings.googleTagId || '', facebookPixelId: settings.facebookPixelId || '', instagramPixelId: settings.instagramPixelId || '',
+                      address: settings.address || '', city: settings.city || ''
+                    });
+                    
+                    // Atualiza paymentConfig de forma segura usando o estado anterior
+                    setPaymentConfig(prevConfig => {
+                        const newConfig = {
+                          mercadopagoAccessToken: settings.mercadopagoAccessToken || prevConfig.mercadopagoAccessToken || '',
+                          mercadopagoPublicKey: settings.mercadopagoPublicKey || prevConfig.mercadopagoPublicKey || '',
+                          pagseguroEmail: settings.pagseguroEmail || prevConfig.pagseguroEmail || '',
+                          pagseguroToken: settings.pagseguroToken || prevConfig.pagseguroToken || ''
+                        };
+                        console.log("Fallback: Atualizando config. Token MP:", !!newConfig.mercadopagoAccessToken);
+                        return newConfig;
+                    });
+                }
+                const auth = s.find(d => d.id === 'auth');
+                if (auth) {
+                    setAuthSettings({
+                      adminUser: auth.adminUser || 'nilo',
+                      adminPass: auth.adminPass || 'nilo*2026',
+                      motoboyPass: auth.motoboyPass || 'nilo123'
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Erro no fallback:", error);
+            if (retryCount < 3) setTimeout(() => loadInitialData(retryCount + 1), 3000);
         }
-        
-        if (categories.length === 0) {
-            const c = await dbService.getAll<CategoryItem>('categories');
-            if (c.length > 0) setCategories(c);
-        }
-        // Adicione outros carregamentos manuais se necessário
     };
     
     // Tenta carregar manualmente após 3 segundos se ainda estiver vazio
@@ -349,53 +427,72 @@ const App: React.FC = () => {
         // Integração Mercado Pago (PIX ou Cartão via MP)
         // Normaliza removendo espaços extras e deixando minúsculo para comparação
         const normalizedPayment = paymentMethod.toLowerCase().trim();
-        const isMercadoPago = normalizedPayment.includes('mercado pago') || 
+        
+        // Verifica se é PagSeguro primeiro
+        const isPagSeguro = normalizedPayment.includes('pagseguro') || normalizedPayment.includes('pag seguro');
+
+        // Verifica se é Mercado Pago (se não for PagSeguro)
+        const isMercadoPago = !isPagSeguro && (
+                              normalizedPayment.includes('mercado pago') || 
                               normalizedPayment.includes('mercadopago') || 
-                              normalizedPayment.includes('pix');
+                              normalizedPayment.includes('pix') ||
+                              normalizedPayment.includes('qr code') ||
+                              normalizedPayment.includes('qrcode'));
                               
         console.log("Verificação de Pagamento:", { 
             original: paymentMethod, 
             normalized: normalizedPayment, 
-            isMercadoPago 
+            isMercadoPago,
+            isPagSeguro
         });
+        
+        if (isPagSeguro) {
+             console.log("Token PagSeguro atual:", paymentConfig.pagseguroToken ? "Configurado" : "Ausente");
+             
+             if (!paymentConfig.pagseguroEmail || !paymentConfig.pagseguroToken) {
+                 console.error("ERRO: Credenciais PagSeguro ausentes.");
+                 setToast({ show: true, msg: "Erro: Configuração do PagSeguro incompleta. Contate o administrador.", type: 'error' });
+                 setIsOrderProcessing(false);
+                 return;
+             }
 
-        if (isMercadoPago) {
              try {
-               console.log("Iniciando checkout Mercado Pago...");
-               const mpPayload = {
+               console.log("Iniciando checkout PagSeguro...");
+               const psPayload = {
                    items: cart.map(item => ({
                      id: item.id,
-                     title: item.name,
+                     description: item.name,
                      quantity: item.quantity,
-                     unit_price: item.price
+                     amount: item.price.toFixed(2)
                    })),
-                   payer: {
-                     email: currentUser?.email || 'cliente@nilo.com',
+                   sender: {
+                     email: currentUser?.email || 'cliente@sandbox.pagseguro.com.br', // Email sandbox padrão se não tiver
                      name: currentUser?.name || 'Cliente'
                    },
-                   external_reference: orderId,
-                   accessToken: paymentConfig.mercadopagoAccessToken
+                   reference: orderId,
+                   email: paymentConfig.pagseguroEmail,
+                   token: paymentConfig.pagseguroToken
                  };
-               console.log("Payload enviado para /api/create_preference:", mpPayload);
+               console.log("Payload enviado para /api/create_pagseguro_checkout:", psPayload);
 
-               const response = await fetch('/api/create_preference', {
+               const response = await fetch('/api/create_pagseguro_checkout', {
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify(mpPayload)
+                 body: JSON.stringify(psPayload)
                });
                
                if (!response.ok) {
                    const errorText = await response.text();
-                   console.error("Erro na resposta do Mercado Pago:", response.status, errorText);
-                   throw new Error('Erro ao criar pagamento no Mercado Pago: ' + errorText);
+                   console.error("Erro na resposta do PagSeguro:", response.status, errorText);
+                   throw new Error('Erro ao criar pagamento no PagSeguro: ' + errorText);
                }
                
-               const mpData = await response.json();
-               console.log("Resposta do Mercado Pago:", mpData);
-               const { init_point } = mpData;
+               const psData = await response.json();
+               console.log("Resposta do PagSeguro:", psData);
+               const { code } = psData; // PagSeguro retorna um código de checkout
                
-               if (!init_point) {
-                   console.error("init_point não encontrado na resposta");
+               if (!code) {
+                   console.error("Código de checkout não encontrado na resposta");
                    throw new Error("Link de pagamento não gerado");
                }
 
@@ -419,21 +516,112 @@ const App: React.FC = () => {
                  couponCode: couponCode || ''
                };
                
-               // Remove campos opcionais que podem ser undefined para evitar erro no Firebase
                const orderToSave = JSON.parse(JSON.stringify(newOrder));
-               
-               console.log("Salvando pedido no banco antes do redirecionamento:", orderToSave);
                await dbService.save('orders', orderId, orderToSave);
-               console.log("Pedido salvo com sucesso. Redirecionando para:", init_point);
                
-               // Redireciona para o checkout do Mercado Pago
+               // Redireciona para o checkout do PagSeguro
+               localStorage.setItem('nl_last_order_id', orderId);
+               // URL de Sandbox ou Produção - idealmente configurável, mas vamos assumir produção ou sandbox baseado no token?
+               // O PagSeguro tem URLs diferentes. Vamos tentar a URL padrão de redirecionamento com o código.
+               // URL Padrão: https://pagseguro.uol.com.br/v2/checkout/payment.html?code=CODE
+               // URL Sandbox: https://sandbox.pagseguro.uol.com.br/v2/checkout/payment.html?code=CODE
+               
+               // Vamos assumir produção por padrão, mas se o email for sandbox...
+               const isSandbox = paymentConfig.pagseguroEmail.includes('sandbox');
+               const baseUrl = isSandbox 
+                 ? 'https://sandbox.pagseguro.uol.com.br/v2/checkout/payment.html' 
+                 : 'https://pagseguro.uol.com.br/v2/checkout/payment.html';
+                 
+               window.location.href = `${baseUrl}?code=${code}`;
+               return; 
+             } catch (psError) {
+               console.error("Erro PagSeguro:", psError);
+               alert("Erro ao processar pagamento PagSeguro: " + (psError instanceof Error ? psError.message : String(psError)));
+               setIsOrderProcessing(false);
+               throw psError;
+             }
+        }
+
+        if (isMercadoPago) {
+             console.log("[Checkout] Iniciando fluxo Mercado Pago...");
+             console.log("[Checkout] Token configurado:", paymentConfig.mercadopagoAccessToken ? "SIM" : "NÃO");
+             
+             if (!paymentConfig.mercadopagoAccessToken) {
+                 console.error("[Checkout] ERRO: Token MP ausente no estado.");
+                 setToast({ show: true, msg: "Erro: Configuração de pagamento incompleta. Contate o administrador.", type: 'error' });
+                 setIsOrderProcessing(false);
+                 return;
+             }
+
+             try {
+               const mpPayload = {
+                   items: cart.map(item => ({
+                     id: item.id,
+                     title: item.name,
+                     quantity: item.quantity,
+                     unit_price: item.price
+                   })),
+                   payer: {
+                     email: currentUser?.email || 'cliente@nilo.com',
+                     name: currentUser?.name || 'Cliente'
+                   },
+                   external_reference: orderId,
+                   accessToken: paymentConfig.mercadopagoAccessToken
+                 };
+               
+               console.log("[Checkout] Enviando payload para API:", JSON.stringify(mpPayload));
+
+               const response = await fetch('/api/checkout/mercadopago', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(mpPayload)
+               });
+               
+               if (!response.ok) {
+                   const errorText = await response.text();
+                   console.error("[Checkout] Erro na resposta da API:", response.status, errorText);
+                   throw new Error('Erro ao criar pagamento no Mercado Pago: ' + errorText);
+               }
+               
+               const mpData = await response.json();
+               console.log("[Checkout] Resposta da API:", mpData);
+               const { init_point } = mpData;
+               
+               if (!init_point) {
+                   console.error("[Checkout] init_point não encontrado.");
+                   throw new Error("Link de pagamento não gerado");
+               }
+
+               // Salva o pedido como AGUARDANDO PAGAMENTO antes de redirecionar
+               const newOrder: Order = {
+                 id: orderId, 
+                 customerId: currentUser?.email || 'kiosk', 
+                 customerName: currentUser?.name || 'Cliente Local', 
+                 customerPhone: currentUser?.phone || '000',
+                 customerAddress: deliveryType === 'PICKUP' ? 'RETIRADA' : (currentUser?.address || 'LOCAL'),
+                 items: [...cart], 
+                 total: total || 0, 
+                 deliveryFee: fee || 0, 
+                 deliveryType: isKioskMode ? 'PICKUP' : deliveryType, 
+                 status: 'AGUARDANDO PAGAMENTO', 
+                 paymentMethod: paymentMethod || 'Não informado', 
+                 createdAt: new Date().toISOString(), 
+                 pointsEarned: Math.floor(total || 0), 
+                 changeFor: changeFor || 0, 
+                 discountValue: discount || 0, 
+                 couponCode: couponCode || ''
+               };
+               
+               const orderToSave = JSON.parse(JSON.stringify(newOrder));
+               await dbService.save('orders', orderId, orderToSave);
+               
                localStorage.setItem('nl_last_order_id', orderId);
                window.location.href = init_point;
                return; 
              } catch (mpError) {
-               console.error("Erro MP:", mpError);
+               console.error("[Checkout] Exceção MP:", mpError);
                alert("Erro ao processar pagamento: " + (mpError instanceof Error ? mpError.message : String(mpError)));
-               setIsOrderProcessing(false); // Reabilita o botão em caso de erro
+               setIsOrderProcessing(false);
                throw mpError;
              }
         }
@@ -525,11 +713,39 @@ const App: React.FC = () => {
             onAddZipRange={(start, end, fee) => dbService.save('zip_ranges', Math.random().toString(36).substring(7), { start, end, fee })} onUpdateZipRange={(id, start, end, fee) => dbService.save('zip_ranges', id, { start, end, fee })} onRemoveZipRange={(id) => dbService.remove('zip_ranges', id)} 
             onAddCoupon={(code, discount, type) => dbService.save('coupons', Math.random().toString(36).substring(7), { code, discount, type, active: true })} onRemoveCoupon={(id) => dbService.remove('coupons', id)} 
             paymentSettings={paymentMethods} onTogglePaymentMethod={(id) => { const p = paymentMethods.find(x => x.id === id); if (p) dbService.save('payment_methods', id, { enabled: !p.enabled }); }} onAddPaymentMethod={(name, type) => dbService.save('payment_methods', Math.random().toString(36).substring(7), { name, type, enabled: true })} onRemovePaymentMethod={(id) => dbService.remove('payment_methods', id)} onUpdatePaymentSettings={(id, updates) => dbService.save('payment_methods', id, updates)} 
-            paymentConfig={paymentConfig} onUpdatePaymentConfig={(config) => dbService.save('settings', 'general', { ...config })}
+            paymentConfig={paymentConfig} onUpdatePaymentConfig={(config) => {
+              console.log("[App] onUpdatePaymentConfig chamado com:", config);
+              const newConfig = { ...paymentConfig, ...config };
+              console.log("[App] Novo estado paymentConfig calculado:", newConfig);
+              setPaymentConfig(newConfig);
+              // Salva no banco de dados mesclando com as configurações gerais existentes
+              dbService.getAll<any>('settings').then(data => {
+                const currentSettings = data.find(d => d.id === 'general') || {};
+                console.log("[App] Configurações atuais no banco (antes do merge):", currentSettings);
+                const finalConfig = { ...currentSettings, ...newConfig };
+                console.log("[App] Salvando no banco:", finalConfig);
+                dbService.save('settings', 'general', finalConfig);
+              });
+            }}
             onLogout={() => { setIsAdmin(false); sessionStorage.removeItem('nl_admin_auth'); }} onBackToSite={() => setIsAdmin(false)}
           />
         ) : activeView === 'my-orders' ? (
-          <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.email)} onBack={() => setActiveView('home')} onReorder={() => {}} />
+          (() => {
+            const myOrders = orders.filter(o => o.customerId === currentUser?.email);
+            console.log("Renderizando Meus Pedidos:", { 
+                currentUserEmail: currentUser?.email, 
+                totalOrders: orders.length, 
+                myOrdersCount: myOrders.length,
+                orders: orders
+            });
+            return (
+              <CustomerOrders 
+                orders={myOrders} 
+                onBack={() => setActiveView('home')} 
+                onReorder={() => {}} 
+              />
+            );
+          })()
         ) : activeView === 'motoboy' ? (
           <MotoboyPortal orders={orders} onBack={() => setActiveView('home')} />
         ) : (
@@ -583,6 +799,23 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Fallback para Erro de Conexão */}
+      {!isInitialLoading && products.length === 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50 p-4">
+          <div className="text-center space-y-4">
+            <div className="text-6xl">📡</div>
+            <h2 className="text-xl font-black text-slate-800 uppercase">Conexão Instável</h2>
+            <p className="text-slate-500 text-sm max-w-xs mx-auto">Não conseguimos carregar o cardápio. Verifique sua internet e tente novamente.</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-emerald-200 active:scale-95 transition-all"
+            >
+              Tentar Novamente
+            </button>
+          </div>
+        </div>
+      )}
 
       {!isAdmin && !isKioskMode && <Footer logoUrl={logoUrl} isStoreOpen={isStoreOpen} socialLinks={socialLinks} onAdminClick={() => setIsAdminLoginOpen(true)} onMotoboyClick={onMotoboyClick} />}
       

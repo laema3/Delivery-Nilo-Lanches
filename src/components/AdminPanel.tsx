@@ -44,9 +44,15 @@ interface AdminPanelProps {
   }) => void;
   paymentConfig: {
     mercadopagoAccessToken: string;
+    mercadopagoPublicKey?: string;
+    pagseguroEmail?: string;
+    pagseguroToken?: string;
   };
   onUpdatePaymentConfig: (config: {
-    mercadopagoAccessToken: string;
+    mercadopagoAccessToken?: string;
+    mercadopagoPublicKey?: string;
+    pagseguroEmail?: string;
+    pagseguroToken?: string;
   }) => void;
   authSettings: {
     adminUser: string;
@@ -156,12 +162,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [localAddress, setLocalAddress] = useState(socialLinks?.address || 'Rua Exemplo, 123 - Centro');
   const [localCity, setLocalCity] = useState(socialLinks?.city || 'Uberaba - MG');
   const [localMercadoPagoToken, setLocalMercadoPagoToken] = useState(paymentConfig?.mercadopagoAccessToken || '');
+  const [localMercadoPagoPublicKey, setLocalMercadoPagoPublicKey] = useState(paymentConfig?.mercadopagoPublicKey || '');
+  const [localPagSeguroEmail, setLocalPagSeguroEmail] = useState(paymentConfig?.pagseguroEmail || '');
+  const [localPagSeguroToken, setLocalPagSeguroToken] = useState(paymentConfig?.pagseguroToken || '');
 
   const [isImporting, setIsImporting] = useState(false);
   const [importLog, setImportLog] = useState('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const formTopRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setLocalMercadoPagoToken(paymentConfig?.mercadopagoAccessToken || '');
+    setLocalMercadoPagoPublicKey(paymentConfig?.mercadopagoPublicKey || '');
+    setLocalPagSeguroEmail(paymentConfig?.pagseguroEmail || '');
+    setLocalPagSeguroToken(paymentConfig?.pagseguroToken || '');
+  }, [paymentConfig]);
 
   useEffect(() => {
     setLocalInstagram(socialLinks?.instagram || '');
@@ -911,7 +927,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             {activeView === 'pagamentos' && (
                <div className="space-y-8 animate-in fade-in">
                   <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
-                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest">Novo Método de Pagamento</h3>
+                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest">Adicionar Novo Método na Lista</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                         <div className="space-y-1">
                            <label className={labelClass}>Nome do Método</label>
@@ -928,7 +944,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      <div className="flex justify-end pt-4 border-t border-slate-100">
                         <button 
                           onClick={() => { 
-                            if (!payName) return alert('Digite um nome para o método');
+                            if (!payName) return alert('Digite um nome para o método (Ex: Pix, Dinheiro, Cartão)');
                             onAddPaymentMethod(payName, payType); 
                             setPayName(''); 
                           }} 
@@ -936,6 +952,92 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         >
                           <span>➕</span> Salvar Novo Método de Pagamento
                         </button>
+                     </div>
+                  </div>
+
+                  {/* CONFIGURAÇÃO MERCADO PAGO */}
+                  <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6 border-l-8 border-l-blue-500">
+                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                       <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center text-xl">💳</span>
+                       Configuração Mercado Pago
+                     </h3>
+                     <div className="space-y-4">
+                        <div className="space-y-1">
+                           <label className={labelClass}>Access Token (Produção ou Teste)</label>
+                           <input 
+                             type="password" 
+                             value={localMercadoPagoToken} 
+                             onChange={e => setLocalMercadoPagoToken(e.target.value)} 
+                             placeholder="APP_USR-..." 
+                             className={`${inputClass} ${localMercadoPagoToken && !localMercadoPagoToken.startsWith('APP_USR-') && !localMercadoPagoToken.startsWith('TEST-') ? 'border-amber-500 focus:border-amber-500 bg-amber-50' : ''}`} 
+                           />
+                           {localMercadoPagoToken && !localMercadoPagoToken.startsWith('APP_USR-') && !localMercadoPagoToken.startsWith('TEST-') && (
+                             <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-1">⚠️ O token deve começar com APP_USR- (Produção) ou TEST- (Teste)</p>
+                           )}
+                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Credencial principal para processar pagamentos.</p>
+                           <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-2">ℹ️ Dica: Adicione um método chamado "Mercado Pago" (Tipo: ONLINE) na lista abaixo para que apareça no checkout.</p>
+                        </div>
+
+                        <div className="pt-4">
+                            <button 
+                                onClick={() => {
+                                    console.log("[Admin] Salvando token MP:", localMercadoPagoToken ? "Presente" : "Vazio");
+                                    onUpdatePaymentConfig({ 
+                                        mercadopagoAccessToken: localMercadoPagoToken
+                                    });
+                                    alert("Configurações do Mercado Pago salvas com sucesso!");
+                                }}
+                                className="bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95 w-full sm:w-auto"
+                            >
+                                💾 Salvar Configurações MP
+                            </button>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* CONFIGURAÇÃO PAGSEGURO */}
+                  <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6 border-l-8 border-l-yellow-500">
+                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                       <span className="w-10 h-10 bg-yellow-500 text-white rounded-xl flex items-center justify-center text-xl">💳</span>
+                       Configuração PagSeguro
+                     </h3>
+                     <div className="space-y-4">
+                        <div className="space-y-1">
+                           <label className={labelClass}>Email do PagSeguro</label>
+                           <input 
+                             type="email" 
+                             value={localPagSeguroEmail} 
+                             onChange={e => setLocalPagSeguroEmail(e.target.value)} 
+                             placeholder="seuemail@exemplo.com" 
+                             className={inputClass} 
+                           />
+                        </div>
+                        <div className="space-y-1">
+                           <label className={labelClass}>Token do PagSeguro</label>
+                           <input 
+                             type="password" 
+                             value={localPagSeguroToken} 
+                             onChange={e => setLocalPagSeguroToken(e.target.value)} 
+                             placeholder="Token gerado no painel do PagSeguro" 
+                             className={inputClass} 
+                           />
+                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gere o token em: Minha Conta &gt; Preferências &gt; Integrações.</p>
+                        </div>
+
+                        <div className="pt-4">
+                            <button 
+                                onClick={() => {
+                                    onUpdatePaymentConfig({ 
+                                        pagseguroEmail: localPagSeguroEmail,
+                                        pagseguroToken: localPagSeguroToken
+                                    });
+                                    alert("Configurações do PagSeguro salvas com sucesso!");
+                                }}
+                                className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95 w-full sm:w-auto"
+                            >
+                                💾 Salvar Configurações PagSeguro
+                            </button>
+                        </div>
                      </div>
                   </div>
 
@@ -1037,48 +1139,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                      </div>
                   </section>
 
-                  <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
-                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
-                       <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center text-xl">💳</span>
-                       Configuração Mercado Pago
-                     </h3>
-                     <div className="space-y-4">
-                        <div className="space-y-1">
-                           <label className={labelClass}>Access Token (Produção ou Teste)</label>
-                           <input 
-                             type="password" 
-                             value={localMercadoPagoToken} 
-                             onChange={e => setLocalMercadoPagoToken(e.target.value)} 
-                             onBlur={() => onUpdatePaymentConfig({ mercadopagoAccessToken: localMercadoPagoToken })}
-                             placeholder="APP_USR-..." 
-                             className={inputClass} 
-                           />
-                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Obtenha seu token no painel de desenvolvedor do Mercado Pago.</p>
-                        </div>
-                        
-                        {!paymentSettings.some(p => p.type === 'ONLINE' && p.enabled) && localMercadoPagoToken && (
-                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3 items-start animate-in fade-in slide-in-from-top-2">
-                            <span className="text-xl">⚠️</span>
-                            <div>
-                              <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Atenção: Método de Pagamento não configurado</p>
-                              <p className="text-[10px] font-bold text-amber-600 uppercase leading-relaxed">
-                                Você inseriu o token, mas ainda não ativou um método de pagamento online. 
-                                Vá na aba <button onClick={() => setActiveView('pagamentos')} className="underline font-black text-amber-800">PAGAMENTOS</button> e adicione um método (ex: Mercado Pago) com o tipo "PAGAMENTO ONLINE (APP)".
-                              </p>
-                              <button 
-                                onClick={() => {
-                                  onAddPaymentMethod('Mercado Pago', 'ONLINE');
-                                  setActiveView('pagamentos');
-                                }}
-                                className="mt-3 bg-amber-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all"
-                              >
-                                Criar Método "Mercado Pago" Agora
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                     </div>
-                  </section>
+
 
                   {/* SEÇÃO DE SEGURANÇA E ACESSOS */}
                   <section className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
