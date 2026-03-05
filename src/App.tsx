@@ -429,17 +429,18 @@ const App: React.FC = () => {
         // Normaliza removendo espaços extras e deixando minúsculo para comparação
         const normalizedPayment = paymentMethod.toLowerCase().trim();
         
-        // Busca a configuração do método selecionado para verificar o tipo
+        // Busca a configuração do método selecionado
         const selectedMethod = paymentMethods.find(p => p.name.toLowerCase().trim() === normalizedPayment);
         
-        // Verifica se é PagSeguro primeiro
+        // Verifica se é PagSeguro
         const isPagSeguro = normalizedPayment.includes('pagseguro') || normalizedPayment.includes('pag seguro');
 
-        // Verifica se é Mercado Pago
-        // Se o método for explicitamente Mercado Pago ou se for um método ONLINE que não é PagSeguro
+        // Verifica se é Mercado Pago (mais permissivo)
         const isMercadoPago = normalizedPayment.includes('mercado pago') || 
-                              normalizedPayment.includes('mercadopago') || 
-                              (selectedMethod?.type === 'ONLINE' && !isPagSeguro);
+                              normalizedPayment.includes('mercadopago');
+        
+        // Define se é um método online (seja por nome ou por configuração)
+        const isOnlineType = selectedMethod?.type === 'ONLINE' || isMercadoPago || isPagSeguro;
                               
         console.log("Verificação de Pagamento Detalhada:", { 
             original: paymentMethod, 
@@ -447,8 +448,22 @@ const App: React.FC = () => {
             foundMethod: selectedMethod?.name,
             methodType: selectedMethod?.type,
             isMercadoPago,
-            isPagSeguro
+            isPagSeguro,
+            isOnlineType
         });
+
+        // DIAGNÓSTICO: Se for um método ONLINE mas não foi detectado como MP ou PS, impede a venda
+        if (isOnlineType && !isMercadoPago && !isPagSeguro) {
+             console.error("ERRO: Método online não identificado corretamente.");
+             setToast({ show: true, msg: `Erro: Método '${paymentMethod}' não reconhecido como online. Contate o administrador.`, type: 'error' });
+             setIsOrderProcessing(false);
+             return;
+        }
+        
+        // DEBUG: Se chegou aqui e não é MP nem PS, mas é online, algo está errado
+        if (isOnlineType && !isPagSeguro && !isMercadoPago) {
+            alert(`DEBUG: Método '${paymentMethod}' identificado como online, mas não foi detectado como MP ou PS. isMercadoPago: ${isMercadoPago}, isPagSeguro: ${isPagSeguro}`);
+        }
         
         if (isPagSeguro) {
              console.log("Token PagSeguro atual:", paymentConfig.pagseguroToken ? "Configurado" : "Ausente");
