@@ -124,7 +124,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                     placeholder="CÓDIGO"
                     className="flex-1 bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 uppercase"
                   />
-                  <button onClick={handleApplyCoupon} className="bg-slate-900 text-white px-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors">Aplicar</button>
+                  <button onClick={handleApplyCoupon} className="bg-red-600 text-white px-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors">Aplicar</button>
                 </div>
                 {appliedCoupon && <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">✅ Cupom {appliedCoupon.code} aplicado!</p>}
               </div>
@@ -184,7 +184,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             <button 
               onClick={handleCheckoutClick}
               disabled={isProcessing || !isStoreOpen}
-              className={`w-full py-4 rounded-2xl font-black uppercase text-xs tracking-widest text-white shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 ${isProcessing || !isStoreOpen ? 'bg-slate-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-900/20'}`}
+              className={`w-full py-4 rounded-2xl font-black uppercase text-xs tracking-widest text-white shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 ${isProcessing || !isStoreOpen ? 'bg-slate-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-900/20'}`}
             >
               {isProcessing ? 'Processando...' : (isStoreOpen ? 'Confirmar Pedido' : 'Loja Fechada')}
             </button>

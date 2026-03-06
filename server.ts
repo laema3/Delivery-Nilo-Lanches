@@ -1,10 +1,17 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
+
+// Importação dinâmica do Vite para não pesar no bundle da Vercel
+let createViteServer: any = null;
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  import('vite').then(m => {
+    createViteServer = m.createServer;
+  });
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,10 +29,21 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
   try {
     console.log("[MP] Iniciando criação de preferência...");
     const { items, payer, external_reference, accessToken } = req.body;
+    
+    console.log("[MP] Dados recebidos:", { 
+      itemsCount: items?.length, 
+      payerEmail: payer?.email, 
+      external_reference,
+      hasToken: !!accessToken 
+    });
 
     if (!accessToken) {
       console.error("[MP] Erro: Access Token ausente.");
       return res.status(400).json({ error: 'Access Token é obrigatório' });
+    }
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Itens do carrinho não enviados' });
     }
 
     // Inicializa o cliente com o token recebido
@@ -41,16 +59,22 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
     console.log("[MP] Base URL para retorno:", baseUrl);
 
     const body = {
-      items: items.map((item: any) => ({
-        id: String(item.id),
-        title: item.title,
-        quantity: Number(item.quantity),
-        unit_price: Number(item.unit_price),
-        currency_id: 'BRL',
-      })),
+      items: items.map((item: any) => {
+        const price = Number(item.unit_price);
+        if (isNaN(price)) {
+          throw new Error(`Preço inválido para o item ${item.title}: ${item.unit_price}`);
+        }
+        return {
+          id: String(item.id),
+          title: String(item.title).substring(0, 250), // Limite de caracteres do MP
+          quantity: Math.max(1, Number(item.quantity)),
+          unit_price: price,
+          currency_id: 'BRL',
+        };
+      }),
       payer: {
-        email: payer.email,
-        name: payer.name,
+        email: payer?.email || 'cliente@email.com',
+        name: payer?.name || 'Cliente',
       },
       external_reference: String(external_reference),
       back_urls: {
@@ -61,7 +85,7 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
       auto_return: 'approved',
     };
 
-    console.log("[MP] Payload da preferência:", JSON.stringify(body, null, 2));
+    console.log("[MP] Payload validado. Enviando para MP...");
 
     const result = await preference.create({ body });
     
@@ -69,10 +93,15 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
     res.json({ id: result.id, init_point: result.init_point });
 
   } catch (error: any) {
-    console.error('[MP] Erro ao criar preferência:', error);
+    console.error('[MP] Erro fatal ao criar preferência:', error);
+    
+    // Tenta extrair detalhes do erro do Mercado Pago se disponíveis
+    const errorDetails = error.response?.data || error.message || String(error);
+    console.error('[MP] Detalhes do erro:', JSON.stringify(errorDetails));
+
     res.status(500).json({ 
       error: 'Erro ao processar pagamento no Mercado Pago',
-      details: error.message || String(error)
+      details: typeof errorDetails === 'object' ? JSON.stringify(errorDetails) : errorDetails
     });
   }
 });
@@ -147,33 +176,34 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is healthy' });
 });
 
-async function startServer() {
-  try {
-    // Vite middleware para desenvolvimento
-    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: 'spa',
-        root: process.cwd(),
-      });
-      app.use(vite.middlewares);
-    } else {
-      // Em produção, servir os arquivos estáticos do build do Vite
-      app.use(express.static('dist'));
-      app.get('*', (req, res) => {
-        res.sendFile(path.resolve('dist', 'index.html'));
-      });
+// Vite middleware para desenvolvimento
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  async function setupVite() {
+    if (!createViteServer) {
+      const m = await import('vite');
+      createViteServer = m.createServer;
     }
-
-    if (!process.env.VERCEL) {
-      app.listen(PORT, '0.0.0.0', () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-      });
-    }
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    if (!process.env.VERCEL) process.exit(1);
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+      root: process.cwd(),
+    });
+    app.use(vite.middlewares);
   }
+  setupVite();
+} else if (!process.env.VERCEL) {
+  // Em produção fora da Vercel (ex: Docker ou VPS), servir arquivos estáticos
+  app.use(express.static('dist'));
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve('dist', 'index.html'));
+  });
 }
 
-startServer();
+// O listen só deve rodar se não estivermos na Vercel
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+// Removido o startServer() async que envolvia as rotas
