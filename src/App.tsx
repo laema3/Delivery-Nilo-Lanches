@@ -800,7 +800,11 @@ const App: React.FC = () => {
             );
           })()
         ) : activeView === 'motoboy' ? (
-          <MotoboyPortal orders={orders} onBack={() => setActiveView('home')} />
+          <MotoboyPortal 
+            orders={orders} 
+            onBack={() => setActiveView('home')} 
+            onUpdateOrderStatus={(id, status) => dbService.save('orders', id, { status })} 
+          />
         ) : (
           <div className="flex flex-col w-full items-center">
             {!isKioskMode && (

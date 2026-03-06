@@ -5,9 +5,10 @@ import { Order } from '../types';
 interface MotoboyPortalProps {
   orders: Order[];
   onBack: () => void;
+  onUpdateOrderStatus: (id: string, status: string) => void;
 }
 
-export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, onBack }) => {
+export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, onBack, onUpdateOrderStatus }) => {
   const [activeTab, setActiveTab] = useState<'PENDING' | 'COMPLETED'>('PENDING');
 
   const filteredOrders = orders.filter(o => 
@@ -45,7 +46,7 @@ export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, onBack }) 
                 <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide ${order.status === 'SAIU PARA ENTREGA' ? 'bg-purple-100 text-purple-600' : 'bg-yellow-100 text-yellow-600'}`}>{order.status}</span>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
                 <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customerAddress)}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-colors shadow-lg shadow-slate-900/20 active:scale-95 flex items-center justify-center gap-2">
                   <span>Abrir Mapa</span>
                   <span>🗺️</span>
@@ -54,6 +55,16 @@ export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, onBack }) 
                   <span>WhatsApp</span>
                   <span>💬</span>
                 </a>
+                {order.status === 'PREPARANDO' && (
+                  <button onClick={() => onUpdateOrderStatus(order.id, 'SAIU PARA ENTREGA')} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-purple-700 transition-colors shadow-lg shadow-purple-900/20 active:scale-95 flex items-center justify-center gap-2">
+                    Pegar Pedido 🛵
+                  </button>
+                )}
+                {order.status === 'SAIU PARA ENTREGA' && (
+                  <button onClick={() => onUpdateOrderStatus(order.id, 'FINALIZADO')} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2">
+                    Entregue ✅
+                  </button>
+                )}
               </div>
             </div>
           ))

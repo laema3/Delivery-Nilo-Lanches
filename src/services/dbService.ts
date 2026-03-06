@@ -30,17 +30,10 @@ export const dbService = {
     try {
       console.log(`[dbService] Buscando todos (getAll) de: ${collectionName}`);
       
-      // Timeout aumentado para 30 segundos
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error(`Timeout ao buscar dados de ${collectionName} (30s)`)), 30000)
-      );
-      
       const q = query(collection(db, collectionName));
-      // @ts-expect-error: Promise.race return type might not match querySnapshot
-      const querySnapshot = await Promise.race([getDocs(q), timeoutPromise]);
+      const querySnapshot = await getDocs(q);
       
       const data: any[] = [];
-      // @ts-expect-error: querySnapshot might be the timeout error
       querySnapshot.forEach((doc: any) => {
         data.push({ ...doc.data(), id: doc.id });
       });

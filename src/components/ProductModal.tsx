@@ -49,7 +49,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, complements
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
           <div>
             <div className="flex justify-between items-start gap-4">
-              <h2 className="text-3xl sm:text-4xl font-black text-red-600 uppercase tracking-tighter leading-none">{product.name}</h2>
+              <h2 className="text-3xl sm:text-4xl font-black text-emerald-600 uppercase tracking-tighter leading-none">{product.name}</h2>
               <span className="text-2xl font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl shrink-0">R$ {product.price.toFixed(2)}</span>
             </div>
             <p className="text-slate-500 font-medium mt-4 leading-relaxed">{product.description}</p>
@@ -84,7 +84,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, complements
           <button 
             onClick={() => { onAdd(product, quantity, selectedComplements); onClose(); }}
             disabled={!isStoreOpen}
-            className={`flex-1 py-4 rounded-2xl font-black uppercase text-sm tracking-widest text-white shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 ${!isStoreOpen ? 'bg-slate-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-900/20'}`}
+            className={`flex-1 py-4 rounded-2xl font-black uppercase text-sm tracking-widest text-white shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 ${!isStoreOpen ? 'bg-slate-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-red-600 shadow-emerald-900/20'}`}
           >
             <span>{isStoreOpen ? `Adicionar • R$ ${totalPrice.toFixed(2)}` : 'Loja Fechada'}</span>
             {isStoreOpen && <span className="bg-white/20 px-2 py-0.5 rounded text-[10px]">➜</span>}

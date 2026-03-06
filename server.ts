@@ -77,6 +77,7 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
         name: payer?.name || 'Cliente',
       },
       external_reference: String(external_reference),
+      notification_url: `${baseUrl}/api/webhooks/mercadopago?token=${accessToken}`,
       back_urls: {
         success: `${baseUrl}/`,
         failure: `${baseUrl}/`,
@@ -103,6 +104,59 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
       error: 'Erro ao processar pagamento no Mercado Pago',
       details: typeof errorDetails === 'object' ? JSON.stringify(errorDetails) : errorDetails
     });
+  }
+});
+
+// --- WEBHOOK MERCADO PAGO ---
+app.post('/api/webhooks/mercadopago', async (req, res) => {
+  try {
+    const { type, data } = req.body;
+    const token = req.query.token as string;
+    
+    console.log("[Webhook MP] Recebido:", { type, id: data?.id, hasToken: !!token });
+
+    if (type === 'payment' && data?.id && token) {
+      // Busca os detalhes do pagamento no Mercado Pago
+      const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (paymentResponse.ok) {
+        const payment = await paymentResponse.json();
+        console.log(`[Webhook MP] Status do pagamento ${data.id}:`, payment.status);
+        
+        if (payment.status === 'approved') {
+          const orderId = payment.external_reference;
+          if (orderId) {
+            // Atualiza o status no Firestore via REST API
+            const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'nilo-lanches-f2557';
+            const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/orders/${orderId}?updateMask.fieldPaths=status`;
+            
+            const updateRes = await fetch(firestoreUrl, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fields: { status: { stringValue: 'NOVO' } }
+              })
+            });
+
+            if (updateRes.ok) {
+              console.log(`[Webhook MP] Pedido ${orderId} atualizado para NOVO com sucesso!`);
+            } else {
+              console.error(`[Webhook MP] Falha ao atualizar pedido ${orderId} no Firestore:`, await updateRes.text());
+            }
+          }
+        }
+      } else {
+        console.error("[Webhook MP] Erro ao buscar pagamento:", await paymentResponse.text());
+      }
+    }
+    
+    // Sempre retornar 200 OK para o Mercado Pago parar de enviar a notificação
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('[Webhook MP] Erro interno:', error);
+    res.sendStatus(500);
   }
 });
 

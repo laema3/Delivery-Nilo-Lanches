@@ -67,15 +67,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
                 
                 {currentUser ? (
-                  <div className="hidden sm:flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
                     <div className="text-right">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Olá, {currentUser.name.split(' ')[0]}</p>
-                      <button onClick={onMyOrdersClick} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 uppercase">Meus Pedidos</button>
+                      <button onClick={onMyOrdersClick} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 uppercase">Meus Pedidos / Acompanhar</button>
                     </div>
                     <button onClick={onLogout} className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">🚪</button>
                   </div>
                 ) : (
-                  <button onClick={onAuthClick} className="hidden sm:flex items-center gap-2 text-xs font-black text-slate-600 hover:text-emerald-600 uppercase tracking-widest transition-colors">
+                  <button onClick={onAuthClick} className="flex items-center gap-2 text-xs font-black text-slate-600 hover:text-emerald-600 uppercase tracking-widest transition-colors">
                     <span>👤</span> Entrar
                   </button>
                 )}

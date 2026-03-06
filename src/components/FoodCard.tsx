@@ -32,7 +32,7 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
       <div className="space-y-3">
         <div className="flex justify-between items-start">
           <div>
-            <h3 className="text-lg font-black text-red-600 uppercase tracking-tight leading-tight group-hover:text-red-700 transition-colors line-clamp-2">{product.name}</h3>
+            <h3 className="text-lg font-black text-emerald-600 uppercase tracking-tight leading-tight group-hover:text-emerald-700 transition-colors line-clamp-2">{product.name}</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{product.category}</p>
           </div>
           <span className="text-lg font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg shrink-0">
@@ -46,7 +46,7 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
 
         <button 
           onClick={(e) => { e.stopPropagation(); onAdd(product, 1); }}
-          className="w-full bg-red-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-700 transition-colors shadow-lg shadow-red-600/10 active:scale-95 flex items-center justify-center gap-2 group/btn"
+          className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-600 transition-colors shadow-lg shadow-emerald-600/10 active:scale-95 flex items-center justify-center gap-2 group/btn"
         >
           <span>Adicionar</span>
           <span className="group-hover/btn:translate-x-1 transition-transform">➜</span>
