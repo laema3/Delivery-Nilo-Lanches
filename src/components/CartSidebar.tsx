@@ -30,7 +30,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [changeFor, setChangeFor] = useState<number | undefined>(undefined);
-  const [deliveryType, setDeliveryType] = useState<DeliveryType>('DELIVERY');
+  const [deliveryType, setDeliveryType] = useState<DeliveryType | null>(null);
 
   const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const discount = appliedCoupon ? (appliedCoupon.type === 'PERCENT' ? subtotal * (appliedCoupon.discount / 100) : appliedCoupon.discount) : 0;
@@ -48,6 +48,14 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   };
 
   const handleCheckoutClick = () => {
+    if (!deliveryType) {
+      if (onShowToast) {
+        onShowToast('FAVOR SELECIONAR ENTREGA OU RETIRADA', 'error');
+      } else {
+        alert('FAVOR SELECIONAR ENTREGA OU RETIRADA');
+      }
+      return;
+    }
     if (!paymentMethod) {
       if (onShowToast) {
         onShowToast('FAVOR SELECIONAR UMA FORMA DE PAGAMENTO', 'error');
@@ -103,14 +111,33 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
 
           {items.length > 0 && (
             <div className="space-y-6 pt-6 border-t border-slate-100">
+              <button 
+                onClick={onClose} 
+                className="w-full py-3 rounded-xl border-2 border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <span>←</span> Continuar Comprando
+              </button>
+
               <div className="space-y-3">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Entrega</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => setDeliveryType('DELIVERY')} className={`p-3 rounded-xl border-2 text-xs font-black uppercase tracking-widest transition-all ${deliveryType === 'DELIVERY' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-100 bg-white text-slate-400'}`}>
-                    🛵 Delivery
+                <div className="grid grid-cols-1 gap-2">
+                  <button 
+                    onClick={() => setDeliveryType('DELIVERY')} 
+                    className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all flex items-center justify-between shadow-sm ${deliveryType === 'DELIVERY' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-emerald-100' : 'border-slate-100 bg-white text-slate-500 hover:border-emerald-200 hover:text-emerald-500'}`}
+                  >
+                    <span className="text-xs font-black uppercase tracking-wide flex items-center gap-2">
+                      <span className="text-lg">🛵</span> Delivery
+                    </span>
+                    {deliveryType === 'DELIVERY' && <span className="text-emerald-600 font-bold">●</span>}
                   </button>
-                  <button onClick={() => setDeliveryType('PICKUP')} className={`p-3 rounded-xl border-2 text-xs font-black uppercase tracking-widest transition-all ${deliveryType === 'PICKUP' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-100 bg-white text-slate-400'}`}>
-                    🏃 Retirada
+                  <button 
+                    onClick={() => setDeliveryType('PICKUP')} 
+                    className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all flex items-center justify-between shadow-sm ${deliveryType === 'PICKUP' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-emerald-100' : 'border-slate-100 bg-white text-slate-500 hover:border-emerald-200 hover:text-emerald-500'}`}
+                  >
+                    <span className="text-xs font-black uppercase tracking-wide flex items-center gap-2">
+                      <span className="text-lg">🏃</span> Retirada
+                    </span>
+                    {deliveryType === 'PICKUP' && <span className="text-emerald-600 font-bold">●</span>}
                   </button>
                 </div>
               </div>
