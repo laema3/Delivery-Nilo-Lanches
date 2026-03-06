@@ -46,10 +46,6 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
       return res.status(400).json({ error: 'Itens do carrinho não enviados' });
     }
 
-    // Inicializa o cliente com o token recebido
-    const client = new MercadoPagoConfig({ accessToken: accessToken });
-    const preference = new Preference(client);
-
     // Determina a URL base dinamicamente
     const getHeader = (name: string) => {
       const val = req.headers[name];
@@ -91,9 +87,32 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
       auto_return: 'approved',
     };
 
-    console.log("[MP] Payload validado. Enviando para MP...");
+    console.log("[MP] Payload validado. Enviando para MP via fetch direto...");
 
-    const result = await preference.create({ body });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos de timeout para evitar crash da Vercel
+
+    const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    const result = await mpResponse.json();
+
+    if (!mpResponse.ok) {
+      console.error('[MP] Erro retornado pela API do Mercado Pago:', result);
+      return res.status(mpResponse.status).json({
+        error: 'Erro na API do Mercado Pago',
+        details: result
+      });
+    }
     
     console.log("[MP] Preferência criada com sucesso. ID:", result.id);
     res.json({ id: result.id, init_point: result.init_point });
