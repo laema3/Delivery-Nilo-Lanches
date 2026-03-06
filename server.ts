@@ -3,14 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Importação dinâmica do Vite para não pesar no bundle da Vercel
-let createViteServer: any = null;
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-  import('vite').then(m => {
-    createViteServer = m.createServer;
-  });
-}
-
 dotenv.config();
 
 export const app = express();
@@ -264,11 +256,10 @@ app.get('/api/health', (req, res) => {
 // Vite middleware para desenvolvimento
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   async function setupVite() {
-    if (!createViteServer) {
-      const m = await import('vite');
-      createViteServer = m.createServer;
-    }
-    const vite = await createViteServer({
+    // Esconde o import do Vite do bundler da Vercel
+    const viteName = 'vite';
+    const m = await import(/* @vite-ignore */ viteName);
+    const vite = await m.createServer({
       server: { middlewareMode: true },
       appType: 'spa',
       root: process.cwd(),
