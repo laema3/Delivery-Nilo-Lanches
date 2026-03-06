@@ -151,20 +151,34 @@ app.post('/api/webhooks/mercadopago', async (req, res) => {
         if (payment.status === 'approved') {
           const orderId = payment.external_reference;
           if (orderId) {
+            // Identifica o método de pagamento
+            let methodLabel = 'Mercado Pago';
+            const typeId = payment.payment_type_id;
+            const methodId = payment.payment_method_id;
+            
+            if (typeId === 'credit_card') methodLabel = 'Mercado Pago - Crédito';
+            else if (typeId === 'debit_card') methodLabel = 'Mercado Pago - Débito';
+            else if (typeId === 'ticket') methodLabel = 'Mercado Pago - Boleto';
+            else if (typeId === 'bank_transfer' || methodId === 'pix') methodLabel = 'Mercado Pago - PIX';
+            else if (typeId === 'account_money') methodLabel = 'Mercado Pago - Saldo';
+
             // Atualiza o status no Firestore via REST API
             const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'nilo-lanches-f2557';
-            const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/orders/${orderId}?updateMask.fieldPaths=status`;
+            const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/orders/${orderId}?updateMask.fieldPaths=status&updateMask.fieldPaths=paymentMethod`;
             
             const updateRes = await fetch(firestoreUrl, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                fields: { status: { stringValue: 'NOVO' } }
+                fields: { 
+                  status: { stringValue: 'NOVO' },
+                  paymentMethod: { stringValue: methodLabel }
+                }
               })
             });
 
             if (updateRes.ok) {
-              console.log(`[Webhook MP] Pedido ${orderId} atualizado para NOVO com sucesso!`);
+              console.log(`[Webhook MP] Pedido ${orderId} atualizado para NOVO (${methodLabel}) com sucesso!`);
             } else {
               console.error(`[Webhook MP] Falha ao atualizar pedido ${orderId} no Firestore:`, await updateRes.text());
             }

@@ -608,7 +608,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                  {/* SELOS DE PAGAMENTO */}
                                  {order.paymentMethod.toUpperCase().includes('MERCADO PAGO') ? (
                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${order.status === 'AGUARDANDO PAGAMENTO' ? 'bg-amber-50 border-amber-500 text-amber-600' : 'bg-emerald-50 border-emerald-500 text-emerald-600'}`}>
-                                     {order.status === 'AGUARDANDO PAGAMENTO' ? '⌛ AGUARDANDO PIX' : '✅ MP-OK'}
+                                     {order.status === 'AGUARDANDO PAGAMENTO' ? '⌛ AGUARDANDO PIX' : `✅ ${order.paymentMethod.replace('Mercado Pago - ', 'MP ').replace('Mercado Pago', 'MP')} - OK`.toUpperCase()}
                                    </span>
                                  ) : (
                                    <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 bg-blue-50 border-blue-500 text-blue-600">
