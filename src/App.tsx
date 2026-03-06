@@ -434,30 +434,28 @@ const App: React.FC = () => {
         });
 
         // Integração Mercado Pago (PIX ou Cartão via MP)
-        // Normaliza removendo espaços extras e deixando minúsculo para comparação
         const normalizedPayment = paymentMethod.toLowerCase().trim();
         
-        // Busca a configuração do método selecionado (Busca exata ou por nome normalizado)
+        // Busca a configuração do método selecionado
         const selectedMethod = paymentMethods.find(p => 
             p.name.toLowerCase().trim() === normalizedPayment || 
             p.name === paymentMethod
         );
         
-        // Verifica se é PagSeguro (Prioriza campo integration, fallback para nome)
-        const isPagSeguro = (selectedMethod?.integration === 'PAGSEGURO') || 
+        // Verifica se é PagSeguro
+        const isPagSeguro = selectedMethod?.integration === 'PAGSEGURO' || 
                             normalizedPayment.includes('pagseguro') || 
                             normalizedPayment.includes('pag seguro');
 
-        // Verifica se é Mercado Pago (Prioriza campo integration, fallback para nome ou se for ONLINE e não for PagSeguro)
-        const isMercadoPago = (selectedMethod?.integration === 'MERCADO_PAGO') || 
-                              normalizedPayment.includes('mercado') || 
-                              normalizedPayment.includes('mp') ||
-                              (selectedMethod?.type === 'ONLINE' && !isPagSeguro);
+        // Verifica se é Mercado Pago
+        const isMercadoPago = selectedMethod?.integration === 'MERCADO_PAGO' || 
+                              normalizedPayment.includes('mercado pago') || 
+                              normalizedPayment.includes('mercadopago') ||
+                              normalizedPayment.includes('mp');
         
-        // Define se é um método online (seja por nome ou por configuração)
-        const isOnlineType = (selectedMethod?.type === 'ONLINE') || 
+        // Define se é um método online
+        const isOnlineType = selectedMethod?.type === 'ONLINE' || 
                              (selectedMethod?.integration && selectedMethod.integration !== 'NONE') ||
-                             normalizedPayment.includes('online') ||
                              isMercadoPago || isPagSeguro;
                               
         console.log("[Checkout] Verificação de Pagamento Detalhada:", { 
@@ -468,11 +466,10 @@ const App: React.FC = () => {
             methodIntegration: selectedMethod?.integration,
             isMercadoPago,
             isPagSeguro,
-            isOnlineType,
-            allMethods: paymentMethods.map(m => ({ name: m.name, type: m.type, integration: m.integration }))
+            isOnlineType
         });
 
-        // Se for ONLINE e não for PagSeguro, trata como Mercado Pago (nosso padrão principal)
+        // Se for ONLINE e não for PagSeguro, trata como Mercado Pago
         const finalIsMercadoPago = isMercadoPago || (isOnlineType && !isPagSeguro);
         const finalIsPagSeguro = isPagSeguro;
 
