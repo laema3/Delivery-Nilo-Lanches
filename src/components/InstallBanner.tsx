@@ -12,6 +12,18 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
+      
+      const lastDismissed = localStorage.getItem('installBannerDismissedAt');
+      if (lastDismissed) {
+        const lastDate = new Date(parseInt(lastDismissed));
+        const today = new Date();
+        if (lastDate.getDate() === today.getDate() && 
+            lastDate.getMonth() === today.getMonth() && 
+            lastDate.getFullYear() === today.getFullYear()) {
+          return; // Already dismissed today
+        }
+      }
+
       setDeferredPrompt(e);
       setShowBanner(true);
     };
@@ -29,6 +41,11 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
     }
   };
 
+  const handleDismiss = () => {
+    localStorage.setItem('installBannerDismissedAt', Date.now().toString());
+    setShowBanner(false);
+  };
+
   if (!showBanner) return null;
 
   return (
@@ -43,7 +60,7 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
         </div>
       </div>
       <div className="flex gap-3">
-        <button onClick={() => setShowBanner(false)} className="text-xs font-black text-slate-400 hover:text-white uppercase tracking-widest px-3 py-2">Agora não</button>
+        <button onClick={handleDismiss} className="text-xs font-black text-slate-400 hover:text-white uppercase tracking-widest px-3 py-2">Agora não</button>
         <button onClick={handleInstall} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/20 active:scale-95">Instalar</button>
       </div>
     </div>

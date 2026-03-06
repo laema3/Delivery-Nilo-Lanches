@@ -209,8 +209,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   };
 
   useEffect(() => {
-    // O alarme toca para pedidos NOVOS ou AGUARDANDO PAGAMENTO (que acabaram de chegar)
-    const newOrders = orders.filter(o => (o.status === 'NOVO' || o.status === 'AGUARDANDO PAGAMENTO') && !deletedIds.includes(o.id));
+    // O alarme toca APENAS para pedidos NOVOS (finalizados)
+    const newOrders = orders.filter(o => o.status === 'NOVO' && !deletedIds.includes(o.id));
     const hasNewOrders = newOrders.length > 0;
 
     if (hasNewOrders && audioEnabled) {
@@ -223,6 +223,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
       stopAlarm();
     }
   }, [orders, deletedIds, audioEnabled]);
+
+  useEffect(() => {
+    // Cancela automaticamente pedidos "AGUARDANDO PAGAMENTO" que passaram de 3 minutos
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      orders.forEach(order => {
+        if (order.status === 'AGUARDANDO PAGAMENTO') {
+          const orderTime = new Date(order.createdAt).getTime();
+          const diffMinutes = (now - orderTime) / (1000 * 60);
+          if (diffMinutes >= 3) {
+            console.log(`[Auto-Cancel] Cancelando pedido ${order.id} por expiração de tempo (3 min)`);
+            onUpdateOrderStatus(order.id, 'CANCELADO');
+          }
+        }
+      });
+    }, 60000); // Checa a cada 1 minuto
+
+    return () => clearInterval(interval);
+  }, [orders, onUpdateOrderStatus]);
 
   const testAlarm = () => {
     if (audioRef.current) {

@@ -349,6 +349,27 @@ const App: React.FC = () => {
   }, [currentUser?.email]);
 
   useEffect(() => {
+    if (!currentUser) return;
+    
+    // Cancela automaticamente pedidos "AGUARDANDO PAGAMENTO" do usuário atual que passaram de 3 minutos
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      orders.forEach(order => {
+        if (order.status === 'AGUARDANDO PAGAMENTO' && order.userId === currentUser.uid) {
+          const orderTime = new Date(order.createdAt).getTime();
+          const diffMinutes = (now - orderTime) / (1000 * 60);
+          if (diffMinutes >= 3) {
+            console.log(`[App] Cancelando pedido ${order.id} por expiração de tempo (3 min)`);
+            dbService.save('orders', order.id, { status: 'CANCELADO' });
+          }
+        }
+      });
+    }, 60000); // Checa a cada 1 minuto
+
+    return () => clearInterval(interval);
+  }, [orders, currentUser]);
+
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const status = urlParams.get('status');
 
