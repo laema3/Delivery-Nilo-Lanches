@@ -477,9 +477,12 @@ const App: React.FC = () => {
         const finalIsPagSeguro = isPagSeguro;
 
         if (finalIsPagSeguro) {
-             console.log("Token PagSeguro atual:", paymentConfig.pagseguroToken ? "Configurado" : "Ausente");
+             const psEmail = selectedMethod?.email || paymentConfig.pagseguroEmail;
+             const psToken = selectedMethod?.token || paymentConfig.pagseguroToken;
+
+             console.log("Credenciais PagSeguro:", psEmail ? "Email OK" : "Email Ausente", psToken ? "Token OK" : "Token Ausente");
              
-             if (!paymentConfig.pagseguroEmail || !paymentConfig.pagseguroToken) {
+             if (!psEmail || !psToken) {
                  console.error("ERRO: Credenciais PagSeguro ausentes.");
                  setToast({ show: true, msg: "Erro: Configuração do PagSeguro incompleta. Contate o administrador.", type: 'error' });
                  setIsOrderProcessing(false);
@@ -500,8 +503,8 @@ const App: React.FC = () => {
                      name: currentUser?.name || 'Cliente'
                    },
                    reference: orderId,
-                   email: paymentConfig.pagseguroEmail,
-                   token: paymentConfig.pagseguroToken
+                   email: psEmail,
+                   token: psToken
                  };
                console.log("Payload enviado para /api/create_pagseguro_checkout:", psPayload);
 
@@ -557,7 +560,7 @@ const App: React.FC = () => {
                // URL Sandbox: https://sandbox.pagseguro.uol.com.br/v2/checkout/payment.html?code=CODE
                
                // Vamos assumir produção por padrão, mas se o email for sandbox...
-               const isSandbox = paymentConfig.pagseguroEmail.includes('sandbox');
+               const isSandbox = psEmail.includes('sandbox');
                const baseUrl = isSandbox 
                  ? 'https://sandbox.pagseguro.uol.com.br/v2/checkout/payment.html' 
                  : 'https://pagseguro.uol.com.br/v2/checkout/payment.html';
@@ -573,11 +576,13 @@ const App: React.FC = () => {
         }
 
         if (finalIsMercadoPago) {
+             const mpToken = selectedMethod?.token || paymentConfig.mercadopagoAccessToken;
+
              console.log("[Checkout] Iniciando fluxo Mercado Pago...");
-             console.log("[Checkout] Token configurado:", paymentConfig.mercadopagoAccessToken ? "SIM" : "NÃO");
+             console.log("[Checkout] Token configurado:", mpToken ? "SIM" : "NÃO");
              
-             if (!paymentConfig.mercadopagoAccessToken) {
-                 console.error("[Checkout] ERRO: Token MP ausente no estado.");
+             if (!mpToken) {
+                 console.error("[Checkout] ERRO: Token MP ausente.");
                  setToast({ show: true, msg: "Erro: Configuração de pagamento incompleta. Contate o administrador.", type: 'error' });
                  setIsOrderProcessing(false);
                  return;
@@ -622,7 +627,7 @@ const App: React.FC = () => {
                      name: currentUser?.name || 'Cliente'
                    },
                    external_reference: orderId,
-                   accessToken: paymentConfig.mercadopagoAccessToken
+                   accessToken: mpToken
                  };
                
                console.log("[Checkout] Enviando payload para API MP:", JSON.stringify(mpPayload));
