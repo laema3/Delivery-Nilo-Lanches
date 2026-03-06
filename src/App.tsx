@@ -638,7 +638,14 @@ const App: React.FC = () => {
                if (!response.ok) {
                    const errorText = await response.text();
                    console.error("[Checkout] Erro na resposta da API:", response.status, errorText);
-                   throw new Error('Erro ao criar pagamento no Mercado Pago: ' + errorText);
+                   let cleanError = errorText;
+                   try {
+                     const errObj = JSON.parse(errorText);
+                     cleanError = errObj.details || errObj.error || errorText;
+                   } catch (e) {
+                     // Ignora erro de parse
+                   }
+                   throw new Error('Erro ao criar pagamento no Mercado Pago: ' + cleanError);
                }
                
                const mpData = await response.json();

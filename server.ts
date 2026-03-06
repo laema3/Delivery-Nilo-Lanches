@@ -51,8 +51,13 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
     const preference = new Preference(client);
 
     // Determina a URL base dinamicamente
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const getHeader = (name: string) => {
+      const val = req.headers[name];
+      return Array.isArray(val) ? val[0] : val;
+    };
+    
+    const protocol = getHeader('x-forwarded-proto') || req.protocol;
+    const host = getHeader('x-forwarded-host') || req.get('host');
     const origin = req.get('origin') || `${protocol}://${host}`;
     
     const baseUrl = process.env.APP_URL || origin;
@@ -96,13 +101,22 @@ app.post('/api/checkout/mercadopago', async (req, res) => {
   } catch (error: any) {
     console.error('[MP] Erro fatal ao criar preferência:', error);
     
-    // Tenta extrair detalhes do erro do Mercado Pago se disponíveis
-    const errorDetails = error.response?.data || error.message || String(error);
-    console.error('[MP] Detalhes do erro:', JSON.stringify(errorDetails));
+    let details = 'Erro desconhecido';
+    try {
+      if (error.response && error.response.data) {
+        details = JSON.stringify(error.response.data);
+      } else if (error.message) {
+        details = error.message;
+      } else {
+        details = String(error);
+      }
+    } catch (e) {
+      details = 'Erro ao extrair detalhes (possível referência circular)';
+    }
 
     res.status(500).json({ 
       error: 'Erro ao processar pagamento no Mercado Pago',
-      details: typeof errorDetails === 'object' ? JSON.stringify(errorDetails) : errorDetails
+      details
     });
   }
 });
