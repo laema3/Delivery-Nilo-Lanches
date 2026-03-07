@@ -89,8 +89,8 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             <div className="space-y-4">
               {items.map(item => (
                 <div key={item.id} className="flex gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <div className="w-20 h-20 bg-white rounded-xl shrink-0 overflow-hidden">
-                    {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <span className="text-2xl flex items-center justify-center h-full">🍔</span>}
+                  <div className="w-20 h-20 bg-white rounded-xl shrink-0 overflow-hidden p-1 flex items-center justify-center border border-slate-100">
+                    {item.image ? <img src={item.image} className="w-full h-full object-contain" /> : <span className="text-2xl flex items-center justify-center h-full">🍔</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">

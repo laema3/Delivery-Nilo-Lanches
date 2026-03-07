@@ -10,14 +10,14 @@ interface FoodCardProps {
 
 export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) => {
   return (
-    <div className="group relative bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border border-slate-100 cursor-pointer flex flex-row md:flex-col gap-4" onClick={() => onClick(product)}>
+    <div className="group relative bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border border-slate-100 cursor-pointer flex flex-row md:flex-col gap-4 h-full" onClick={() => onClick(product)}>
       
       {/* Imagem (Direita no Mobile, Topo no Desktop) */}
-      <div className="relative w-24 h-24 sm:w-32 sm:h-32 md:w-full md:h-48 rounded-xl overflow-hidden shrink-0 bg-slate-50 order-2 md:order-1">
+      <div className="relative w-24 h-24 sm:w-32 sm:h-32 md:w-full md:h-40 rounded-xl overflow-hidden shrink-0 bg-white order-2 md:order-1 shadow-inner p-2 flex items-center justify-center">
         {product.image ? (
-          <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+          <img src={product.image} alt={product.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" loading="lazy" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-3xl text-slate-200">🍔</div>
+          <div className="w-full h-full flex items-center justify-center text-3xl text-slate-200 bg-slate-100 rounded-lg">🍔</div>
         )}
       </div>
 
