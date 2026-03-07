@@ -811,7 +811,19 @@ const App: React.FC = () => {
       
       <Navbar 
         cartCount={cart.reduce((acc, i) => acc + i.quantity, 0)} onCartClick={() => setIsCartOpen(true)} isAdmin={isAdmin} isKioskMode={isKioskMode}
-        onToggleAdmin={() => isAdmin ? setIsAdmin(false) : (isAdminAuthenticated ? setIsAdmin(true) : setIsAdminLoginOpen(true))} 
+        onToggleAdmin={() => {
+          if (isAdmin) {
+            setIsAdmin(false);
+            setIsAdminAuthenticated(false);
+            sessionStorage.removeItem('nl_admin_auth');
+          } else {
+            if (isAdminAuthenticated) {
+              setIsAdmin(true);
+            } else {
+              setIsAdminLoginOpen(true);
+            }
+          }
+        }} 
         searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); localStorage.removeItem('nl_current_user'); }} onMyOrdersClick={() => setActiveView('my-orders')} isStoreOpen={isStoreOpen} logoUrl={logoUrl} 
       />
 
@@ -844,7 +856,16 @@ const App: React.FC = () => {
                 dbService.save('settings', 'general', finalConfig);
               });
             }}
-            onLogout={() => { setIsAdmin(false); sessionStorage.removeItem('nl_admin_auth'); }} onBackToSite={() => setIsAdmin(false)}
+            onLogout={() => { 
+              setIsAdmin(false); 
+              setIsAdminAuthenticated(false);
+              sessionStorage.removeItem('nl_admin_auth'); 
+            }} 
+            onBackToSite={() => {
+              setIsAdmin(false);
+              setIsAdminAuthenticated(false);
+              sessionStorage.removeItem('nl_admin_auth');
+            }}
           />
         ) : activeView === 'my-orders' ? (
           (() => {
@@ -964,7 +985,11 @@ const App: React.FC = () => {
       <AdminLoginModal 
         isOpen={isAdminLoginOpen} 
         onClose={() => setIsAdminLoginOpen(false)} 
-        onSuccess={() => { setIsAdmin(true); sessionStorage.setItem('nl_admin_auth', 'true'); }} 
+        onSuccess={() => { 
+          setIsAdmin(true); 
+          setIsAdminAuthenticated(true);
+          sessionStorage.setItem('nl_admin_auth', 'true'); 
+        }} 
         correctUser={authSettings.adminUser}
         correctPass={authSettings.adminPass}
       />
