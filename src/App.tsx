@@ -86,6 +86,7 @@ const App: React.FC = () => {
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
   const [isOrderProcessing, setIsOrderProcessing] = useState(false);
+  const [waitingForPaymentOrderId, setWaitingForPaymentOrderId] = useState<string | null>(null);
 
   const previousOrdersRef = useRef<Order[]>([]);
 
@@ -394,6 +395,26 @@ const App: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (waitingForPaymentOrderId) {
+      const order = orders.find(o => o.id === waitingForPaymentOrderId);
+      if (order && order.status === 'NOVO') {
+        // Pagamento aprovado via webhook!
+        setToast({ show: true, msg: 'Pagamento aprovado com sucesso!', type: 'success' });
+        setCart([]);
+        setLastOrder(order);
+        setIsSuccessModalOpen(true);
+        setIsOrderProcessing(false);
+        setWaitingForPaymentOrderId(null);
+        setIsCartOpen(false);
+      } else if (order && order.status === 'CANCELADO') {
+        setToast({ show: true, msg: 'Pagamento cancelado ou expirado.', type: 'error' });
+        setIsOrderProcessing(false);
+        setWaitingForPaymentOrderId(null);
+      }
+    }
+  }, [orders, waitingForPaymentOrderId]);
+
   const currentDeliveryFee = useMemo(() => {
     if (!currentUser || !zipRanges.length || isKioskMode) return 0;
     const rawZip = currentUser.zipCode.replace(/\D/g, '');
@@ -632,6 +653,9 @@ const App: React.FC = () => {
                await dbService.save('orders', orderId, orderToSave);
                localStorage.setItem('nl_last_order_id', orderId);
 
+               // Abre a janela ANTES do fetch para evitar bloqueador de popups
+               const paymentWindow = window.open('about:blank', '_blank');
+
                // 2. CHAMA A API DO MERCADO PAGO
                const mpPayload = {
                    items: cart.map(item => ({
@@ -657,6 +681,7 @@ const App: React.FC = () => {
                });
                
                if (!response.ok) {
+                   if (paymentWindow) paymentWindow.close();
                    const errorText = await response.text();
                    console.error("[Checkout] Erro na resposta da API:", response.status, errorText);
                    let cleanError = errorText;
@@ -674,13 +699,27 @@ const App: React.FC = () => {
                const { init_point } = mpData;
                
                if (!init_point) {
+                   if (paymentWindow) paymentWindow.close();
                    console.error("[Checkout] init_point não encontrado.");
                    throw new Error("Link de pagamento não gerado");
                }
 
                // 3. REDIRECIONA
-               console.log("[Checkout] Redirecionando para:", init_point);
-               window.location.href = init_point;
+               console.log("[Checkout] Abrindo aba de pagamento:", init_point);
+               
+               // Define que estamos aguardando o pagamento deste pedido
+               setWaitingForPaymentOrderId(orderId);
+               
+               if (paymentWindow) {
+                 // Se a janela abriu, redireciona para o Mercado Pago
+                 paymentWindow.location.href = init_point;
+                 setToast({ show: true, msg: 'Complete o pagamento na nova aba. Aguardando confirmação...', type: 'success' });
+                 // Mantém o isOrderProcessing como true para mostrar o loading
+               } else {
+                 // Se o bloqueador de popups impedir, redireciona na mesma aba
+                 window.location.href = init_point;
+               }
+               
                return; 
              } catch (mpError) {
                console.error("[Checkout] Exceção MP:", mpError);
