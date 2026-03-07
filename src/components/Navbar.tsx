@@ -35,7 +35,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               {isAdmin && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />}
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-xl font-black text-slate-800 uppercase tracking-tighter leading-none">Nilo <span className="text-emerald-600">Lanches</span></h1>
+              <h1 className="text-xl font-black uppercase tracking-tighter leading-none">
+                <span className="text-emerald-600">NILO</span> <span className="text-red-600">LANCHES</span>
+              </h1>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isStoreOpen ? 'Aberto Agora' : 'Fechado'}</p>
             </div>
           </div>
@@ -59,6 +61,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             {!isAdmin && !isKioskMode && (
               <>
                 <button 
+                  onClick={onMyOrdersClick}
+                  className="hidden lg:flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
+                >
+                  📋 Meus Pedidos
+                </button>
+
+                <button 
                   onClick={onToggleAdmin} 
                   className="hidden sm:flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors" 
                   title="Área Administrativa"
@@ -70,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
                     <div className="text-right">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Olá, {currentUser.name.split(' ')[0]}</p>
-                      <button onClick={onMyOrdersClick} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 uppercase">Meus Pedidos / Acompanhar</button>
+                      <button onClick={onMyOrdersClick} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 uppercase md:hidden">Acompanhar</button>
                     </div>
                     <button onClick={onLogout} className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">🚪</button>
                   </div>
@@ -84,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {!isAdmin && (
               <button onClick={onCartClick} className="relative group">
-                <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-slate-900/20 group-hover:scale-105 group-active:scale-95 transition-all">
+                <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-emerald-900/20 group-hover:scale-105 group-active:scale-95 transition-all">
                   🛒
                 </div>
                 {cartCount > 0 && (

@@ -73,10 +73,10 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   return (
     <div className="fixed inset-0 z-[100] flex justify-end">
       <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white z-10">
-          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Seu Pedido <span className="text-emerald-500">({items.length})</span></h2>
-          <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-colors">✕</button>
+      <div className="relative w-full max-w-md bg-emerald-50 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+        <div className="p-6 border-b border-emerald-100 flex items-center justify-between bg-emerald-600 text-white z-10">
+          <h2 className="text-xl font-black uppercase tracking-tight">Seu Pedido <span className="text-emerald-200">({items.length})</span></h2>
+          <button onClick={onClose} className="w-10 h-10 rounded-full bg-emerald-500/20 text-white hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">✕</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -200,18 +200,18 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         </div>
 
         {items.length > 0 && (
-          <div className="p-6 bg-white border-t border-slate-100 space-y-4 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-20">
-            <div className="space-y-2 text-xs font-bold text-slate-500">
+          <div className="p-6 bg-emerald-600 border-t border-emerald-500 space-y-4 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)] z-20 text-white">
+            <div className="space-y-2 text-xs font-bold text-emerald-100">
               <div className="flex justify-between"><span>Subtotal</span><span>R$ {subtotal.toFixed(2)}</span></div>
               {deliveryType === 'DELIVERY' && <div className="flex justify-between"><span>Taxa de Entrega</span><span>R$ {deliveryFee.toFixed(2)}</span></div>}
-              {discount > 0 && <div className="flex justify-between text-emerald-600"><span>Desconto</span><span>- R$ {discount.toFixed(2)}</span></div>}
-              <div className="flex justify-between text-lg font-black text-slate-900 pt-2 border-t border-slate-100 mt-2"><span>Total</span><span>R$ {total.toFixed(2)}</span></div>
+              {discount > 0 && <div className="flex justify-between text-white"><span>Desconto</span><span>- R$ {discount.toFixed(2)}</span></div>}
+              <div className="flex justify-between text-lg font-black text-white pt-2 border-t border-emerald-500 mt-2"><span>Total</span><span>R$ {total.toFixed(2)}</span></div>
             </div>
 
             <button 
               onClick={handleCheckoutClick}
               disabled={isProcessing || !isStoreOpen}
-              className={`w-full py-4 rounded-2xl font-black uppercase text-xs tracking-widest text-white shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 ${isProcessing || !isStoreOpen ? 'bg-slate-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-900/20'}`}
+              className={`w-full py-4 rounded-2xl font-black uppercase text-xs tracking-widest text-emerald-600 shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 ${isProcessing || !isStoreOpen ? 'bg-emerald-300 cursor-not-allowed' : 'bg-white hover:bg-emerald-50 shadow-emerald-900/20'}`}
             >
               {isProcessing ? 'Processando...' : (isStoreOpen ? 'Confirmar Pedido' : 'Loja Fechada')}
             </button>
