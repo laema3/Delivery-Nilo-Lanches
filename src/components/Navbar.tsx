@@ -14,13 +14,14 @@ interface NavbarProps {
   onAuthClick: () => void;
   onLogout: () => void;
   onMyOrdersClick: () => void;
+  onProfileClick: () => void;
   isStoreOpen: boolean;
   logoUrl: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
   cartCount, onCartClick, isAdmin, isKioskMode, onToggleAdmin, searchTerm, onSearchChange, 
-  currentUser, onAuthClick, onLogout, onMyOrdersClick, isStoreOpen, logoUrl 
+  currentUser, onAuthClick, onLogout, onMyOrdersClick, onProfileClick, isStoreOpen, logoUrl 
 }) => {
   return (
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
@@ -78,10 +79,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {currentUser ? (
                   <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
                     <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Olá, {currentUser.name.split(' ')[0]}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-emerald-600" onClick={onProfileClick}>Olá, {currentUser.name.split(' ')[0]}</p>
                       <button onClick={onMyOrdersClick} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 uppercase md:hidden">Acompanhar</button>
                     </div>
-                    <button onClick={onLogout} className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">🚪</button>
+                    <button onClick={onLogout} className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Sair">🚪</button>
                   </div>
                 ) : (
                   <button onClick={onAuthClick} className="flex items-center gap-2 text-xs font-black text-slate-600 hover:text-emerald-600 uppercase tracking-widest transition-colors">

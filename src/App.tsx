@@ -13,6 +13,7 @@ import { ChatBot } from './components/ChatBot.tsx';
 
 import { Footer } from './components/Footer.tsx';
 import { CustomerOrders } from './components/CustomerOrders.tsx';
+import { ProfileModal } from './components/ProfileModal.tsx';
 import { MotoboyPortal } from './components/MotoboyPortal.tsx';
 import { Toast } from './components/Toast.tsx';
 import { ProductLoader } from './components/ProductLoader.tsx';
@@ -78,6 +79,7 @@ const App: React.FC = () => {
   const [selectedSubCategoryValue, setSelectedSubCategory] = useState<string>('Todos'); 
   const [activeView, setActiveView] = useState<'home' | 'my-orders' | 'motoboy'>('home');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [isMotoboyLoginOpen, setIsMotoboyLoginOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
@@ -370,6 +372,38 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [orders, currentUser]);
 
+  // Horário de abertura e fechamento automático
+  useEffect(() => {
+    const checkStoreSchedule = () => {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+      // Abre às 18:30
+      if (timeStr === "18:30") {
+        if (!isStoreOpen) {
+          console.log("[Auto-Schedule] Abrindo loja automaticamente (18:30)");
+          setIsStoreOpen(true);
+          dbService.save('settings', 'general', { isStoreOpen: true });
+        }
+      } 
+      // Fecha às 23:30
+      else if (timeStr === "23:30") {
+        if (isStoreOpen) {
+          console.log("[Auto-Schedule] Fechando loja automaticamente (23:30)");
+          setIsStoreOpen(false);
+          dbService.save('settings', 'general', { isStoreOpen: false });
+        }
+      }
+    };
+
+    const scheduleInterval = setInterval(checkStoreSchedule, 60000); // Verifica a cada minuto
+    checkStoreSchedule(); // Verifica imediatamente ao carregar
+    
+    return () => clearInterval(scheduleInterval);
+  }, [isStoreOpen]);
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const status = urlParams.get('status');
@@ -461,6 +495,15 @@ const App: React.FC = () => {
     console.log("handleCheckout iniciado. Método:", paymentMethod);
     
     if (!currentUser && !isKioskMode) return setIsAuthModalOpen(true);
+
+    if (currentUser && !isKioskMode) {
+      if (!currentUser.email || !currentUser.phone || !currentUser.address || !currentUser.neighborhood || !currentUser.zipCode) {
+        setToast({ show: true, msg: 'Por favor, atualize seu cadastro com endereço completo, telefone e e-mail antes de fazer o pedido.', type: 'error' });
+        setIsProfileModalOpen(true);
+        return;
+      }
+    }
+
     setIsOrderProcessing(true);
     try {
         const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -824,7 +867,7 @@ const App: React.FC = () => {
             }
           }
         }} 
-        searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); localStorage.removeItem('nl_current_user'); }} onMyOrdersClick={() => setActiveView('my-orders')} isStoreOpen={isStoreOpen} logoUrl={logoUrl} 
+        searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); localStorage.removeItem('nl_current_user'); }} onMyOrdersClick={() => setActiveView('my-orders')} onProfileClick={() => setIsProfileModalOpen(true)} isStoreOpen={isStoreOpen} logoUrl={logoUrl} 
       />
 
       <main className="flex-1 w-full relative">
@@ -980,6 +1023,18 @@ const App: React.FC = () => {
         }} 
         zipRanges={zipRanges} 
         customers={customers} 
+      />
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        customer={currentUser}
+        onUpdate={(updatedCustomer) => {
+          dbService.save('customers', updatedCustomer.id, updatedCustomer);
+          setCurrentUser(updatedCustomer);
+          localStorage.setItem('nl_current_user', JSON.stringify(updatedCustomer));
+          setToast({ show: true, msg: 'Perfil atualizado com sucesso!', type: 'success' });
+        }}
       />
       
       <AdminLoginModal 
