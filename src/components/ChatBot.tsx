@@ -13,9 +13,20 @@ interface ChatBotProps {
 }
 
 // Inicializa o cliente Gemini
-// Nota: A chave de API deve estar disponível em process.env.GEMINI_API_KEY ou VITE_API_KEY
-const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+// Nota: A chave de API deve estar disponível em import.meta.env.VITE_API_KEY
+let aiClient: GoogleGenAI | null = null;
+
+const getAiClient = () => {
+  if (!aiClient) {
+    const apiKey = import.meta.env.VITE_API_KEY || '';
+    if (!apiKey) {
+      console.error("API Key não configurada");
+      return null;
+    }
+    aiClient = new GoogleGenAI({ apiKey });
+  }
+  return aiClient;
+};
 
 export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, isStoreOpen, currentUser, onAddToCart }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,6 +37,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<any>(null);
+  const ai = getAiClient();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,7 +47,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
 
   // Inicializa a sessão de chat quando o componente monta ou quando os produtos mudam
   useEffect(() => {
-    if (!products.length) return;
+    if (!products.length || !ai) return;
 
     const menuContext = products.map(p => `${p.name} (${p.category}): R$ ${p.price.toFixed(2)} - ${p.description}`).join('\n');
     
@@ -94,7 +106,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
 
     try {
       chatSessionRef.current = ai.chats.create({
-        model: "gemini-2.5-flash-latest", // Modelo rápido e eficiente
+        model: "gemini-3-flash-preview", // Modelo atualizado
         config: {
           systemInstruction: systemInstruction,
           tools: [{ functionDeclarations: [addToCartTool, getMenuTool] }],
@@ -104,7 +116,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ products, cart, deliveryFee, i
       console.error("Erro ao inicializar chat Gemini:", e);
     }
 
-  }, [products, isStoreOpen, deliveryFee]);
+  }, [products, isStoreOpen, deliveryFee, ai]);
 
   const handleAddToCartTool = (productName: string, quantity: number = 1) => {
     // Busca fuzzy simples

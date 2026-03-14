@@ -19,6 +19,7 @@ import { Toast } from './components/Toast.tsx';
 import { ProductLoader } from './components/ProductLoader.tsx';
 import { InstallBanner } from './components/InstallBanner.tsx';
 import { WelcomePopup } from './components/WelcomePopup.tsx';
+import { RecessoBanner } from './components/RecessoBanner.tsx';
 import { dbService } from './services/dbService.ts';
 import { Product, CartItem, Order, Customer, ZipRange, PaymentSettings, CategoryItem, SubCategoryItem, Complement, DeliveryType, Coupon } from './types.ts';
 import { DEFAULT_LOGO } from './constants.tsx';
@@ -380,16 +381,8 @@ const App: React.FC = () => {
       const minutes = now.getMinutes();
       const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-      // Abre às 18:30
-      if (timeStr === "18:30") {
-        if (!isStoreOpen) {
-          console.log("[Auto-Schedule] Abrindo loja automaticamente (18:30)");
-          setIsStoreOpen(true);
-          dbService.save('settings', 'general', { isStoreOpen: true });
-        }
-      } 
       // Fecha às 23:30
-      else if (timeStr === "23:30") {
+      if (timeStr === "23:30") {
         if (isStoreOpen) {
           console.log("[Auto-Schedule] Fechando loja automaticamente (23:30)");
           setIsStoreOpen(false);
@@ -869,6 +862,7 @@ const App: React.FC = () => {
         }} 
         searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); localStorage.removeItem('nl_current_user'); }} onMyOrdersClick={() => setActiveView('my-orders')} onProfileClick={() => setIsProfileModalOpen(true)} isStoreOpen={isStoreOpen} logoUrl={logoUrl} 
       />
+      <RecessoBanner />
 
       <main className="flex-1 w-full relative">
         {isAdmin ? (
