@@ -18,11 +18,14 @@ let aiClient: GoogleGenAI | null = null;
 
 const getAiClient = () => {
   if (!aiClient) {
-    const apiKey = import.meta.env.VITE_API_KEY || '';
+    // Tenta buscar a chave de diferentes formas para garantir compatibilidade
+    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || import.meta.env.VITE_API_KEY || '';
+    
     if (!apiKey) {
-      console.error("API Key não configurada");
+      console.error("API Key não configurada no ambiente");
       return null;
     }
+    console.log("Inicializando cliente Gemini com chave configurada");
     aiClient = new GoogleGenAI({ apiKey });
   }
   return aiClient;
