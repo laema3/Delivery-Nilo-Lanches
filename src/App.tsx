@@ -85,6 +85,7 @@ const App: React.FC = () => {
   const [isMotoboyLoginOpen, setIsMotoboyLoginOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
   const [isMotoboyAuthenticated, setIsMotoboyAuthenticated] = useState(() => sessionStorage.getItem('nl_motoboy_auth') === 'true');
+  const [motoboyName, setMotoboyName] = useState(() => sessionStorage.getItem('nl_motoboy_name') || '');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
@@ -924,8 +925,13 @@ const App: React.FC = () => {
         ) : activeView === 'motoboy' ? (
           <MotoboyPortal 
             orders={orders} 
+            motoboyName={motoboyName}
             onBack={() => setActiveView('home')} 
-            onUpdateOrderStatus={(id, status) => dbService.save('orders', id, { status })} 
+            onUpdateOrderStatus={(id, status, mName) => {
+              const updateData: any = { status };
+              if (mName) updateData.motoboyName = mName;
+              dbService.save('orders', id, updateData);
+            }} 
           />
         ) : (
           <div className="flex flex-col w-full items-center">
@@ -1046,7 +1052,13 @@ const App: React.FC = () => {
       <MotoboyLoginModal 
         isOpen={isMotoboyLoginOpen} 
         onClose={() => setIsMotoboyLoginOpen(false)} 
-        onSuccess={() => { setIsMotoboyAuthenticated(true); sessionStorage.setItem('nl_motoboy_auth', 'true'); setActiveView('motoboy'); }} 
+        onSuccess={(name) => { 
+          setIsMotoboyAuthenticated(true); 
+          setMotoboyName(name);
+          sessionStorage.setItem('nl_motoboy_auth', 'true'); 
+          sessionStorage.setItem('nl_motoboy_name', name);
+          setActiveView('motoboy'); 
+        }} 
         correctPass={authSettings.motoboyPass}
       />
 

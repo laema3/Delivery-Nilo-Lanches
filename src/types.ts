@@ -63,6 +63,7 @@ export interface Order {
   status: OrderStatus;
   createdAt: string;
   currentLocation?: OrderLocation; // NOVO: Localização em tempo real do motoboy
+  motoboyName?: string; // NOVO: Nome do motoboy que pegou o pedido
 }
 
 export interface Customer {

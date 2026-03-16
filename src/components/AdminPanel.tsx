@@ -650,7 +650,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                    </div>
                                  </div>
                                </div>
-                               <div className="text-slate-500 text-sm font-bold flex flex-wrap items-center gap-2">📅 {new Date(order.createdAt).toLocaleTimeString()} <span className="text-slate-300 mx-2">|</span> 👤 <span className="text-slate-700">{order.customerName}</span></div>
+                               <div className="text-slate-500 text-sm font-bold flex flex-wrap items-center gap-2">
+                                 📅 {new Date(order.createdAt).toLocaleDateString('pt-BR')} {new Date(order.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} 
+                                 <span className="text-slate-300 mx-2">|</span> 
+                                 👤 <span className="text-slate-700">{order.customerName}</span>
+                                 {order.motoboyName && (
+                                   <>
+                                     <span className="text-slate-300 mx-2">|</span>
+                                     <span className="text-emerald-600">🛵 {order.motoboyName}</span>
+                                   </>
+                                 )}
+                               </div>
                                {order.deliveryType === 'DELIVERY' && <div className="text-xs font-medium text-slate-500 bg-slate-50 p-3 rounded-lg flex items-center gap-2"><span>📍</span> {order.customerAddress}</div>}
                             </div>
                             <div className="mt-6 pt-6 border-t border-slate-100">

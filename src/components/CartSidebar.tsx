@@ -65,7 +65,16 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
       return;
     }
     console.log("[CartSidebar] Chamando onCheckout com:", paymentMethod);
-    onCheckout(paymentMethod, deliveryType === 'DELIVERY' ? deliveryFee : 0, discount, appliedCoupon?.code || '', deliveryType, changeFor);
+    
+    // Adiciona o sufixo (na entrega/retirada) apenas para métodos offline
+    const methodObj = paymentSettings.find(p => p.name === paymentMethod);
+    const isOffline = methodObj && methodObj.type !== 'ONLINE' && methodObj.integration !== 'MERCADO_PAGO' && methodObj.integration !== 'PAGSEGURO';
+    
+    const finalPaymentMethod = isOffline 
+      ? `${paymentMethod} ${deliveryType === 'PICKUP' ? '(na retirada)' : '(na entrega)'}`
+      : paymentMethod;
+
+    onCheckout(finalPaymentMethod, deliveryType === 'DELIVERY' ? deliveryFee : 0, discount, appliedCoupon?.code || '', deliveryType, changeFor);
   };
 
   if (!isOpen) return null;
@@ -180,7 +189,12 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                       onClick={() => setPaymentMethod(method.name)}
                       className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between ${paymentMethod === method.name ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-100 bg-white text-slate-500 hover:border-emerald-200'}`}
                     >
-                      <span className="text-xs font-black uppercase tracking-wide">{method.name}</span>
+                      <span className="text-xs font-black uppercase tracking-wide">
+                        {method.name} 
+                        <span className="ml-1 opacity-60 font-bold">
+                          {deliveryType === 'PICKUP' ? '(na retirada)' : '(na entrega)'}
+                        </span>
+                      </span>
                       {paymentMethod === method.name && <span className="text-emerald-600">●</span>}
                     </button>
                   ))}

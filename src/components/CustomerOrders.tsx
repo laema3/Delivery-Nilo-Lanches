@@ -40,6 +40,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
                     </span>
                   </div>
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{new Date(order.createdAt).toLocaleDateString('pt-BR')} às {new Date(order.createdAt).toLocaleTimeString('pt-BR')}</p>
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">💳 {order.paymentMethod}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-black text-emerald-600">R$ {order.total.toFixed(2)}</p>

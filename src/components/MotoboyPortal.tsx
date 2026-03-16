@@ -1,30 +1,69 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Order } from '../types';
 
 interface MotoboyPortalProps {
   orders: Order[];
+  motoboyName: string;
   onBack: () => void;
-  onUpdateOrderStatus: (id: string, status: string) => void;
+  onUpdateOrderStatus: (id: string, status: string, motoboyName?: string) => void;
 }
 
-export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, onBack, onUpdateOrderStatus }) => {
+export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, motoboyName, onBack, onUpdateOrderStatus }) => {
   const [activeTab, setActiveTab] = useState<'PENDING' | 'COMPLETED'>('PENDING');
+  const lastOrderCountRef = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const filteredOrders = orders.filter(o => 
-    activeTab === 'PENDING' ? ['SAIU PARA ENTREGA', 'PREPARANDO'].includes(o.status) : o.status === 'FINALIZADO'
-  );
+  // Inicializa o áudio
+  useEffect(() => {
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+  }, []);
+
+  // Notificação sonora para novos pedidos disponíveis
+  useEffect(() => {
+    const availableOrders = orders.filter(o => o.status === 'PREPARANDO' && !o.motoboyName);
+    
+    if (availableOrders.length > lastOrderCountRef.current) {
+      // Novo pedido chegou!
+      if (audioRef.current) {
+        audioRef.current.play().catch(e => console.log("Erro ao tocar áudio (interação do usuário necessária):", e));
+      }
+    }
+    lastOrderCountRef.current = availableOrders.length;
+  }, [orders]);
+
+  const filteredOrders = orders.filter(o => {
+    // Apenas pedidos do tipo DELIVERY aparecem para o motoboy
+    if (o.deliveryType !== 'DELIVERY') return false;
+
+    if (activeTab === 'PENDING') {
+      // Mostra pedidos disponíveis (PREPARANDO, PRONTO ou SAIU PARA ENTREGA sem motoboy)
+      // OU pedidos que já estão COMIGO (SAIU PARA ENTREGA com meu nome)
+      const isAvailable = ['PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA'].includes(o.status) && !o.motoboyName;
+      const isMine = o.status === 'SAIU PARA ENTREGA' && o.motoboyName === motoboyName;
+      
+      return isAvailable || isMine;
+    } else {
+      // Mostra apenas pedidos FINALIZADOS por MIM
+      return o.status === 'FINALIZADO' && o.motoboyName === motoboyName;
+    }
+  });
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12 animate-in fade-in">
-      <div className="flex items-center gap-6 mb-12">
-        <button onClick={onBack} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm">←</button>
-        <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight">Portal do Entregador</h2>
+      <div className="flex items-center justify-between mb-12">
+        <div className="flex items-center gap-6">
+          <button onClick={onBack} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm">←</button>
+          <div>
+            <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight">Portal do Entregador</h2>
+            <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Olá, {motoboyName} 👋</p>
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-4 mb-8">
         <button onClick={() => setActiveTab('PENDING')} className={`px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest transition-all ${activeTab === 'PENDING' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200'}`}>Pendentes</button>
-        <button onClick={() => setActiveTab('COMPLETED')} className={`px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest transition-all ${activeTab === 'COMPLETED' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200'}`}>Finalizados</button>
+        <button onClick={() => setActiveTab('COMPLETED')} className={`px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest transition-all ${activeTab === 'COMPLETED' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200'}`}>Meus Finalizados</button>
       </div>
 
       <div className="grid gap-6">
@@ -55,13 +94,13 @@ export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, onBack, on
                   <span>WhatsApp</span>
                   <span>💬</span>
                 </a>
-                {order.status === 'PREPARANDO' && (
-                  <button onClick={() => onUpdateOrderStatus(order.id, 'SAIU PARA ENTREGA')} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-purple-700 transition-colors shadow-lg shadow-purple-900/20 active:scale-95 flex items-center justify-center gap-2">
-                    Pegar Pedido 🛵
+                {(!order.motoboyName && ['PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA'].includes(order.status)) && (
+                  <button onClick={() => onUpdateOrderStatus(order.id, 'SAIU PARA ENTREGA', motoboyName)} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-purple-700 transition-colors shadow-lg shadow-purple-900/20 active:scale-95 flex items-center justify-center gap-2">
+                    Aceitar Pedido 🛵
                   </button>
                 )}
-                {order.status === 'SAIU PARA ENTREGA' && (
-                  <button onClick={() => onUpdateOrderStatus(order.id, 'FINALIZADO')} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2">
+                {(order.status === 'SAIU PARA ENTREGA' && order.motoboyName === motoboyName) && (
+                  <button onClick={() => onUpdateOrderStatus(order.id, 'FINALIZADO', motoboyName)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2">
                     Entregue ✅
                   </button>
                 )}

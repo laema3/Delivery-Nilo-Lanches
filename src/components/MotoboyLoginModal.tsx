@@ -4,17 +4,22 @@ import React, { useState } from 'react';
 interface MotoboyLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (name: string) => void;
   correctPass: string;
 }
 
 export const MotoboyLoginModal: React.FC<MotoboyLoginModalProps> = ({ isOpen, onClose, onSuccess, correctPass }) => {
   const [pass, setPass] = useState('');
+  const [name, setName] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (pass === correctPass) {
-      onSuccess();
+      if (!name.trim()) {
+        alert('Por favor, digite seu nome');
+        return;
+      }
+      onSuccess(name.trim());
       onClose();
     } else {
       alert('Credenciais inválidas');
@@ -29,6 +34,7 @@ export const MotoboyLoginModal: React.FC<MotoboyLoginModalProps> = ({ isOpen, on
         <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-6 text-center">Acesso Motoboy</h2>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="text" placeholder="Seu Nome" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500" required />
           <input type="password" placeholder="Senha" value={pass} onChange={e => setPass(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500" required />
           
           <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-emerald-600 transition-colors shadow-lg shadow-slate-900/20 active:scale-95 mt-6">
