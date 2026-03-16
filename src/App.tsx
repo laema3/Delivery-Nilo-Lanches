@@ -940,7 +940,7 @@ const App: React.FC = () => {
                 <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1920" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Banner"/>
                 <div className="relative z-10 text-center px-4 flex flex-col items-center">
                     {!isStoreOpen && <div className="mb-6 bg-red-600 text-white px-6 py-2 rounded-full font-black uppercase text-xs animate-pulse">ESTAMOS FECHADOS NO MOMENTO</div>}
-                    <h1 className="font-brand text-6xl sm:text-[100px] text-white uppercase leading-none"><span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span></h1>
+                    <h1 className="font-brand font-black text-6xl sm:text-[100px] text-white uppercase leading-none"><span className="text-emerald-500">NILO</span> <span className="text-red-600">LANCHES</span></h1>
                     <button onClick={() => document.getElementById('menu-anchor')?.scrollIntoView({behavior:'smooth'})} className="mt-8 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-brand text-xl border-b-4 border-emerald-800 uppercase">Ver Cardápio</button>
                 </div>
               </section>
