@@ -116,7 +116,8 @@ const App: React.FC = () => {
       const dynamicManifest = {
         "short_name": "Nilo Lanches",
         "name": "Nilo Lanches Delivery Oficial",
-        "description": "O melhor lanche artesanal de Uberaba.",
+        "description": "O melhor lanche de Uberaba na palma da sua mão. Hambúrgueres artesanais, combos e muito mais!",
+        "categories": ["food", "shopping"],
         "icons": [
           {
             "src": logoUrl,
@@ -129,6 +130,38 @@ const App: React.FC = () => {
             "type": "image/png",
             "sizes": "512x512",
             "purpose": "maskable"
+          }
+        ],
+        "screenshots": [
+          {
+            "src": "https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1080&h=1920&fit=crop",
+            "sizes": "1080x1920",
+            "type": "image/jpeg",
+            "form_factor": "narrow",
+            "label": "Cardápio Nilo Lanches"
+          },
+          {
+            "src": "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?q=80&w=1920&h=1080&fit=crop",
+            "sizes": "1920x1080",
+            "type": "image/jpeg",
+            "form_factor": "wide",
+            "label": "Nossos Combos"
+          }
+        ],
+        "shortcuts": [
+          {
+            "name": "Ver Cardápio",
+            "short_name": "Cardápio",
+            "description": "Veja nossos lanches e combos",
+            "url": "/#menu-anchor",
+            "icons": [{ "src": logoUrl, "sizes": "192x192" }]
+          },
+          {
+            "name": "Meus Pedidos",
+            "short_name": "Pedidos",
+            "description": "Acompanhe seus pedidos",
+            "url": "/#orders",
+            "icons": [{ "src": logoUrl, "sizes": "192x192" }]
           }
         ],
         "start_url": "/",
