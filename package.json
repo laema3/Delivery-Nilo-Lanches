@@ -20,16 +20,19 @@
     "@capacitor/keyboard": "^6.0.0",
     "@capacitor/status-bar": "^6.0.0",
     "@google/genai": "^1.38.0",
+    "@types/leaflet": "^1.9.21",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "firebase": "^10.7.1",
     "firebase-admin": "^13.7.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.474.0",
     "mercadopago": "^2.0.0",
     "motion": "^12.34.5",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",

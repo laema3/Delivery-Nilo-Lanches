@@ -6,6 +6,16 @@ import { app, db } from "../firebaseConfig";
 const auth = app ? getAuth(app) : null;
 
 export const dbService = {
+  updateLocation: async (orderId: string, lat: number, lng: number) => {
+    if (!db) return;
+    try {
+      await setDoc(doc(db, 'orders', orderId), { 
+        currentLocation: { lat, lng, timestamp: Date.now() } 
+      }, { merge: true });
+    } catch (e) {
+      console.error("Error updating location: ", e);
+    }
+  },
   save: async (collectionName: string, id: string, data: any) => {
     if (!db) return;
     try {

@@ -11,13 +11,40 @@ interface MotoboyPortalProps {
 
 export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, motoboyName, onBack, onUpdateOrderStatus }) => {
   const [activeTab, setActiveTab] = useState<'PENDING' | 'COMPLETED'>('PENDING');
+  const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const lastOrderCountRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // GPS Tracking
+  useEffect(() => {
+    if (!trackingOrderId) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        dbService.updateLocation(trackingOrderId, latitude, longitude);
+      },
+      (error) => console.error("Erro no GPS:", error),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [trackingOrderId]);
 
   // Inicializa o áudio
   useEffect(() => {
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
   }, []);
+
+  const handleAcceptOrder = (orderId: string) => {
+    onUpdateOrderStatus(orderId, 'SAIU PARA ENTREGA', motoboyName);
+    setTrackingOrderId(orderId);
+  };
+
+  const handleFinishOrder = (orderId: string) => {
+    onUpdateOrderStatus(orderId, 'FINALIZADO', motoboyName);
+    setTrackingOrderId(null);
+  };
 
   // Notificação sonora para novos pedidos disponíveis
   useEffect(() => {
@@ -95,12 +122,12 @@ export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, motoboyNam
                   <span>💬</span>
                 </a>
                 {(!order.motoboyName && ['PREPARANDO', 'PRONTO PARA RETIRADA', 'SAIU PARA ENTREGA'].includes(order.status)) && (
-                  <button onClick={() => onUpdateOrderStatus(order.id, 'SAIU PARA ENTREGA', motoboyName)} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-purple-700 transition-colors shadow-lg shadow-purple-900/20 active:scale-95 flex items-center justify-center gap-2">
+                  <button onClick={() => handleAcceptOrder(order.id)} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-purple-700 transition-colors shadow-lg shadow-purple-900/20 active:scale-95 flex items-center justify-center gap-2">
                     Aceitar Pedido 🛵
                   </button>
                 )}
                 {(order.status === 'SAIU PARA ENTREGA' && order.motoboyName === motoboyName) && (
-                  <button onClick={() => onUpdateOrderStatus(order.id, 'FINALIZADO', motoboyName)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2">
+                  <button onClick={() => handleFinishOrder(order.id)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2">
                     Entregue ✅
                   </button>
                 )}
