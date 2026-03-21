@@ -12,6 +12,7 @@ interface CustomerOrdersProps {
 }
 
 export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, onReorder }) => {
+  console.log("[CustomerOrders] Renderizado com orders:", orders);
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
 
   useEffect(() => {

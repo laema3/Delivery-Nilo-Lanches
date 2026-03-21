@@ -8,10 +8,12 @@ const auth = app ? getAuth(app) : null;
 export const dbService = {
   updateLocation: async (orderId: string, lat: number, lng: number) => {
     if (!db) return;
+    console.log(`[dbService] Atualizando localização para ${orderId}: ${lat}, ${lng}`);
     try {
       await setDoc(doc(db, 'orders', orderId), { 
         currentLocation: { lat, lng, timestamp: Date.now() } 
       }, { merge: true });
+      console.log(`[dbService] Localização atualizada com sucesso para ${orderId}`);
     } catch (e) {
       console.error("Error updating location: ", e);
     }

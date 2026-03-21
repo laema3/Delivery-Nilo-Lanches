@@ -183,8 +183,8 @@ const App: React.FC = () => {
   }, [logoUrl]);
 
   useEffect(() => {
-    // Aumentado para 10 segundos para evitar tela de erro prematura em conexões lentas ou retornos de pagamento
-    const timer = setTimeout(() => setIsInitialLoading(false), 10000);
+    // Aumentado para 30 segundos para evitar tela de erro prematura em conexões lentas ou retornos de pagamento
+    const timer = setTimeout(() => setIsInitialLoading(false), 30000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -945,7 +945,7 @@ const App: React.FC = () => {
                 currentUserEmail: currentUser?.email, 
                 totalOrders: orders.length, 
                 myOrdersCount: myOrders.length,
-                orders: orders
+                myOrders: myOrders
             });
             return (
               <CustomerOrders 
