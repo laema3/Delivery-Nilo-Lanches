@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Order } from '../types';
+import { dbService } from '../services/dbService';
 
 interface MotoboyPortalProps {
   orders: Order[];
