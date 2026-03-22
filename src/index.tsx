@@ -2,6 +2,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import './index.css';
 
 // Tratamento de Service Worker com detecção de atualização
@@ -56,7 +57,9 @@ if (container) {
     const root = createRoot(container);
     root.render(
       <React.StrictMode>
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </React.StrictMode>
     );
     setTimeout(removeLoader, 800);

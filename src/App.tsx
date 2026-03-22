@@ -12,9 +12,7 @@ import { OrderSuccessModal } from './components/OrderSuccessModal.tsx';
 import { ChatBot } from './components/ChatBot.tsx';
 
 import { Footer } from './components/Footer.tsx';
-import { CustomerOrders } from './components/CustomerOrders.tsx';
 import { ProfileModal } from './components/ProfileModal.tsx';
-import { MotoboyPortal } from './components/MotoboyPortal.tsx';
 import { Toast } from './components/Toast.tsx';
 import { ProductLoader } from './components/ProductLoader.tsx';
 import { InstallBanner } from './components/InstallBanner.tsx';
@@ -22,7 +20,11 @@ import { WelcomePopup } from './components/WelcomePopup.tsx';
 import { RecessoBanner } from './components/RecessoBanner.tsx';
 import { dbService } from './services/dbService.ts';
 import { Product, CartItem, Order, Customer, ZipRange, PaymentSettings, CategoryItem, SubCategoryItem, Complement, DeliveryType, Coupon } from './types.ts';
+import { safeStorage } from './utils/safeStorage.ts';
 import { DEFAULT_LOGO } from './constants.tsx';
+
+const CustomerOrders = React.lazy(() => import('./components/CustomerOrders.tsx').then(m => ({ default: m.CustomerOrders })));
+const MotoboyPortal = React.lazy(() => import('./components/MotoboyPortal.tsx').then(m => ({ default: m.MotoboyPortal })));
 
 const safeNormalize = (val: any): string => {
   if (!val) return "";
@@ -41,7 +43,7 @@ const App: React.FC = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   
   const [isStoreOpen, setIsStoreOpen] = useState(true);
-  const [isKioskMode, setIsKioskMode] = useState(() => localStorage.getItem('nl_kiosk_enabled') === 'true');
+  const [isKioskMode, setIsKioskMode] = useState(() => safeStorage.getItem('nl_kiosk_enabled') === 'true');
   const [kioskStarted, setKioskStarted] = useState(false);
   const [logoUrl, setLogoUrl] = useState(DEFAULT_LOGO);
   const [socialLinks, setSocialLinks] = useState({ 
@@ -63,14 +65,14 @@ const App: React.FC = () => {
     motoboyPass: 'nilo123'
   });
 
-  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
+  const [isAdmin, setIsAdmin] = useState(() => safeStorage.getSessionItem('nl_admin_auth') === 'true');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
-      const savedCart = localStorage.getItem('nl_cart_v1');
+      const savedCart = safeStorage.getItem('nl_cart_v1');
       return savedCart ? JSON.parse(savedCart) : [];
     } catch { return []; }
   });
@@ -83,9 +85,9 @@ const App: React.FC = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [isMotoboyLoginOpen, setIsMotoboyLoginOpen] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => sessionStorage.getItem('nl_admin_auth') === 'true');
-  const [isMotoboyAuthenticated, setIsMotoboyAuthenticated] = useState(() => sessionStorage.getItem('nl_motoboy_auth') === 'true');
-  const [motoboyName, setMotoboyName] = useState(() => sessionStorage.getItem('nl_motoboy_name') || '');
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => safeStorage.getSessionItem('nl_admin_auth') === 'true');
+  const [isMotoboyAuthenticated, setIsMotoboyAuthenticated] = useState(() => safeStorage.getSessionItem('nl_motoboy_auth') === 'true');
+  const [motoboyName, setMotoboyName] = useState(() => safeStorage.getSessionItem('nl_motoboy_name') || '');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' as 'success' | 'error' });
@@ -98,7 +100,7 @@ const App: React.FC = () => {
 
   const [currentUser, setCurrentUser] = useState<Customer | null>(() => {
     try {
-      const saved = localStorage.getItem('nl_current_user');
+      const saved = safeStorage.getItem('nl_current_user');
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
@@ -193,7 +195,7 @@ const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get('status');
     const collectionStatus = params.get('collection_status');
-    const orderId = localStorage.getItem('nl_last_order_id');
+    const orderId = safeStorage.getItem('nl_last_order_id');
 
     if ((status || collectionStatus) && orderId) {
       console.log("[App] Retorno MP detectado:", { status, collectionStatus, orderId });
@@ -225,7 +227,7 @@ const App: React.FC = () => {
       
       // Limpa a URL para evitar reprocessamento ao recarregar
       window.history.replaceState({}, document.title, window.location.pathname);
-      localStorage.removeItem('nl_last_order_id');
+      safeStorage.removeItem('nl_last_order_id');
     }
   }, [orders]); // Mantém orders para atualizar lastOrder se necessário
 
@@ -449,10 +451,10 @@ const App: React.FC = () => {
         setToast({ show: true, msg: 'Pagamento aprovado com sucesso!', type: 'success' });
         
         // Atualiza o status do pedido para NOVO
-        const lastOrderId = localStorage.getItem('nl_last_order_id');
+        const lastOrderId = safeStorage.getItem('nl_last_order_id');
         if (lastOrderId) {
           dbService.save('orders', lastOrderId, { status: 'NOVO' });
-          localStorage.removeItem('nl_last_order_id');
+          safeStorage.removeItem('nl_last_order_id');
           setCart([]); // Limpa o carrinho após sucesso
         }
       } else if (status === 'pending') {
@@ -671,7 +673,7 @@ const App: React.FC = () => {
                await dbService.save('orders', orderId, orderToSave);
                
                // Redireciona para o checkout do PagSeguro
-               localStorage.setItem('nl_last_order_id', orderId);
+               safeStorage.setItem('nl_last_order_id', orderId);
                // URL de Sandbox ou Produção - idealmente configurável, mas vamos assumir produção ou sandbox baseado no token?
                // O PagSeguro tem URLs diferentes. Vamos tentar a URL padrão de redirecionamento com o código.
                // URL Padrão: https://pagseguro.uol.com.br/v2/checkout/payment.html?code=CODE
@@ -730,7 +732,7 @@ const App: React.FC = () => {
                const orderToSave = JSON.parse(JSON.stringify(newOrder));
                console.log("[Checkout] Salvando pedido PRELIMINAR no banco:", orderId);
                await dbService.save('orders', orderId, orderToSave);
-               localStorage.setItem('nl_last_order_id', orderId);
+               safeStorage.setItem('nl_last_order_id', orderId);
 
                // Abre a janela ANTES do fetch para evitar bloqueador de popups
                const paymentWindow = window.open('about:blank', '_blank');
@@ -894,7 +896,7 @@ const App: React.FC = () => {
           if (isAdmin) {
             setIsAdmin(false);
             setIsAdminAuthenticated(false);
-            sessionStorage.removeItem('nl_admin_auth');
+            safeStorage.removeSessionItem('nl_admin_auth');
           } else {
             if (isAdminAuthenticated) {
               setIsAdmin(true);
@@ -903,7 +905,7 @@ const App: React.FC = () => {
             }
           }
         }} 
-        searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); localStorage.removeItem('nl_current_user'); }} onMyOrdersClick={() => setActiveView('my-orders')} onProfileClick={() => setIsProfileModalOpen(true)} isStoreOpen={isStoreOpen} logoUrl={logoUrl} 
+        searchTerm={searchTerm} onSearchChange={setSearchTerm} currentUser={currentUser} onAuthClick={() => setIsAuthModalOpen(true)} onLogout={() => { setCurrentUser(null); safeStorage.removeItem('nl_current_user'); }} onMyOrdersClick={() => setActiveView('my-orders')} onProfileClick={() => setIsProfileModalOpen(true)} isStoreOpen={isStoreOpen} logoUrl={logoUrl} 
       />
       <RecessoBanner />
 
@@ -912,7 +914,7 @@ const App: React.FC = () => {
           <AdminPanel 
             products={products} orders={orders} customers={customers} zipRanges={zipRanges} categories={categories} subCategories={subCategories} complements={complements} coupons={coupons} 
             isStoreOpen={isStoreOpen} onToggleStore={() => { const next = !isStoreOpen; setIsStoreOpen(next); dbService.save('settings', 'general', { isStoreOpen: next }); }} 
-            isKioskMode={isKioskMode} onToggleKioskMode={() => { const next = !isKioskMode; setIsKioskMode(next); localStorage.setItem('nl_kiosk_enabled', String(next)); }} 
+            isKioskMode={isKioskMode} onToggleKioskMode={() => { const next = !isKioskMode; setIsKioskMode(next); safeStorage.setItem('nl_kiosk_enabled', String(next)); }} 
             logoUrl={logoUrl} onUpdateLogo={(url) => dbService.save('settings', 'general', { logoUrl: url })} socialLinks={socialLinks} onUpdateSocialLinks={(links) => dbService.save('settings', 'general', { ...links })} 
             authSettings={authSettings} onUpdateAuthSettings={(settings) => dbService.save('settings', 'auth', settings)}
             onAddProduct={(p) => dbService.save('products', Math.random().toString(36).substring(7), p)} onDeleteProduct={(id) => dbService.remove('products', id)} onUpdateProduct={(p) => dbService.save('products', p.id, p)} 
@@ -939,36 +941,40 @@ const App: React.FC = () => {
             onLogout={() => { 
               setIsAdmin(false); 
               setIsAdminAuthenticated(false);
-              sessionStorage.removeItem('nl_admin_auth'); 
+              safeStorage.removeSessionItem('nl_admin_auth'); 
             }} 
             onBackToSite={() => {
               setIsAdmin(false);
               setIsAdminAuthenticated(false);
-              sessionStorage.removeItem('nl_admin_auth');
+              safeStorage.removeSessionItem('nl_admin_auth');
             }}
           />
         ) : activeView === 'my-orders' ? (
-          (() => {
-            const myOrders = orders.filter(o => o.customerId === currentUser?.email);
-            return (
-              <CustomerOrders 
-                orders={myOrders} 
-                onBack={() => setActiveView('home')} 
-                onReorder={() => {}} 
-              />
-            );
-          })()
+          <React.Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div></div>}>
+            {(() => {
+              const myOrders = orders.filter(o => o.customerId === currentUser?.email);
+              return (
+                <CustomerOrders 
+                  orders={myOrders} 
+                  onBack={() => setActiveView('home')} 
+                  onReorder={() => {}} 
+                />
+              );
+            })()}
+          </React.Suspense>
         ) : activeView === 'motoboy' ? (
-          <MotoboyPortal 
-            orders={orders} 
-            motoboyName={motoboyName}
-            onBack={() => setActiveView('home')} 
-            onUpdateOrderStatus={(id, status, mName) => {
-              const updateData: any = { status };
-              if (mName) updateData.motoboyName = mName;
-              dbService.save('orders', id, updateData);
-            }} 
-          />
+          <React.Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div></div>}>
+            <MotoboyPortal 
+              orders={orders} 
+              motoboyName={motoboyName}
+              onBack={() => setActiveView('home')} 
+              onUpdateOrderStatus={(id, status, mName) => {
+                const updateData: any = { status };
+                if (mName) updateData.motoboyName = mName;
+                dbService.save('orders', id, updateData);
+              }} 
+            />
+          </React.Suspense>
         ) : (
           <div className="flex flex-col w-full items-center">
             {!isKioskMode && (
@@ -1052,7 +1058,7 @@ const App: React.FC = () => {
         onClose={() => setIsAuthModalOpen(false)} 
         onLogin={(user) => {
           setCurrentUser(user);
-          localStorage.setItem('nl_current_user', JSON.stringify(user));
+          safeStorage.setItem('nl_current_user', JSON.stringify(user));
         }} 
         onSignup={(newCustomer) => {
           dbService.save('customers', newCustomer.id, newCustomer);
@@ -1067,7 +1073,7 @@ const App: React.FC = () => {
         onUpdate={(updatedCustomer) => {
           dbService.save('customers', updatedCustomer.id, updatedCustomer);
           setCurrentUser(updatedCustomer);
-          localStorage.setItem('nl_current_user', JSON.stringify(updatedCustomer));
+          safeStorage.setItem('nl_current_user', JSON.stringify(updatedCustomer));
           setToast({ show: true, msg: 'Perfil atualizado com sucesso!', type: 'success' });
         }}
       />
@@ -1078,7 +1084,7 @@ const App: React.FC = () => {
         onSuccess={() => { 
           setIsAdmin(true); 
           setIsAdminAuthenticated(true);
-          sessionStorage.setItem('nl_admin_auth', 'true'); 
+          safeStorage.setSessionItem('nl_admin_auth', 'true'); 
         }} 
         correctUser={authSettings.adminUser}
         correctPass={authSettings.adminPass}
@@ -1090,8 +1096,8 @@ const App: React.FC = () => {
         onSuccess={(name) => { 
           setIsMotoboyAuthenticated(true); 
           setMotoboyName(name);
-          sessionStorage.setItem('nl_motoboy_auth', 'true'); 
-          sessionStorage.setItem('nl_motoboy_name', name);
+          safeStorage.setSessionItem('nl_motoboy_auth', 'true'); 
+          safeStorage.setSessionItem('nl_motoboy_name', name);
           setActiveView('motoboy'); 
         }} 
         correctPass={authSettings.motoboyPass}

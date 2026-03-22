@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { safeStorage } from '../utils/safeStorage.ts';
 
 export const WelcomePopup: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const viewCount = parseInt(localStorage.getItem('nl_welcome_popup_views') || '0');
+    const viewCount = parseInt(safeStorage.getItem('nl_welcome_popup_views') || '0');
     
     if (viewCount < 3) {
       const timer = setTimeout(() => {
@@ -18,8 +19,8 @@ export const WelcomePopup: React.FC = () => {
 
   const handleClose = () => {
     setIsOpen(false);
-    const viewCount = parseInt(localStorage.getItem('nl_welcome_popup_views') || '0');
-    localStorage.setItem('nl_welcome_popup_views', (viewCount + 1).toString());
+    const viewCount = parseInt(safeStorage.getItem('nl_welcome_popup_views') || '0');
+    safeStorage.setItem('nl_welcome_popup_views', (viewCount + 1).toString());
   };
 
   return (

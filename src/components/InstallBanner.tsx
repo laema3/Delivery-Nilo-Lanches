@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { safeStorage } from '../utils/safeStorage.ts';
 
 interface InstallBannerProps {
   logoUrl: string;
@@ -13,7 +14,7 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
     const handler = (e: any) => {
       e.preventDefault();
       
-      const lastDismissed = localStorage.getItem('installBannerDismissedAt');
+      const lastDismissed = safeStorage.getItem('installBannerDismissedAt');
       if (lastDismissed) {
         const lastDate = new Date(parseInt(lastDismissed));
         const today = new Date();
@@ -42,7 +43,7 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ logoUrl }) => {
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('installBannerDismissedAt', Date.now().toString());
+    safeStorage.setItem('installBannerDismissedAt', Date.now().toString());
     setShowBanner(false);
   };
 
