@@ -264,6 +264,13 @@ const App: React.FC = () => {
       }),
       dbService.subscribe<Complement[]>('complements', (data) => data && setComplements(data)),
       dbService.subscribe<ZipRange[]>('zip_ranges', (data) => data && setZipRanges(data)),
+      dbService.subscribe<PaymentSettings[]>('payment_methods', (data) => {
+        if (data) {
+          console.log(`[App] Formas de pagamento recebidas: ${data.length}`);
+          setPaymentMethods(data);
+        }
+      }),
+      dbService.subscribe<Coupon[]>('coupons', (data) => data && setCoupons(data)),
       dbService.subscribe<any[]>('settings', (data) => {
         console.log("[App] Settings data received:", data);
         if (data && data.length > 0) {
@@ -315,8 +322,6 @@ const App: React.FC = () => {
            setOrders(newOrders);
         }
       }));
-      unsubs.push(dbService.subscribe<PaymentSettings[]>('payment_methods', (data) => data && setPaymentMethods(data)));
-      unsubs.push(dbService.subscribe<Coupon[]>('coupons', (data) => data && setCoupons(data)));
     }
 
     if (isAdmin) {
@@ -347,6 +352,19 @@ const App: React.FC = () => {
             if (categories.length === 0) {
                 const c = await dbService.getAll<CategoryItem>('categories');
                 if (c.length > 0) setCategories(c);
+            }
+
+            if (paymentMethods.length === 0) {
+                const pm = await dbService.getAll<PaymentSettings>('payment_methods');
+                if (pm.length > 0) {
+                    console.log(`Fallback: ${pm.length} formas de pagamento carregadas.`);
+                    setPaymentMethods(pm);
+                }
+            }
+
+            if (coupons.length === 0) {
+                const cp = await dbService.getAll<Coupon>('coupons');
+                if (cp.length > 0) setCoupons(cp);
             }
 
             if (orders.length === 0) {
@@ -399,11 +417,11 @@ const App: React.FC = () => {
     };
     
     // Tenta carregar manualmente após 3 segundos se ainda estiver vazio
-    // const fallbackTimer = setTimeout(() => loadInitialData(0), 3000);
+    const fallbackTimer = setTimeout(() => loadInitialData(0), 3000);
 
     return () => {
         unsubs.forEach(u => u && u());
-        // clearTimeout(fallbackTimer);
+        clearTimeout(fallbackTimer);
     };
   }, [currentUser?.email, isAdmin]);
 
@@ -1059,7 +1077,7 @@ const App: React.FC = () => {
       <CartSidebar 
         isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cart} coupons={coupons} onUpdateQuantity={(id, delta) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item))} 
         onRemove={(id) => setCart(prev => prev.filter(item => item.id !== id))} onCheckout={handleCheckout} onAuthClick={() => setIsAuthModalOpen(true)} paymentSettings={paymentMethods} currentUser={currentUser} isKioskMode={isKioskMode} 
-        deliveryFee={currentDeliveryFee} availableCoupons={[]} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
+        deliveryFee={currentDeliveryFee} availableCoupons={coupons} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
         onShowToast={(msg, type) => setToast({ show: true, msg, type })}
       />
       <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
