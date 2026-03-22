@@ -3,7 +3,14 @@ import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, query, where }
 import { getAuth } from "firebase/auth";
 import { app, db } from "../firebaseConfig";
 
-const auth = app ? getAuth(app) : null;
+let auth: any = null;
+if (app) {
+  try {
+    auth = getAuth(app);
+  } catch (e) {
+    console.error("Error initializing auth: ", e);
+  }
+}
 
 export const dbService = {
   updateLocation: async (orderId: string, lat: number, lng: number) => {

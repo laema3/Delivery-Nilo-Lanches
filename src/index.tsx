@@ -7,36 +7,12 @@ import './index.css';
 
 // Tratamento de Service Worker com detecção de atualização
 const handleServiceWorker = () => {
-  const isSandbox = 
-    window.location.hostname.includes('usercontent.goog') || 
-    window.location.hostname.includes('ai.studio') ||
-    window.location.hostname === 'localhost';
-
-  if (isSandbox) {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        for (const registration of registrations) registration.unregister();
-      }).catch(() => {});
-    }
-    return;
-  }
-
-  if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').then(reg => {
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // Nova versão instalada, recarregar para aplicar
-                window.location.reload();
-              }
-            });
-          }
-        });
-      }).catch(() => {});
-    });
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (const registration of registrations) {
+        registration.unregister();
+      }
+    }).catch(() => {});
   }
 };
 

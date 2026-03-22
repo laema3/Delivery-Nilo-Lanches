@@ -45,11 +45,23 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     
     // Inicialização com Persistência Offline Habilitada
     // Isso permite carregar o cardápio mesmo se a conexão estiver instável
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
-    });
+    try {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      });
+    } catch (e) {
+      console.warn("⚠️ [Firebase] Fallback para persistência simples:", e);
+      try {
+        db = initializeFirestore(app, {
+          localCache: persistentLocalCache({})
+        });
+      } catch (e2) {
+        console.error("❌ [Firebase] Falha total na persistência:", e2);
+        db = getFirestore(app);
+      }
+    }
     
     console.log("🔥 [Firebase] Conectado com Persistência Offline.");
   } catch (error: any) {

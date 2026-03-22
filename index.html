@@ -59,6 +59,26 @@
         <p style="margin-top: 24px; color: #008000; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 3px; font-family: 'Bebas Neue', cursive;">Nilo Lanches</p>
     </div>
     <div id="root"></div>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for (let registration of registrations) {
+                    registration.unregister();
+                }
+            }).catch(function(err) {
+                console.log('Service Worker unregistration failed: ', err);
+            });
+        }
+        
+        // Safety timeout to remove loader if app fails to load
+        setTimeout(function() {
+            var loader = document.getElementById('initial-loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(function() { loader.remove(); }, 500);
+            }
+        }, 10000);
+    </script>
     <script type="module" src="/src/index.tsx"></script>
 </body>
 </html>

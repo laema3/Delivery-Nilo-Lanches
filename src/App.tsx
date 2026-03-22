@@ -187,7 +187,17 @@ const App: React.FC = () => {
   useEffect(() => {
     // Reduzido para 3 segundos para melhorar a percepção de velocidade
     const timer = setTimeout(() => setIsInitialLoading(false), 3000);
-    return () => clearTimeout(timer);
+    
+    // Fallback de segurança: se houver erro global, remove o loader
+    const handleError = () => setIsInitialLoading(false);
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleError);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleError);
+    };
   }, []);
 
   // Verifica retorno do Mercado Pago
@@ -404,7 +414,7 @@ const App: React.FC = () => {
     const interval = setInterval(() => {
       const now = new Date().getTime();
       orders.forEach(order => {
-        if (order.status === 'AGUARDANDO PAGAMENTO' && order.userId === currentUser.uid) {
+        if (order.status === 'AGUARDANDO PAGAMENTO' && order.customerId === currentUser.email) {
           const orderTime = new Date(order.createdAt).getTime();
           const diffMinutes = (now - orderTime) / (1000 * 60);
           if (diffMinutes >= 3) {
