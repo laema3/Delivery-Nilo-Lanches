@@ -183,8 +183,8 @@ const App: React.FC = () => {
   }, [logoUrl]);
 
   useEffect(() => {
-    // Aumentado para 30 segundos para evitar tela de erro prematura em conexões lentas ou retornos de pagamento
-    const timer = setTimeout(() => setIsInitialLoading(false), 30000);
+    // Reduzido para 3 segundos para melhorar a percepção de velocidade
+    const timer = setTimeout(() => setIsInitialLoading(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -241,22 +241,7 @@ const App: React.FC = () => {
         if (data) {
             console.log(`[App] Produtos recebidos via subscribe: ${data.length}`);
             setProducts([...data]);
-        }
-      }),
-      dbService.subscribe<Order[]>('orders', (newOrders) => {
-        if (newOrders) {
-           if (currentUser && previousOrdersRef.current.length > 0) {
-             newOrders.forEach(order => {
-               if (order.customerId === currentUser.email) {
-                 const prevOrder = previousOrdersRef.current.find(o => o.id === order.id);
-                 if (prevOrder && prevOrder.status !== order.status) {
-                   setToast({ show: true, msg: `Pedido #${order.id.substring(0,4)} está ${order.status}!`, type: 'success' });
-                 }
-               }
-             });
-           }
-           previousOrdersRef.current = newOrders;
-           setOrders(newOrders);
+            setIsInitialLoading(false);
         }
       }),
       dbService.subscribe<CategoryItem[]>('categories', (data) => {
@@ -267,8 +252,6 @@ const App: React.FC = () => {
       }),
       dbService.subscribe<Complement[]>('complements', (data) => data && setComplements(data)),
       dbService.subscribe<ZipRange[]>('zip_ranges', (data) => data && setZipRanges(data)),
-      dbService.subscribe<PaymentSettings[]>('payment_methods', (data) => data && setPaymentMethods(data)),
-      dbService.subscribe<Coupon[]>('coupons', (data) => data && setCoupons(data)),
       dbService.subscribe<any[]>('settings', (data) => {
         console.log("[App] Settings data received:", data);
         if (data && data.length > 0) {
@@ -303,6 +286,27 @@ const App: React.FC = () => {
       })
     ];
 
+    if (isAdmin || currentUser) {
+      unsubs.push(dbService.subscribe<Order[]>('orders', (newOrders) => {
+        if (newOrders) {
+           if (currentUser && previousOrdersRef.current.length > 0) {
+             newOrders.forEach(order => {
+               if (order.customerId === currentUser.email) {
+                 const prevOrder = previousOrdersRef.current.find(o => o.id === order.id);
+                 if (prevOrder && prevOrder.status !== order.status) {
+                   setToast({ show: true, msg: `Pedido #${order.id.substring(0,4)} está ${order.status}!`, type: 'success' });
+                 }
+               }
+             });
+           }
+           previousOrdersRef.current = newOrders;
+           setOrders(newOrders);
+        }
+      }));
+      unsubs.push(dbService.subscribe<PaymentSettings[]>('payment_methods', (data) => data && setPaymentMethods(data)));
+      unsubs.push(dbService.subscribe<Coupon[]>('coupons', (data) => data && setCoupons(data)));
+    }
+
     if (isAdmin) {
        unsubs.push(dbService.subscribe<Customer[]>('customers', (data) => data && setCustomers(data)));
     }
@@ -318,8 +322,10 @@ const App: React.FC = () => {
                 if (p.length > 0) {
                     console.log(`Fallback: ${p.length} produtos carregados.`);
                     setProducts(p);
+                    setIsInitialLoading(false);
                 } else {
                     console.warn("Fallback: Nenhum produto encontrado.");
+                    setIsInitialLoading(false);
                     if (retryCount < 3) setTimeout(() => loadInitialData(retryCount + 1), 3000);
                 }
             } else {
