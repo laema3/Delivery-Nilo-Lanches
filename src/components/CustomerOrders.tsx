@@ -25,11 +25,11 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
   useEffect(() => {
     if (trackingOrder) {
       const updatedOrder = orders.find(o => o.id === trackingOrder.id);
-      if (updatedOrder) {
+      if (updatedOrder && JSON.stringify(updatedOrder) !== JSON.stringify(trackingOrder)) {
         setTrackingOrder(updatedOrder);
       }
     }
-  }, [orders]);
+  }, [orders, trackingOrder]);
 
   useEffect(() => {
     // Fix para ícones do Leaflet

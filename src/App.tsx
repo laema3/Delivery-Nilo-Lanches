@@ -80,7 +80,10 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [selectedSubCategoryValue, setSelectedSubCategory] = useState<string>('Todos'); 
-  const [activeView, setActiveView] = useState<'home' | 'my-orders' | 'motoboy'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'my-orders' | 'motoboy'>(() => {
+    if (safeStorage.getSessionItem('nl_motoboy_auth') === 'true') return 'motoboy';
+    return 'home';
+  });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
@@ -305,7 +308,7 @@ const App: React.FC = () => {
       })
     ];
 
-    if (isAdmin || currentUser) {
+    if (isAdmin || currentUser || isMotoboyAuthenticated) {
       unsubs.push(dbService.subscribe<Order[]>('orders', (newOrders) => {
         if (newOrders) {
            if (currentUser && previousOrdersRef.current.length > 0) {
@@ -423,7 +426,7 @@ const App: React.FC = () => {
         unsubs.forEach(u => u && u());
         clearTimeout(fallbackTimer);
     };
-  }, [currentUser?.email, isAdmin]);
+  }, [currentUser?.email, isAdmin, isMotoboyAuthenticated]);
 
   useEffect(() => {
     if (!currentUser) return;

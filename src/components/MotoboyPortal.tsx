@@ -13,23 +13,62 @@ interface MotoboyPortalProps {
 export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, motoboyName, onBack, onUpdateOrderStatus }) => {
   const [activeTab, setActiveTab] = useState<'PENDING' | 'COMPLETED'>('PENDING');
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'OFF' | 'SEARCHING' | 'ACTIVE' | 'ERROR'>('OFF');
   const lastOrderCountRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Auto-resume tracking if there's an active order for this motoboy
+  useEffect(() => {
+    if (!trackingOrderId) {
+      const activeOrder = orders.find(o => o.status === 'SAIU PARA ENTREGA' && o.motoboyName === motoboyName);
+      if (activeOrder) {
+        console.log("[Motoboy] Retomando rastreio para pedido:", activeOrder.id);
+        setTrackingOrderId(activeOrder.id);
+      }
+    }
+  }, [orders, motoboyName, trackingOrderId]);
+
   // GPS Tracking
   useEffect(() => {
-    if (!trackingOrderId) return;
+    if (!trackingOrderId) {
+      setGpsStatus('OFF');
+      return;
+    }
+
+    setGpsStatus('SEARCHING');
+    console.log("[Motoboy] Iniciando GPS para pedido:", trackingOrderId);
+
+    // Tenta obter a posição inicial imediatamente
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        dbService.updateLocation(trackingOrderId, latitude, longitude);
+        setGpsStatus('ACTIVE');
+      },
+      (error) => {
+        console.error("Erro inicial GPS:", error);
+        setGpsStatus('ERROR');
+      },
+      { enableHighAccuracy: true }
+    );
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         dbService.updateLocation(trackingOrderId, latitude, longitude);
+        setGpsStatus('ACTIVE');
       },
-      (error) => console.error("Erro no GPS:", error),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      (error) => {
+        console.error("Erro no GPS (Watch):", error);
+        setGpsStatus('ERROR');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      setGpsStatus('OFF');
+    };
   }, [trackingOrderId]);
 
   // Inicializa o áudio
@@ -84,7 +123,19 @@ export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, motoboyNam
           <button onClick={onBack} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm">←</button>
           <div>
             <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight">Portal do Entregador</h2>
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Olá, {motoboyName} 👋</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Olá, {motoboyName} 👋</p>
+              {gpsStatus !== 'OFF' && (
+                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                  gpsStatus === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600 animate-pulse' :
+                  gpsStatus === 'SEARCHING' ? 'bg-yellow-100 text-yellow-600' :
+                  'bg-red-100 text-red-600'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${gpsStatus === 'ACTIVE' ? 'bg-emerald-500' : gpsStatus === 'SEARCHING' ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
+                  GPS {gpsStatus === 'ACTIVE' ? 'Ativo' : gpsStatus === 'SEARCHING' ? 'Buscando...' : 'Erro'}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
