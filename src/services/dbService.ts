@@ -8,12 +8,10 @@ const auth = app ? getAuth(app) : null;
 export const dbService = {
   updateLocation: async (orderId: string, lat: number, lng: number) => {
     if (!db) return;
-    console.log(`[dbService] Atualizando localização para ${orderId}: ${lat}, ${lng}`);
     try {
       await setDoc(doc(db, 'orders', orderId), { 
         currentLocation: { lat, lng, timestamp: Date.now() } 
       }, { merge: true });
-      console.log(`[dbService] Localização atualizada com sucesso para ${orderId}`);
     } catch (e) {
       console.error("Error updating location: ", e);
     }
@@ -35,6 +33,19 @@ export const dbService = {
     } catch (e) {
       console.error(`[dbService] Erro ao excluir ${collectionName}/${id}:`, e);
       throw e;
+    }
+  },
+  getCustomerByEmail: async (email: string) => {
+    if (!db) return null;
+    try {
+      const q = query(collection(db, 'customers'), where('email', '==', email.toLowerCase()));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) return null;
+      const doc = querySnapshot.docs[0];
+      return { ...doc.data(), id: doc.id };
+    } catch (e) {
+      console.error("Error getting customer by email: ", e);
+      return null;
     }
   },
   getAll: async <T>(collectionName: string): Promise<T[]> => {

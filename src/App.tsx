@@ -269,7 +269,6 @@ const App: React.FC = () => {
       dbService.subscribe<ZipRange[]>('zip_ranges', (data) => data && setZipRanges(data)),
       dbService.subscribe<PaymentSettings[]>('payment_methods', (data) => data && setPaymentMethods(data)),
       dbService.subscribe<Coupon[]>('coupons', (data) => data && setCoupons(data)),
-      dbService.subscribe<Customer[]>('customers', (data) => data && setCustomers(data)),
       dbService.subscribe<any[]>('settings', (data) => {
         console.log("[App] Settings data received:", data);
         if (data && data.length > 0) {
@@ -303,6 +302,10 @@ const App: React.FC = () => {
         }
       })
     ];
+
+    if (isAdmin) {
+       unsubs.push(dbService.subscribe<Customer[]>('customers', (data) => data && setCustomers(data)));
+    }
 
     // Fallback: Busca manual se as subscrições falharem no carregamento inicial
     const loadInitialData = async (retryCount = 0) => {
@@ -378,13 +381,13 @@ const App: React.FC = () => {
     };
     
     // Tenta carregar manualmente após 3 segundos se ainda estiver vazio
-    const fallbackTimer = setTimeout(() => loadInitialData(0), 3000);
+    // const fallbackTimer = setTimeout(() => loadInitialData(0), 3000);
 
     return () => {
         unsubs.forEach(u => u && u());
-        clearTimeout(fallbackTimer);
+        // clearTimeout(fallbackTimer);
     };
-  }, [currentUser?.email]);
+  }, [currentUser?.email, isAdmin]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -941,12 +944,6 @@ const App: React.FC = () => {
         ) : activeView === 'my-orders' ? (
           (() => {
             const myOrders = orders.filter(o => o.customerId === currentUser?.email);
-            console.log("Renderizando Meus Pedidos:", { 
-                currentUserEmail: currentUser?.email, 
-                totalOrders: orders.length, 
-                myOrdersCount: myOrders.length,
-                myOrders: myOrders
-            });
             return (
               <CustomerOrders 
                 orders={myOrders} 
@@ -1055,7 +1052,6 @@ const App: React.FC = () => {
           dbService.save('customers', newCustomer.id, newCustomer);
         }} 
         zipRanges={zipRanges} 
-        customers={customers} 
       />
 
       <ProfileModal

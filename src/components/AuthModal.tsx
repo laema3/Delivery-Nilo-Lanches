@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Customer, ZipRange } from '../types';
+import { dbService } from '../services/dbService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -8,10 +9,9 @@ interface AuthModalProps {
   onLogin: (customer: Customer) => void;
   onSignup: (customer: Customer) => void;
   zipRanges: ZipRange[];
-  customers: Customer[];
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignup, zipRanges, customers }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignup, zipRanges }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,20 +23,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
 
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
     if (isLogin) {
-      const customer = customers.find(c => c.email.toLowerCase() === email.toLowerCase() && c.password === password);
-      if (customer) {
-        onLogin(customer);
+      const customer = await dbService.getCustomerByEmail(email);
+      if (customer && customer.password === password) {
+        onLogin(customer as Customer);
         onClose();
       } else {
         setError('E-mail ou senha inválidos.');
       }
     } else {
-      const existingCustomer = customers.find(c => c.email.toLowerCase() === email.toLowerCase());
+      const existingCustomer = await dbService.getCustomerByEmail(email);
       if (existingCustomer) {
         setError('Este e-mail já está cadastrado.');
         return;

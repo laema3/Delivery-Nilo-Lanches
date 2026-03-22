@@ -12,12 +12,7 @@ interface CustomerOrdersProps {
 }
 
 export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, onReorder }) => {
-  console.log("[CustomerOrders] Renderizado com orders:", orders);
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
-
-  useEffect(() => {
-    console.log(`[CustomerOrders] Renderizado com ${orders.length} pedidos:`, orders);
-  }, [orders]);
 
   useEffect(() => {
     // Fix para ícones do Leaflet
@@ -97,10 +92,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
               </div>
 
               <div className="flex justify-end gap-4">
-                {(() => {
-                  console.log(`[CustomerOrders] Pedido ${order.id}: status=${order.status}, hasLocation=${!!order.currentLocation}, location=${JSON.stringify(order.currentLocation)}`);
-                  return null;
-                })()}
                 {order.status === 'SAIU PARA ENTREGA' && order.currentLocation && (
                   <button onClick={() => setTrackingOrder(order)} className="bg-purple-600 text-white px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-purple-700 transition-colors shadow-lg shadow-purple-900/20 active:scale-95">
                     Acompanhar Entrega 📍
