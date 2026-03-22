@@ -1,9 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { Order } from '../types';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+
+const MapUpdater = ({ center }: { center: [number, number] }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [center, map]);
+  return null;
+};
 
 interface CustomerOrdersProps {
   orders: Order[];
@@ -13,6 +21,15 @@ interface CustomerOrdersProps {
 
 export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, onReorder }) => {
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    if (trackingOrder) {
+      const updatedOrder = orders.find(o => o.id === trackingOrder.id);
+      if (updatedOrder) {
+        setTrackingOrder(updatedOrder);
+      }
+    }
+  }, [orders]);
 
   useEffect(() => {
     // Fix para ícones do Leaflet
@@ -41,6 +58,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
             <div className="h-96 rounded-2xl overflow-hidden">
               <MapContainer center={[trackingOrder.currentLocation.lat, trackingOrder.currentLocation.lng]} zoom={15} style={{ height: '100%', width: '100%' }}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <MapUpdater center={[trackingOrder.currentLocation.lat, trackingOrder.currentLocation.lng]} />
                 <Marker position={[trackingOrder.currentLocation.lat, trackingOrder.currentLocation.lng]}>
                   <Popup>Entregador está aqui!</Popup>
                 </Marker>
