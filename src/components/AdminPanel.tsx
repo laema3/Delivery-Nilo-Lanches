@@ -380,16 +380,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const handleImageUpload = async (file: File, isLogo: boolean = false) => {
     setIsProcessingImg(true);
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        const compressed = await compressImage(base64);
-        if (isLogo) onUpdateLogo(compressed);
-        else setNewProduct(prev => ({ ...prev, image: compressed }));
-        setIsProcessingImg(false);
-      };
-      reader.readAsDataURL(file);
+      const compressed = await compressImage(file);
+      if (isLogo) onUpdateLogo(compressed);
+      else setNewProduct(prev => ({ ...prev, image: compressed }));
+      setIsProcessingImg(false);
     } catch (error) {
+      console.error("Erro ao processar imagem:", error);
       setIsProcessingImg(false);
     }
   };
