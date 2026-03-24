@@ -35,7 +35,10 @@ export const FoodCard: React.FC<FoodCardProps> = ({ product, onAdd, onClick }) =
             R$ {product.price.toFixed(2)}
           </span>
           <button 
-            onClick={(e) => { e.stopPropagation(); onAdd(product, 1); }}
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              onAdd(product, 1); 
+            }}
             className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-black uppercase text-base tracking-widest hover:bg-red-600 transition-colors shadow-md active:scale-95 flex items-center justify-center"
           >
             +

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, OrderStatus, Complement, PaymentSettings, Coupon } from '../types.ts';
+import { Product, Order, Customer, ZipRange, CategoryItem, SubCategoryItem, OrderStatus, Complement, Flavor, PaymentSettings, Coupon } from '../types.ts';
 import { compressImage } from '../services/imageService.ts';
 import { dbService } from '../services/dbService.ts';
 
@@ -15,6 +15,7 @@ interface AdminPanelProps {
   categories: CategoryItem[];
   subCategories: SubCategoryItem[];
   complements: Complement[];
+  flavors: Flavor[];
   coupons: Coupon[];
   isStoreOpen: boolean;
   onToggleStore: () => void;
@@ -76,10 +77,14 @@ interface AdminPanelProps {
   onAddSubCategory: (catId: string, name: string) => void;
   onUpdateSubCategory: (id: string, name: string, categoryId: string) => void;
   onRemoveSubCategory: (id: string) => Promise<void>;
-  onAddComplement: (name: string, price: number, applicableCategories?: string[]) => void;
-  onUpdateComplement: (id: string, name: string, price: number, applicableCategories?: string[]) => void;
+  onAddComplement: (name: string, price: number, applicableCategories?: string[], applicableSubCategories?: string[]) => void;
+  onUpdateComplement: (id: string, name: string, price: number, applicableCategories?: string[], applicableSubCategories?: string[]) => void;
   onToggleComplement: (id: string) => void;
   onRemoveComplement: (id: string) => Promise<void>;
+  onAddFlavor: (name: string, applicableCategories?: string[], applicableSubCategories?: string[]) => void;
+  onUpdateFlavor: (id: string, name: string, applicableCategories?: string[], applicableSubCategories?: string[]) => void;
+  onToggleFlavor: (id: string) => void;
+  onRemoveFlavor: (id: string) => Promise<void>;
   onAddZipRange: (start: string, end: string, fee: number) => void;
   onUpdateZipRange: (id: string, start: string, end: string, fee: number) => void;
   onRemoveZipRange: (id: string) => Promise<void>;
@@ -94,20 +99,21 @@ interface AdminPanelProps {
   onBackToSite: () => void;
 }
 
-type AdminView = 'dashboard' | 'pedidos' | 'produtos' | 'categorias' | 'subcategorias' | 'adicionais' | 'cupons' | 'entregas' | 'clientes' | 'pagamentos' | 'ajustes';
+type AdminView = 'dashboard' | 'pedidos' | 'produtos' | 'categorias' | 'subcategorias' | 'adicionais' | 'sabores' | 'cupons' | 'entregas' | 'clientes' | 'pagamentos' | 'ajustes';
 
 type DeleteTarget = {
-  type: 'ORDER' | 'PRODUCT' | 'CATEGORY' | 'SUBCATEGORY' | 'COMPLEMENT' | 'COUPON' | 'ZIP' | 'PAYMENT';
+  type: 'ORDER' | 'PRODUCT' | 'CATEGORY' | 'SUBCATEGORY' | 'COMPLEMENT' | 'FLAVOR' | 'COUPON' | 'ZIP' | 'PAYMENT';
   id: string;
   name?: string;
 };
 
 export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const { 
-    products, orders, customers, zipRanges, categories, subCategories, complements, coupons, isStoreOpen, onToggleStore, isKioskMode, onToggleKioskMode,
+    products, orders, customers, zipRanges, categories, subCategories, complements, flavors, coupons, isStoreOpen, onToggleStore, isKioskMode, onToggleKioskMode,
     logoUrl, onUpdateLogo, socialLinks, onUpdateSocialLinks, onAddProduct, onDeleteProduct, onUpdateProduct, 
     onUpdateOrderStatus, onDeleteOrder, onUpdateCustomer, onAddCategory, onRemoveCategory, onUpdateCategory, onAddSubCategory, 
     onUpdateSubCategory, onRemoveSubCategory, onAddComplement, onToggleComplement, onRemoveComplement, 
+    onAddFlavor, onUpdateFlavor, onToggleFlavor, onRemoveFlavor,
     onAddZipRange, onRemoveZipRange, onAddCoupon, onRemoveCoupon, onLogout, onBackToSite, 
     paymentSettings, onTogglePaymentMethod, onAddPaymentMethod, onRemovePaymentMethod, onUpdatePaymentSettings,
     authSettings, onUpdateAuthSettings,
@@ -124,7 +130,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const [showPassConfirm, setShowPassConfirm] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null); 
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 });
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0, flavors: [] });
   const [isProcessingImg, setIsProcessingImg] = useState(false);
 
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
@@ -136,6 +142,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const [compName, setCompName] = useState('');
   const [compPrice, setCompPrice] = useState<number>(0);
+  const [compCategories, setCompCategories] = useState<string[]>([]);
+  const [compSubCategories, setCompSubCategories] = useState<string[]>([]);
+  const [editingCompId, setEditingCompId] = useState<string | null>(null);
+
+  const [flavorName, setFlavorName] = useState('');
+  const [flavorCategories, setFlavorCategories] = useState<string[]>([]);
+  const [flavorSubCategories, setFlavorSubCategories] = useState<string[]>([]);
+  const [editingFlavorId, setEditingFlavorId] = useState<string | null>(null);
 
   const [cpCode, setCpCode] = useState('');
   const [cpDiscount, setCpDiscount] = useState<number>(0);
@@ -257,6 +271,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         <span>${item.quantity}x ${item.name}</span>
         <span>R$ ${(item.price * item.quantity).toFixed(2)}</span>
       </div>
+      ${item.selectedFlavor ? `<div style="font-size:10px; padding-left:10px; color:#e11d48; font-weight:bold;">Sabor: ${item.selectedFlavor.name}</div>` : ''}
       ${(item.selectedComplements || []).map(c => `<div style="font-size:10px; padding-left:10px; color:#555;">+ ${c.name}</div>`).join('')}
     `).join('');
 
@@ -363,6 +378,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         case 'CATEGORY': await onRemoveCategory(deleteTarget.id); break;
         case 'SUBCATEGORY': await onRemoveSubCategory(deleteTarget.id); break;
         case 'COMPLEMENT': await onRemoveComplement(deleteTarget.id); break;
+        case 'FLAVOR': await onRemoveFlavor(deleteTarget.id); break;
         case 'COUPON': await onRemoveCoupon(deleteTarget.id); break;
         case 'ZIP': await onRemoveZipRange(deleteTarget.id); break;
         case 'PAYMENT': await onRemovePaymentMethod(deleteTarget.id); break;
@@ -403,7 +419,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     } else if (newProduct.name) {
       await onAddProduct(newProduct);
     }
-    setNewProduct({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0 });
+    setNewProduct({ name: '', price: 0, category: '', subCategory: '', description: '', image: '', rating: 5.0, flavors: [] });
   };
 
   const handleEditCategoryClick = (c: CategoryItem) => {
@@ -548,6 +564,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           <NavItem active={activeView === 'categorias'} icon="📁" label="Categorias" onClick={() => setActiveView('categorias')} />
           <NavItem active={activeView === 'subcategorias'} icon="🌿" label="Subcategorias" onClick={() => setActiveView('subcategorias')} />
           <NavItem active={activeView === 'adicionais'} icon="➕" label="Adicionais" onClick={() => setActiveView('adicionais')} />
+          <NavItem active={activeView === 'sabores'} icon="🍓" label="Sabores" onClick={() => setActiveView('sabores')} />
           
           <div className="pt-6 pb-2 px-4 text-xs font-black text-slate-600 uppercase tracking-widest">Gestão</div>
           <NavItem active={activeView === 'cupons'} icon="🏷️" label="Cupons" onClick={() => setActiveView('cupons')} />
@@ -665,6 +682,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                   <li key={idx} className="flex justify-between items-start text-sm">
                                     <div className="flex flex-col">
                                        <span className="font-black text-slate-700 uppercase leading-none">{item.quantity}x {item.name}</span>
+                                       {item.selectedFlavor && (
+                                         <span className="text-[10px] text-red-600 font-black ml-4 mt-1 block tracking-widest">Sabor: {item.selectedFlavor.name}</span>
+                                       )}
                                        {item.selectedComplements?.map((c, ci) => (
                                          <span key={ci} className="text-[10px] text-emerald-600 font-bold ml-4 mt-1 block">+ {c.name}</span>
                                        ))}
@@ -734,6 +754,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         <label className={labelClass}>Descrição Detalhada</label>
                         <textarea rows={3} value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} className={inputClass} />
                      </div>
+                     <div className="md:col-span-2 lg:col-span-4 space-y-4 bg-slate-50 p-6 rounded-3xl border-2 border-slate-100">
+                        <div className="flex items-center justify-between">
+                           <label className={labelClass}>🍓 Vincular Sabores Disponíveis</label>
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-slate-200">Opcional</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight mb-2">Selecione os sabores que o cliente poderá escolher para este produto.</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                          {flavors.filter(f => f.active).map(f => (
+                            <label key={f.id} className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${newProduct.flavors?.includes(f.id) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md' : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'}`}>
+                              <input 
+                                type="checkbox" 
+                                className="hidden" 
+                                checked={newProduct.flavors?.includes(f.id)} 
+                                onChange={(e) => {
+                                  const current = newProduct.flavors || [];
+                                  if (e.target.checked) {
+                                    setNewProduct({ ...newProduct, flavors: [...current, f.id] });
+                                  } else {
+                                    setNewProduct({ ...newProduct, flavors: current.filter(id => id !== f.id) });
+                                  }
+                                }} 
+                              />
+                              <span className="text-xs font-black uppercase tracking-tight truncate">{f.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {flavors.filter(f => f.active).length === 0 && (
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">Nenhum sabor cadastrado. Vá em "Sabores" para cadastrar.</p>
+                        )}
+                      </div>
                      <div className="md:col-span-2 lg:col-span-4 space-y-2">
                         <label className={labelClass}>Imagem do Produto (Upload)</label>
                         <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-xl border border-dashed border-slate-300 hover:border-emerald-400">
@@ -836,36 +886,236 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             {activeView === 'adicionais' && (
                <div className="space-y-8 animate-in fade-in">
                   <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
-                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest">➕ Novo Adicional</h3>
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                        <div className="space-y-1">
-                           <label className={labelClass}>Nome do Adicional</label>
-                           <input value={compName} onChange={e => setCompName(e.target.value)} placeholder="Ex: Bacon, Cheddar" className={inputClass} />
+                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-widest">{editingCompId ? '💾 Editar Adicional' : '➕ Novo Adicional'}</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                           <div className="space-y-1">
+                              <label className={labelClass}>Nome do Adicional</label>
+                              <input value={compName} onChange={e => setCompName(e.target.value)} placeholder="Ex: Bacon, Cheddar" className={inputClass} />
+                           </div>
+                           <div className="space-y-1">
+                              <label className={labelClass}>Preço (+R$)</label>
+                              <input type="number" value={compPrice || ''} onChange={e => setCompPrice(Number(e.target.value))} placeholder="0.00" className={inputClass} />
+                           </div>
                         </div>
-                        <div className="space-y-1">
-                           <label className={labelClass}>Preço (+R$)</label>
-                           <input type="number" value={compPrice || ''} onChange={e => setCompPrice(Number(e.target.value))} placeholder="0.00" className={inputClass} />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                           <div className="space-y-2">
+                              <label className={labelClass}>Vincular a Categorias</label>
+                              <div className="max-h-40 overflow-y-auto p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                                 {categories.map(cat => (
+                                    <label key={cat.id} className="flex items-center gap-2 cursor-pointer group">
+                                       <input 
+                                          type="checkbox" 
+                                          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                          checked={compCategories.includes(cat.id)}
+                                          onChange={() => setCompCategories(prev => prev.includes(cat.id) ? prev.filter(id => id !== cat.id) : [...prev, cat.id])}
+                                       />
+                                       <span className="text-xs font-bold text-slate-600 uppercase truncate">{cat.name}</span>
+                                    </label>
+                                 ))}
+                              </div>
+                           </div>
+                           <div className="space-y-2">
+                              <label className={labelClass}>Vincular a Subcategorias</label>
+                              <div className="max-h-40 overflow-y-auto p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                                 {subCategories.map(sub => (
+                                    <label key={sub.id} className="flex items-center gap-2 cursor-pointer group">
+                                       <input 
+                                          type="checkbox" 
+                                          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                          checked={compSubCategories.includes(sub.id)}
+                                          onChange={() => setCompSubCategories(prev => prev.includes(sub.id) ? prev.filter(id => id !== sub.id) : [...prev, sub.id])}
+                                       />
+                                       <span className="text-xs font-bold text-slate-600 uppercase truncate">{sub.name}</span>
+                                    </label>
+                                 ))}
+                              </div>
+                           </div>
                         </div>
-                        <button onClick={() => { onAddComplement(compName, compPrice, []); setCompName(''); setCompPrice(0); }} className={buttonClass}>Adicionar</button>
+                     </div>
+                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                        {editingCompId && (
+                           <button onClick={() => { setEditingCompId(null); setCompName(''); setCompPrice(0); setCompCategories([]); setCompSubCategories([]); }} className="px-6 py-3 text-slate-400 font-bold uppercase text-xs hover:text-slate-600">Cancelar</button>
+                        )}
+                        <button 
+                           onClick={() => { 
+                              if (!compName) return alert('Digite o nome do adicional');
+                              if (editingCompId) {
+                                 onUpdateComplement(editingCompId, compName, compPrice, compCategories, compSubCategories);
+                                 setEditingCompId(null);
+                              } else {
+                                 onAddComplement(compName, compPrice, compCategories, compSubCategories);
+                              }
+                              setCompName(''); 
+                              setCompPrice(0);
+                              setCompCategories([]);
+                              setCompSubCategories([]);
+                           }} 
+                           className={buttonClass}
+                        >
+                           {editingCompId ? 'Salvar Alterações' : 'Adicionar Adicional'}
+                        </button>
                      </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                      {complements.map(c => (
-                       <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-                          <div>
-                            <span className="font-bold text-slate-700 uppercase text-sm block">{c.name}</span>
-                            <span className="text-[10px] text-emerald-600 font-black uppercase">+ R$ {c.price.toFixed(2)}</span>
+                       <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                          <div className="flex justify-between items-start">
+                             <div>
+                               <span className="font-bold text-slate-700 uppercase text-sm block">{c.name}</span>
+                               <span className="text-[10px] text-emerald-600 font-black uppercase">+ R$ {c.price.toFixed(2)}</span>
+                             </div>
+                             <div className="flex gap-2">
+                                <button onClick={() => {
+                                   setEditingCompId(c.id);
+                                   setCompName(c.name);
+                                   setCompPrice(c.price);
+                                   setCompCategories(c.applicable_categories || []);
+                                   setCompSubCategories(c.applicable_subcategories || []);
+                                   formTopRef.current?.scrollIntoView({ behavior: 'smooth' });
+                                }} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">✏️</button>
+                                <button onClick={() => onToggleComplement(c.id)} className={`p-2 rounded-lg transition-colors ${c.active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>{c.active ? '👁️' : '🚫'}</button>
+                                <button onClick={() => requestDelete('COMPLEMENT', c.id, c.name)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">🗑️</button>
+                             </div>
                           </div>
-                          <div className="flex gap-2">
-                             <button onClick={() => onToggleComplement(c.id)} className={`text-xs font-black px-3 py-1.5 rounded-lg ${c.active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>{c.active ? 'Ativo' : 'Inativo'}</button>
-                             <button onClick={() => requestDelete('COMPLEMENT', c.id, c.name)} className="text-red-500 text-xs font-black hover:bg-red-50 px-3 py-1.5 rounded-lg">Excluir</button>
-                          </div>
+                          {(c.applicable_categories?.length || c.applicable_subcategories?.length) ? (
+                             <div className="flex flex-wrap gap-1">
+                                {c.applicable_categories?.map(catId => (
+                                   <span key={catId} className="text-[8px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase">{categories.find(cat => cat.id === catId)?.name}</span>
+                                ))}
+                                {c.applicable_subcategories?.map(subId => (
+                                   <span key={subId} className="text-[8px] font-black bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded uppercase">{subCategories.find(sub => sub.id === subId)?.name}</span>
+                                ))}
+                             </div>
+                          ) : (
+                             <span className="text-[8px] font-black text-slate-300 uppercase">Disponível em tudo</span>
+                          )}
                        </div>
                      ))}
                   </div>
                </div>
             )}
 
+            {activeView === 'sabores' && (
+              <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div>
+                    <h2 className="text-4xl font-black text-slate-800 uppercase tracking-tighter">Gestão de Sabores</h2>
+                    <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-2">Cadastre os sabores disponíveis para seus produtos (ex: sucos).</p>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Nome do Sabor</label>
+                      <input 
+                        type="text" 
+                        value={flavorName} 
+                        onChange={e => setFlavorName(e.target.value)} 
+                        placeholder="Ex: Morango, Abacaxi, Acerola..." 
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 py-5 text-slate-700 font-bold focus:border-emerald-500 focus:bg-white transition-all outline-none text-lg" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Vincular a Categorias</label>
+                        <div className="max-h-40 overflow-y-auto p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                          {categories.map(cat => (
+                            <label key={cat.id} className="flex items-center gap-2 cursor-pointer group">
+                              <input 
+                                type="checkbox" 
+                                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                checked={flavorCategories.includes(cat.id)}
+                                onChange={() => setFlavorCategories(prev => prev.includes(cat.id) ? prev.filter(id => id !== cat.id) : [...prev, cat.id])}
+                              />
+                              <span className="text-xs font-bold text-slate-600 uppercase truncate">{cat.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Vincular a Subcategorias</label>
+                        <div className="max-h-40 overflow-y-auto p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                          {subCategories.map(sub => (
+                            <label key={sub.id} className="flex items-center gap-2 cursor-pointer group">
+                              <input 
+                                type="checkbox" 
+                                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                checked={flavorSubCategories.includes(sub.id)}
+                                onChange={() => setFlavorSubCategories(prev => prev.includes(sub.id) ? prev.filter(id => id !== sub.id) : [...prev, sub.id])}
+                              />
+                              <span className="text-xs font-bold text-slate-600 uppercase truncate">{sub.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-4 border-t border-slate-100">
+                    <button 
+                      onClick={() => { 
+                        if (!flavorName) return alert('Digite o nome do sabor');
+                        if (editingFlavorId) {
+                          onUpdateFlavor(editingFlavorId, flavorName, flavorCategories, flavorSubCategories);
+                          setEditingFlavorId(null);
+                        } else {
+                          onAddFlavor(flavorName, flavorCategories, flavorSubCategories);
+                        }
+                        setFlavorName(''); 
+                        setFlavorCategories([]);
+                        setFlavorSubCategories([]);
+                      }} 
+                      className="w-full md:w-auto bg-emerald-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-900/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <span>{editingFlavorId ? '💾' : '➕'}</span> {editingFlavorId ? 'Salvar Alterações' : 'Adicionar Novo Sabor'}
+                    </button>
+                    {editingFlavorId && (
+                      <button onClick={() => { setEditingFlavorId(null); setFlavorName(''); setFlavorCategories([]); setFlavorSubCategories([]); }} className="ml-4 text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-slate-600">Cancelar</button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {flavors.map(f => (
+                    <div key={f.id} className={`bg-white p-6 rounded-[32px] border-2 transition-all ${f.active ? 'border-slate-100' : 'border-red-100 opacity-60'}`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${f.active ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>🍓</div>
+                          <div>
+                            <h4 className="font-black text-slate-800 uppercase tracking-tight">{f.name}</h4>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f.active ? 'Ativo' : 'Inativo'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => { 
+                            setEditingFlavorId(f.id); 
+                            setFlavorName(f.name);
+                            setFlavorCategories(f.applicable_categories || []);
+                            setFlavorSubCategories(f.applicable_subcategories || []);
+                            formTopRef.current?.scrollIntoView({ behavior: 'smooth' });
+                          }} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all">✏️</button>
+                          <button onClick={() => onToggleFlavor(f.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${f.active ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>{f.active ? '🚫' : '✅'}</button>
+                          <button onClick={() => requestDelete('FLAVOR', f.id, f.name)} className="w-10 h-10 bg-red-50 text-red-400 rounded-xl flex items-center justify-center hover:bg-red-100 hover:text-red-600 transition-all">🗑️</button>
+                        </div>
+                      </div>
+                      {(f.applicable_categories?.length || f.applicable_subcategories?.length) ? (
+                        <div className="flex flex-wrap gap-1">
+                          {f.applicable_categories?.map(catId => (
+                            <span key={catId} className="text-[8px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase">{categories.find(cat => cat.id === catId)?.name}</span>
+                          ))}
+                          {f.applicable_subcategories?.map(subId => (
+                            <span key={subId} className="text-[8px] font-black bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded uppercase">{subCategories.find(sub => sub.id === subId)?.name}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[8px] font-black text-slate-300 uppercase">Disponível em tudo</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {activeView === 'cupons' && (
                <div className="space-y-8 animate-in fade-in">
                   <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">

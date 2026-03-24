@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Navbar } from './components/Navbar.tsx';
 import { FoodCard } from './components/FoodCard.tsx';
 import { CartSidebar } from './components/CartSidebar.tsx';
@@ -41,6 +41,7 @@ const App: React.FC = () => {
   const [zipRanges, setZipRanges] = useState<ZipRange[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentSettings[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [flavors, setFlavors] = useState<Flavor[]>([]);
   
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [isKioskMode, setIsKioskMode] = useState(() => safeStorage.getItem('nl_kiosk_enabled') === 'true');
@@ -266,6 +267,7 @@ const App: React.FC = () => {
         if (data) setSubCategories([...data].sort((a, b) => a.name.localeCompare(b.name)));
       }),
       dbService.subscribe<Complement[]>('complements', (data) => data && setComplements(data)),
+      dbService.subscribe<Flavor[]>('flavors', (data) => data && setFlavors(data)),
       dbService.subscribe<ZipRange[]>('zip_ranges', (data) => data && setZipRanges(data)),
       dbService.subscribe<PaymentSettings[]>('payment_methods', (data) => {
         if (data) {
@@ -426,7 +428,7 @@ const App: React.FC = () => {
         unsubs.forEach(u => u && u());
         clearTimeout(fallbackTimer);
     };
-  }, [currentUser?.email, isAdmin, isMotoboyAuthenticated]);
+  }, [currentUser?.email, isAdmin, isMotoboyAuthenticated, categories.length, coupons.length, currentUser, orders.length, paymentMethods.length]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -518,6 +520,10 @@ const App: React.FC = () => {
     }
   }, [orders, waitingForPaymentOrderId]);
 
+  const sortedCategories = useMemo(() => [...categories].sort((a, b) => a.name.localeCompare(b.name)), [categories]);
+  const sortedSubCategories = useMemo(() => [...subCategories].sort((a, b) => a.name.localeCompare(b.name)), [subCategories]);
+  const sortedProducts = useMemo(() => [...products].sort((a, b) => a.name.localeCompare(b.name)), [products]);
+  const sortedFlavors = useMemo(() => [...flavors].sort((a, b) => a.name.localeCompare(b.name)), [flavors]);
   const currentDeliveryFee = useMemo(() => {
     if (!currentUser || !zipRanges.length || isKioskMode) return 0;
     const rawZip = currentUser.zipCode.replace(/\D/g, '');
@@ -533,29 +539,41 @@ const App: React.FC = () => {
   }, [currentUser, zipRanges, isKioskMode]);
 
   const groupedMenu = useMemo(() => {
-    if (!products) return [];
-    return [...products]
+    if (!sortedProducts) return [];
+    return [...sortedProducts]
       .filter(p => {
         const s = safeNormalize(searchTerm);
         const matchesSearch = !s || safeNormalize(p.name).includes(s) || safeNormalize(p.description).includes(s);
         const matchesCategory = selectedCategory === 'Todos' || safeNormalize(p.category) === safeNormalize(selectedCategory);
         const matchesSubCategory = selectedSubCategoryValue === 'Todos' || safeNormalize(p.subCategory) === safeNormalize(selectedSubCategoryValue);
         return matchesSearch && matchesCategory && matchesSubCategory;
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [products, searchTerm, selectedCategory, selectedSubCategoryValue]);
+      });
+  }, [sortedProducts, searchTerm, selectedCategory, selectedSubCategoryValue]);
 
   const activeSubCategories = useMemo(() => {
     if (selectedCategory === 'Todos') return [];
-    const currentCat = categories.find(c => safeNormalize(c.name) === safeNormalize(selectedCategory));
+    const currentCat = sortedCategories.find(c => safeNormalize(c.name) === safeNormalize(selectedCategory));
     if (!currentCat) return [];
-    return subCategories.filter(s => s.categoryId === currentCat.id).sort((a, b) => a.name.localeCompare(b.name));
-  }, [selectedCategory, categories, subCategories]);
+    return sortedSubCategories.filter(s => s.categoryId === currentCat.id);
+  }, [selectedCategory, sortedCategories, sortedSubCategories]);
 
-  const handleAddToCart = (product: Product, quantity: number, comps?: Complement[]) => {
+  const handleAddToCart = (product: Product, quantity: number, comps?: Complement[], flavor?: Flavor) => {
+    // Se o produto tem sabores (vinculados diretamente, via categoria ou via subcategoria) e nenhum foi selecionado, abre o modal para escolha
+    const productCategory = categories.find(c => safeNormalize(c.name) === safeNormalize(product.category));
+    const productSubCategory = sortedSubCategories.find(s => safeNormalize(s.name) === safeNormalize(product.subCategory || '') && s.categoryId === productCategory?.id);
+    
+    const hasCategoryFlavors = flavors.some(f => f.active && productCategory && f.applicable_categories?.includes(productCategory.id));
+    const hasSubCategoryFlavors = flavors.some(f => f.active && productSubCategory && f.applicable_subcategories?.includes(productSubCategory.id));
+    const hasProductFlavors = product.flavors && product.flavors.length > 0;
+
+    if ((hasProductFlavors || hasCategoryFlavors || hasSubCategoryFlavors) && !flavor) {
+      setSelectedProduct(product);
+      return;
+    }
+
     const compsPrice = comps?.reduce((acc, c) => acc + (c.price || 0), 0) || 0;
     const finalPrice = product.price + compsPrice;
-    setCart(prev => [...prev, { ...product, price: finalPrice, quantity, selectedComplements: comps }]);
+    setCart(prev => [...prev, { ...product, price: finalPrice, quantity, selectedComplements: comps, selectedFlavor: flavor }]);
     setToast({ show: true, msg: `${quantity}x ${product.name} no carrinho!`, type: 'success' });
     setIsCartOpen(true);
   };
@@ -879,19 +897,19 @@ const App: React.FC = () => {
     } 
   };
 
-  const onMotoboyClick = () => {
+  const onMotoboyClick = useCallback(() => {
     if (isMotoboyAuthenticated) {
       setActiveView('motoboy');
     } else {
       setIsMotoboyLoginOpen(true);
     }
-  };
+  }, [isMotoboyAuthenticated]);
 
   useEffect(() => {
     const handleOpenMotoboy = () => onMotoboyClick();
     window.addEventListener('open-motoboy-portal', handleOpenMotoboy);
     return () => window.removeEventListener('open-motoboy-portal', handleOpenMotoboy);
-  }, [isMotoboyAuthenticated]);
+  }, [onMotoboyClick]);
 
   if (isKioskMode && !kioskStarted && !isAdmin) {
     return (
@@ -943,7 +961,7 @@ const App: React.FC = () => {
       <main className="flex-1 w-full relative">
         {isAdmin ? (
           <AdminPanel 
-            products={products} orders={orders} customers={customers} zipRanges={zipRanges} categories={categories} subCategories={subCategories} complements={complements} coupons={coupons} 
+            products={sortedProducts} orders={orders} customers={customers} zipRanges={zipRanges} categories={sortedCategories} subCategories={sortedSubCategories} complements={complements} flavors={sortedFlavors} coupons={coupons} 
             isStoreOpen={isStoreOpen} onToggleStore={() => { const next = !isStoreOpen; setIsStoreOpen(next); dbService.save('settings', 'general', { isStoreOpen: next }); }} 
             isKioskMode={isKioskMode} onToggleKioskMode={() => { const next = !isKioskMode; setIsKioskMode(next); safeStorage.setItem('nl_kiosk_enabled', String(next)); }} 
             logoUrl={logoUrl} onUpdateLogo={(url) => dbService.save('settings', 'general', { logoUrl: url })} socialLinks={socialLinks} onUpdateSocialLinks={(links) => dbService.save('settings', 'general', { ...links })} 
@@ -951,7 +969,8 @@ const App: React.FC = () => {
             onAddProduct={(p) => dbService.save('products', Math.random().toString(36).substring(7), p)} onDeleteProduct={(id) => dbService.remove('products', id)} onUpdateProduct={(p) => dbService.save('products', p.id, p)} 
             onUpdateOrderStatus={(id, status) => dbService.save('orders', id, { status })} onDeleteOrder={(id) => dbService.remove('orders', id)} 
             onUpdateCustomer={(id, updates) => dbService.save('customers', id, updates)} onAddCategory={(name) => dbService.save('categories', Math.random().toString(36).substring(7), { name })} onRemoveCategory={(id) => dbService.remove('categories', id)} onUpdateCategory={(id, name) => dbService.save('categories', id, { name })} onAddSubCategory={(catId, name) => dbService.save('sub_categories', Math.random().toString(36).substring(7), { categoryId: catId, name })} onUpdateSubCategory={(id, name, catId) => dbService.save('sub_categories', id, { name, categoryId: catId })} onRemoveSubCategory={(id) => dbService.remove('sub_categories', id)} 
-            onAddComplement={(name, price, cats) => dbService.save('complements', Math.random().toString(36).substring(7), { name, price, applicable_categories: cats, active: true })} onUpdateComplement={(id) => dbService.remove('complements', id)} onToggleComplement={(id) => { const c = complements.find(x => x.id === id); if (c) dbService.save('complements', id, { active: !c.active }); }} onRemoveComplement={(id) => dbService.remove('complements', id)} 
+            onAddComplement={(name, price, cats, subs) => dbService.save('complements', Math.random().toString(36).substring(7), { name, price, applicable_categories: cats, applicable_subcategories: subs, active: true })} onUpdateComplement={(id, name, price, cats, subs) => dbService.save('complements', id, { name, price, applicable_categories: cats, applicable_subcategories: subs })} onToggleComplement={(id) => { const c = complements.find(x => x.id === id); if (c) dbService.save('complements', id, { active: !c.active }); }} onRemoveComplement={(id) => dbService.remove('complements', id)} 
+            onAddFlavor={(name, cats, subs) => dbService.save('flavors', Math.random().toString(36).substring(7), { name, applicable_categories: cats, applicable_subcategories: subs, active: true })} onUpdateFlavor={(id, name, cats, subs) => dbService.save('flavors', id, { name, applicable_categories: cats, applicable_subcategories: subs })} onToggleFlavor={(id) => { const f = flavors.find(x => x.id === id); if (f) dbService.save('flavors', id, { active: !f.active }); }} onRemoveFlavor={(id) => dbService.remove('flavors', id)}
             onAddZipRange={(start, end, fee) => dbService.save('zip_ranges', Math.random().toString(36).substring(7), { start, end, fee })} onUpdateZipRange={(id, start, end, fee) => dbService.save('zip_ranges', id, { start, end, fee })} onRemoveZipRange={(id) => dbService.remove('zip_ranges', id)} 
             onAddCoupon={(code, discount, type) => dbService.save('coupons', Math.random().toString(36).substring(7), { code, discount, type, active: true })} onRemoveCoupon={(id) => dbService.remove('coupons', id)} 
             paymentSettings={paymentMethods} onTogglePaymentMethod={(id) => { const p = paymentMethods.find(x => x.id === id); if (p) dbService.save('payment_methods', id, { enabled: !p.enabled }); }} onAddPaymentMethod={(name, type) => dbService.save('payment_methods', Math.random().toString(36).substring(7), { name, type, enabled: true, integration: 'NONE' })} onRemovePaymentMethod={(id) => dbService.remove('payment_methods', id)} onUpdatePaymentSettings={(id, updates) => dbService.save('payment_methods', id, updates)} 
@@ -1022,7 +1041,7 @@ const App: React.FC = () => {
             <div id="menu-anchor" className="bg-slate-100 shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 sticky top-[80px] sm:top-[112px] z-[40]">
                <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
                  <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-4 py-2 sm:px-6 sm:py-3 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Todos</button>
-                 {categories.map(cat => (
+                 {sortedCategories.map(cat => (
                    <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-4 py-2 sm:px-6 sm:py-3 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>{cat.name}</button>
                  ))}
                </div>
@@ -1083,7 +1102,7 @@ const App: React.FC = () => {
         deliveryFee={currentDeliveryFee} availableCoupons={coupons} isStoreOpen={isStoreOpen} isProcessing={isOrderProcessing}
         onShowToast={(msg, type) => setToast({ show: true, msg, type })}
       />
-      <ProductModal product={selectedProduct} complements={complements} categories={categories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
+      <ProductModal product={selectedProduct} complements={complements} flavors={flavors} categories={categories} subCategories={sortedSubCategories} onClose={() => setSelectedProduct(null)} onAdd={handleAddToCart} isStoreOpen={isStoreOpen} />
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 

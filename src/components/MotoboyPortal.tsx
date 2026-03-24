@@ -164,6 +164,27 @@ export const MotoboyPortal: React.FC<MotoboyPortalProps> = ({ orders, motoboyNam
                 <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide ${order.status === 'SAIU PARA ENTREGA' ? 'bg-purple-100 text-purple-600' : 'bg-yellow-100 text-yellow-600'}`}>{order.status}</span>
               </div>
 
+              <div className="space-y-2 mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Itens do Pedido:</h4>
+                {order.items.map((item, idx) => (
+                  <div key={idx} className="flex flex-col text-xs font-bold text-slate-700 border-b border-slate-200/50 pb-2 last:border-0">
+                    <div className="flex justify-between">
+                      <span>{item.quantity}x {item.name}</span>
+                    </div>
+                    {item.selectedFlavor && (
+                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">
+                        🍓 Sabor: {item.selectedFlavor.name}
+                      </span>
+                    )}
+                    {item.selectedComplements && item.selectedComplements.length > 0 && (
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">
+                        + {item.selectedComplements.map(c => c.name).join(', ')}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-4">
                 <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customerAddress)}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-colors shadow-lg shadow-slate-900/20 active:scale-95 flex items-center justify-center gap-2">
                   <span>Abrir Mapa</span>

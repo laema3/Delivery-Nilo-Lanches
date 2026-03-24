@@ -106,7 +106,17 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                       <h4 className="font-black text-slate-800 text-sm uppercase truncate pr-2">{item.name}</h4>
                       <button onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600 text-xs">🗑️</button>
                     </div>
-                    <p className="text-emerald-600 font-black text-xs mb-2">R$ {item.price.toFixed(2)}</p>
+                    <p className="text-emerald-600 font-black text-xs mb-1">R$ {item.price.toFixed(2)}</p>
+                    {item.selectedFlavor && (
+                      <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1 flex items-center gap-1">
+                        <span className="text-xs">🍓</span> Sabor: {item.selectedFlavor.name}
+                      </p>
+                    )}
+                    {item.selectedComplements && item.selectedComplements.length > 0 && (
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-2 leading-tight">
+                        + {item.selectedComplements.map(c => c.name).join(', ')}
+                      </p>
+                    )}
                     <div className="flex items-center gap-3 bg-white w-fit px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
                       <button onClick={() => onUpdateQuantity(item.id, -1)} className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-emerald-600 font-black">-</button>
                       <span className="text-xs font-black text-slate-800 w-4 text-center">{item.quantity}</span>

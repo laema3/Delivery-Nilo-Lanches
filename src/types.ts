@@ -10,6 +10,7 @@ export interface Product {
   rating: number;
   calories?: number;
   complements?: string[];
+  flavors?: string[];
 }
 
 export interface CategoryItem { 
@@ -29,11 +30,21 @@ export interface Complement {
   price: number; 
   active: boolean; 
   applicable_categories?: string[]; 
+  applicable_subcategories?: string[]; 
+}
+
+export interface Flavor {
+  id: string;
+  name: string;
+  active: boolean;
+  applicable_categories?: string[];
+  applicable_subcategories?: string[];
 }
 
 export interface CartItem extends Product { 
   quantity: number; 
   selectedComplements?: Complement[]; 
+  selectedFlavor?: Flavor;
 }
 
 export type OrderStatus = 'NOVO' | 'PREPARANDO' | 'PRONTO PARA RETIRADA' | 'SAIU PARA ENTREGA' | 'FINALIZADO' | 'CANCELADO' | 'AGUARDANDO PAGAMENTO';

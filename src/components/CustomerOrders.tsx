@@ -102,9 +102,21 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ orders, onBack, 
 
               <div className="space-y-3 mb-6">
                 {order.items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm font-medium text-slate-600 border-b border-slate-50 pb-2 last:border-0">
-                    <span>{item.quantity}x {item.name}</span>
-                    <span className="font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                  <div key={idx} className="flex flex-col text-sm font-medium text-slate-600 border-b border-slate-50 pb-2 last:border-0">
+                    <div className="flex justify-between">
+                      <span>{item.quantity}x {item.name}</span>
+                      <span className="font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                    {item.selectedFlavor && (
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">
+                        🍓 Sabor: {item.selectedFlavor.name}
+                      </span>
+                    )}
+                    {item.selectedComplements && item.selectedComplements.length > 0 && (
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1">
+                        + {item.selectedComplements.map(c => c.name).join(', ')}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
