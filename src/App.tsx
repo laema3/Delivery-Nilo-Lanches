@@ -557,6 +557,18 @@ const App: React.FC = () => {
     return sortedSubCategories.filter(s => s.categoryId === currentCat.id);
   }, [selectedCategory, sortedCategories, sortedSubCategories]);
 
+  // Auto-cycle mobile subcategories
+  useEffect(() => {
+    if (window.innerWidth < 768 && activeSubCategories.length > 0) {
+      const interval = setInterval(() => {
+        const currentIndex = activeSubCategories.findIndex(sub => sub.name === selectedSubCategoryValue);
+        const nextIndex = (currentIndex + 1) % activeSubCategories.length;
+        setSelectedSubCategory(activeSubCategories[nextIndex].name);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [activeSubCategories, selectedSubCategoryValue]);
+
   const handleAddToCart = (product: Product, quantity: number, comps?: Complement[], flavor?: Flavor) => {
     // Se o produto tem sabores (vinculados diretamente, via categoria ou via subcategoria) e nenhum foi selecionado, abre o modal para escolha
     const productCategory = categories.find(c => safeNormalize(c.name) === safeNormalize(product.category));

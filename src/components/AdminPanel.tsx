@@ -224,7 +224,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   useEffect(() => {
     // O alarme toca APENAS para pedidos NOVOS (finalizados)
-    const newOrders = orders.filter(o => o.status === 'NOVO' && !deletedIds.includes(o.id));
+    const newOrders = (orders || []).filter(o => o.status === 'NOVO' && !deletedIds.includes(o.id));
     const hasNewOrders = newOrders.length > 0;
 
     if (hasNewOrders && audioEnabled) {
@@ -242,7 +242,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     // Cancela automaticamente pedidos "AGUARDANDO PAGAMENTO" que passaram de 3 minutos
     const interval = setInterval(() => {
       const now = new Date().getTime();
-      orders.forEach(order => {
+      (orders || []).forEach(order => {
         if (order.status === 'AGUARDANDO PAGAMENTO') {
           const orderTime = new Date(order.createdAt).getTime();
           const diffMinutes = (now - orderTime) / (1000 * 60);
@@ -269,7 +269,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     const itemsHtml = order.items.map(item => `
       <div class="item-row">
         <span>${item.quantity}x ${item.name}</span>
-        <span>R$ ${(item.price * item.quantity).toFixed(2)}</span>
+        <span>R$ ${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
       </div>
       ${item.selectedFlavor ? `<div style="font-size:10px; padding-left:10px; color:#e11d48; font-weight:bold;">Sabor: ${item.selectedFlavor.name}</div>` : ''}
       ${(item.selectedComplements || []).map(c => `<div style="font-size:10px; padding-left:10px; color:#555;">+ ${c.name}</div>`).join('')}
@@ -306,21 +306,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             <p><strong>Cli:</strong> ${order.customerName}</p>
             <p><strong>Tel:</strong> ${order.customerPhone}</p>
             <p><strong>Status:</strong> ${order.status}</p>
-            <p><strong>Pag:</strong> ${order.paymentMethod}</p>
-            ${order.changeFor ? `<p><strong>Troco p/:</strong> R$ ${order.changeFor.toFixed(2)}</p>` : ''}
+            <p><strong>Pag:</strong> ${order.paymentMethod || 'Não informado'}</p>
+            ${order.changeFor ? `<p><strong>Troco p/:</strong> R$ ${(order.changeFor || 0).toFixed(2)}</p>` : ''}
             ${order.deliveryType === 'DELIVERY' ? `<p><strong>End:</strong> ${order.customerAddress}</p>` : '<p><strong>RETIRADA NO BALCÃO</strong></p>'}
              ${order.couponCode ? `<p><strong>Cupom:</strong> ${order.couponCode}</p>` : ''}
           </div>
           <div class="items">${itemsHtml}</div>
           <div class="totals">
-            <p><span>Subtotal:</span> <span>R$ ${(order.total - order.deliveryFee + (order.discountValue || 0)).toFixed(2)}</span></p>
-            ${order.deliveryFee > 0 ? `<p><span>Taxa Entrega:</span> <span>R$ ${order.deliveryFee.toFixed(2)}</span></p>` : ''}
-            ${order.discountValue ? `<p><span>Desconto:</span> <span>- R$ ${order.discountValue.toFixed(2)}</span></p>` : ''}
+            <p><span>Subtotal:</span> <span>R$ ${((order.total || 0) - (order.deliveryFee || 0) + (order.discountValue || 0)).toFixed(2)}</span></p>
+            ${order.deliveryFee > 0 ? `<p><span>Taxa Entrega:</span> <span>R$ ${(order.deliveryFee || 0).toFixed(2)}</span></p>` : ''}
+            ${order.discountValue ? `<p><span>Desconto:</span> <span>- R$ ${(order.discountValue || 0).toFixed(2)}</span></p>` : ''}
             <div class="total-final">
               <span>TOTAL:</span>
-              <span>R$ ${order.total.toFixed(2)}</span>
+              <span>R$ ${(order.total || 0).toFixed(2)}</span>
             </div>
-            ${order.changeFor ? `<p>Troco: R$ ${(order.changeFor - order.total).toFixed(2)}</p>` : ''}
+            ${order.changeFor ? `<p>Troco: R$ ${((order.changeFor || 0) - (order.total || 0)).toFixed(2)}</p>` : ''}
           </div>
           <div class="footer">
             <p>Obrigado pela preferência!</p>
@@ -349,7 +349,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
   const handleRightSidebarClick = (status: OrderStatus | 'TODOS') => {
     if (selectedOrderId && status !== 'TODOS') {
       onUpdateOrderStatus(selectedOrderId, status as OrderStatus);
-      const order = orders.find(o => o.id === selectedOrderId);
+      const order = (orders || []).find(o => o.id === selectedOrderId);
       if (order && order.status === 'NOVO' && status !== 'NOVO') {
         stopAlarm();
       }
@@ -512,7 +512,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     reader.readAsText(file);
   };
 
-  const activeOrdersCount = orders.filter(o => o.status === 'NOVO' && !deletedIds.includes(o.id)).length;
+  const activeOrdersCount = (orders || []).filter(o => o.status === 'NOVO' && !deletedIds.includes(o.id)).length;
 
   const cardClass = "bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all";
   const inputClass = "w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-base text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all placeholder:text-slate-400";
@@ -607,11 +607,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in">
                  <div className={cardClass}>
                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Total de Pedidos</p>
-                   <p className="text-4xl font-black text-slate-800 mt-2">{orders.length}</p>
+                   <p className="text-4xl font-black text-slate-800 mt-2">{(orders || []).length}</p>
                  </div>
                  <div className={cardClass}>
                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Faturamento</p>
-                   <p className="text-4xl font-black text-emerald-600 mt-2">R$ {orders.reduce((acc, o) => acc + o.total, 0).toFixed(2)}</p>
+                   <p className="text-4xl font-black text-emerald-600 mt-2">R$ {(orders || []).reduce((acc, o) => acc + (o.total || 0), 0).toFixed(2)}</p>
                  </div>
                  <div className={cardClass}>
                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Clientes</p>
@@ -627,7 +627,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             {activeView === 'pedidos' && (
               <div className="animate-in fade-in duration-500">
                  <div className="grid grid-cols-1 gap-8 w-full max-w-4xl mr-auto">
-                    {orders
+                    {(orders || [])
                       .filter(o => (activeOrderTab === 'TODOS' || o.status === activeOrderTab) && !deletedIds.includes(o.id))
                       .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                       .map(order => (
@@ -638,9 +638,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                  <span className="text-2xl font-black text-slate-800">#{order.id.substring(0,6)}</span>
                                  
                                  {/* SELOS DE PAGAMENTO */}
-                                 {order.paymentMethod.toUpperCase().includes('MERCADO PAGO') ? (
+                                 {order.paymentMethod?.toUpperCase().includes('MERCADO PAGO') ? (
                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${order.status === 'AGUARDANDO PAGAMENTO' ? 'bg-amber-50 border-amber-500 text-amber-600' : 'bg-emerald-50 border-emerald-500 text-emerald-600'}`}>
-                                     {order.status === 'AGUARDANDO PAGAMENTO' ? '⌛ AGUARDANDO PIX' : `✅ ${order.paymentMethod.replace('Mercado Pago - ', 'MP ').replace('Mercado Pago', 'MP')} - OK`.toUpperCase()}
+                                     {order.status === 'AGUARDANDO PAGAMENTO' ? '⌛ AGUARDANDO PIX' : `✅ ${(order.paymentMethod || '').replace('Mercado Pago - ', 'MP ').replace('Mercado Pago', 'MP')} - OK`.toUpperCase()}
                                    </span>
                                  ) : (
                                    <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 bg-blue-50 border-blue-500 text-blue-600">
@@ -678,7 +678,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                             </div>
                             <div className="mt-6 pt-6 border-t border-slate-100">
                                <ul className="space-y-3">
-                                {order.items.map((item, idx) => (
+                                {Array.isArray(order.items) && order.items.map((item, idx) => (
                                   <li key={idx} className="flex justify-between items-start text-sm">
                                     <div className="flex flex-col">
                                        <span className="font-black text-slate-700 uppercase leading-none">{item.quantity}x {item.name}</span>
@@ -695,11 +695,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                               </ul>
                               <div className="mt-4 pt-4 border-t border-dashed border-slate-200 flex justify-between items-end">
                                  <div>
-                                   <div className="text-xs font-bold text-slate-400 uppercase">{order.paymentMethod}</div>
-                                   {order.deliveryFee > 0 && <div className="text-[10px] font-bold text-slate-400 uppercase">Frete: R$ {order.deliveryFee.toFixed(2)}</div>}
-                                   {order.discountValue && order.discountValue > 0 && <div className="text-[10px] font-bold text-emerald-500 uppercase">Desc: - R$ {order.discountValue.toFixed(2)}</div>}
+                                   <div className="text-xs font-bold text-slate-400 uppercase">{order.paymentMethod || 'Não informado'}</div>
+                                   {order.deliveryFee > 0 && <div className="text-[10px] font-bold text-slate-400 uppercase">Frete: R$ {(order.deliveryFee || 0).toFixed(2)}</div>}
+                                   {order.discountValue && order.discountValue > 0 && <div className="text-[10px] font-bold text-emerald-500 uppercase">Desc: - R$ {(order.discountValue || 0).toFixed(2)}</div>}
                                  </div>
-                                 <div className="text-2xl font-black text-emerald-600">Total: R$ {order.total.toFixed(2)}</div>
+                                 <div className="text-2xl font-black text-emerald-600">Total: R$ {(order.total || 0).toFixed(2)}</div>
                               </div>
                             </div>
                           </div>
@@ -1539,7 +1539,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                    {status} 
                    {status !== 'TODOS' && !selectedOrderId && (
                      <span className={`ml-2 px-1.5 py-0.5 rounded text-[9px] ${activeOrderTab === status ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                       {orders.filter(o => o.status === status && !deletedIds.includes(o.id)).length}
+                       {(orders || []).filter(o => o.status === status && !deletedIds.includes(o.id)).length}
                      </span>
                    )}
                  </button>
