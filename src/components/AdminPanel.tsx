@@ -185,6 +185,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const formTopRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const [userInteractedWithNav, setUserInteractedWithNav] = useState(false);
+
+  useEffect(() => {
+    const isMobile = window.innerWidth < 1024;
+    if (!isMobile || userInteractedWithNav) return;
+
+    let scrollDirection = 1;
+    const interval = setInterval(() => {
+      if (navRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = navRef.current;
+        if (scrollLeft + clientWidth >= scrollWidth - 10) {
+          scrollDirection = -1;
+        } else if (scrollLeft <= 10) {
+          scrollDirection = 1;
+        }
+        navRef.current.scrollBy({ left: (clientWidth * 0.5) * scrollDirection, behavior: 'smooth' });
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [userInteractedWithNav]);
 
   useEffect(() => {
     setLocalMercadoPagoToken(paymentConfig?.mercadopagoAccessToken || '');
@@ -555,18 +577,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto no-scrollbar">
+        <nav 
+          ref={navRef} 
+          onTouchStart={() => setUserInteractedWithNav(true)}
+          onMouseDown={() => setUserInteractedWithNav(true)}
+          className="flex-1 p-4 flex flex-row lg:flex-col gap-2 lg:gap-0 lg:space-y-1 overflow-x-auto lg:overflow-x-hidden overflow-y-hidden lg:overflow-y-auto no-scrollbar snap-x snap-mandatory"
+        >
           <NavItem active={activeView === 'dashboard'} icon="📊" label="Dashboard" onClick={() => setActiveView('dashboard')} />
           <NavItem active={activeView === 'pedidos'} icon="🛍️" label="Pedidos" onClick={() => setActiveView('pedidos')} badge={activeOrdersCount > 0 ? activeOrdersCount : undefined} />
           
-          <div className="pt-6 pb-2 px-4 text-xs font-black text-slate-600 uppercase tracking-widest">Cardápio</div>
+          <div className="hidden lg:block pt-6 pb-2 px-4 text-xs font-black text-slate-600 uppercase tracking-widest">Cardápio</div>
           <NavItem active={activeView === 'produtos'} icon="🍔" label="Produtos" onClick={() => setActiveView('produtos')} />
           <NavItem active={activeView === 'categorias'} icon="📁" label="Categorias" onClick={() => setActiveView('categorias')} />
           <NavItem active={activeView === 'subcategorias'} icon="🌿" label="Subcategorias" onClick={() => setActiveView('subcategorias')} />
           <NavItem active={activeView === 'adicionais'} icon="➕" label="Adicionais" onClick={() => setActiveView('adicionais')} />
           <NavItem active={activeView === 'sabores'} icon="🍓" label="Sabores" onClick={() => setActiveView('sabores')} />
           
-          <div className="pt-6 pb-2 px-4 text-xs font-black text-slate-600 uppercase tracking-widest">Gestão</div>
+          <div className="hidden lg:block pt-6 pb-2 px-4 text-xs font-black text-slate-600 uppercase tracking-widest">Gestão</div>
           <NavItem active={activeView === 'cupons'} icon="🏷️" label="Cupons" onClick={() => setActiveView('cupons')} />
           <NavItem active={activeView === 'entregas'} icon="🚚" label="Taxas Frete" onClick={() => setActiveView('entregas')} />
           <NavItem active={activeView === 'clientes'} icon="👥" label="Clientes" onClick={() => setActiveView('clientes')} />
@@ -1581,11 +1608,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 };
 
 const NavItem: React.FC<{ active: boolean; icon: string; label: string; onClick: () => void; badge?: number }> = ({ active, icon, label, onClick, badge }) => (
-  <button onClick={onClick} className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group ${active ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}`}>
+  <button onClick={onClick} className={`w-auto lg:w-full shrink-0 flex items-center justify-between px-5 py-4 rounded-2xl transition-all group snap-start ${active ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}`}>
     <div className="flex items-center gap-4">
        <span className="text-xl group-hover:scale-110 transition-transform">{icon}</span>
-       <span className="font-black uppercase tracking-widest text-xs">{label}</span>
+       <span className="font-black uppercase tracking-widest text-xs whitespace-nowrap">{label}</span>
     </div>
-    {badge !== undefined && <span className={`min-w-[24px] h-6 flex items-center justify-center rounded-full text-[10px] font-black px-2 ${active ? 'bg-white text-emerald-600' : 'bg-blue-600 text-white animate-pulse'}`}>{badge}</span>}
+    {badge !== undefined && <span className={`ml-3 min-w-[24px] h-6 flex items-center justify-center rounded-full text-[10px] font-black px-2 ${active ? 'bg-white text-emerald-600' : 'bg-blue-600 text-white animate-pulse'}`}>{badge}</span>}
   </button>
 );

@@ -557,17 +557,31 @@ const App: React.FC = () => {
     return sortedSubCategories.filter(s => s.categoryId === currentCat.id);
   }, [selectedCategory, sortedCategories, sortedSubCategories]);
 
-  // Auto-cycle mobile subcategories
+  const categoriesRef = useRef<HTMLDivElement>(null);
+  const subCategoriesRef = useRef<HTMLDivElement>(null);
+  const [userInteractedWithCats, setUserInteractedWithCats] = useState(false);
+
+  // Auto-scroll mobile categories/subcategories to show all options
   useEffect(() => {
-    if (window.innerWidth < 768 && activeSubCategories.length > 0) {
-      const interval = setInterval(() => {
-        const currentIndex = activeSubCategories.findIndex(sub => sub.name === selectedSubCategoryValue);
-        const nextIndex = (currentIndex + 1) % activeSubCategories.length;
-        setSelectedSubCategory(activeSubCategories[nextIndex].name);
-      }, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [activeSubCategories, selectedSubCategoryValue]);
+    if (window.innerWidth >= 768 || userInteractedWithCats) return;
+    
+    let direction = 1;
+    const interval = setInterval(() => {
+      if (categoriesRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = categoriesRef.current;
+        if (scrollLeft + clientWidth >= scrollWidth - 10) direction = -1;
+        else if (scrollLeft <= 10) direction = 1;
+        categoriesRef.current.scrollBy({ left: (clientWidth * 0.5) * direction, behavior: 'smooth' });
+      }
+      if (subCategoriesRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = subCategoriesRef.current;
+        if (scrollLeft + clientWidth >= scrollWidth - 10) direction = -1;
+        else if (scrollLeft <= 10) direction = 1;
+        subCategoriesRef.current.scrollBy({ left: (clientWidth * 0.5) * direction, behavior: 'smooth' });
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [userInteractedWithCats]);
 
   const handleAddToCart = (product: Product, quantity: number, comps?: Complement[], flavor?: Flavor) => {
     // Se o produto tem sabores (vinculados diretamente, via categoria ou via subcategoria) e nenhum foi selecionado, abre o modal para escolha
@@ -1051,18 +1065,28 @@ const App: React.FC = () => {
             )}
             
             <div id="menu-anchor" className="bg-slate-100 shadow-md border-b border-slate-200 w-full flex flex-col items-center py-4 gap-3 sticky top-[80px] sm:top-[112px] z-[40]">
-               <div className="flex justify-start md:justify-center gap-3 overflow-x-auto no-scrollbar w-full max-w-7xl px-4">
-                 <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`px-4 py-2 sm:px-6 sm:py-3 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Todos</button>
+               <div 
+                 ref={categoriesRef}
+                 onTouchStart={() => setUserInteractedWithCats(true)}
+                 onMouseDown={() => setUserInteractedWithCats(true)}
+                 className="flex justify-start md:justify-center gap-3 overflow-x-auto w-full max-w-7xl px-4 pb-2 snap-x snap-mandatory"
+               >
+                 <button onClick={() => { setSelectedCategory('Todos'); setSelectedSubCategory('Todos'); }} className={`snap-start px-4 py-2 sm:px-6 sm:py-3 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === 'Todos' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Todos</button>
                  {sortedCategories.map(cat => (
-                   <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`px-4 py-2 sm:px-6 sm:py-3 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>{cat.name}</button>
+                   <button key={cat.id} onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory('Todos'); }} className={`snap-start px-4 py-2 sm:px-6 sm:py-3 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shrink-0 transition-all ${selectedCategory === cat.name ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>{cat.name}</button>
                  ))}
                </div>
                
                {activeSubCategories.length > 0 && (
-                 <div className="flex justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar w-full max-w-7xl px-4 pb-2 animate-in slide-in-from-top-2 duration-300">
-                   <button onClick={() => setSelectedSubCategory('Todos')} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategoryValue === 'Todos' ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Tudo</button>
+                 <div 
+                   ref={subCategoriesRef}
+                   onTouchStart={() => setUserInteractedWithCats(true)}
+                   onMouseDown={() => setUserInteractedWithCats(true)}
+                   className="flex justify-start md:justify-center gap-2 overflow-x-auto w-full max-w-7xl px-4 pb-2 animate-in slide-in-from-top-2 duration-300 snap-x snap-mandatory"
+                 >
+                   <button onClick={() => setSelectedSubCategory('Todos')} className={`snap-start px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategoryValue === 'Todos' ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>Tudo</button>
                    {activeSubCategories.map(sub => (
-                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategoryValue === sub.name ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>{sub.name}</button>
+                     <button key={sub.id} onClick={() => setSelectedSubCategory(sub.name)} className={`snap-start px-4 py-1.5 rounded-full text-[9px] sm:text-[11px] font-black uppercase shrink-0 transition-all ${selectedSubCategoryValue === sub.name ? 'bg-yellow-400 text-slate-900 shadow-lg' : 'bg-white text-slate-600 shadow-sm'}`}>{sub.name}</button>
                    ))}
                  </div>
                )}
