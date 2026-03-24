@@ -54,6 +54,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, complements
     
     // Se o produto tem sabores (ex: sucos), não mostramos adicionais globais (sem restrição)
     // Mostramos apenas adicionais que foram explicitamente vinculados à categoria ou subcategoria do produto
+    const isJuice = productCategory && (
+      safeNormalize(productCategory.name).includes('suco') || 
+      safeNormalize(productCategory.name).includes('bebida')
+    );
+    
     const hasFlavors = applicableFlavors.length > 0;
     
     const hasCatRestriction = c.applicable_categories && c.applicable_categories.length > 0;
@@ -62,8 +67,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, complements
     const matchesCat = productCategory && c.applicable_categories?.includes(productCategory.id);
     const matchesSub = productSubCategory && c.applicable_subcategories?.includes(productSubCategory.id);
 
-    if (hasFlavors) {
-      // Para produtos com sabores, só mostramos o que for explicitamente vinculado
+    if (hasFlavors || isJuice) {
+      // Para sucos ou produtos com sabores, só mostramos o que for explicitamente vinculado
       return matchesCat || matchesSub;
     }
     
